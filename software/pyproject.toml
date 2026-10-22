@@ -1,0 +1,22 @@
+[project]
+name = "gr00t-arm"
+version = "0.1.0"
+description = "Teleop, recording, dataset export and policy running for the SG90 gr00t-arm"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "pandas",
+    "pyarrow",
+    "pygame-ce",
+    "pyserial",
+    "imageio-ffmpeg",
+    "pyzmq",
+    "msgpack",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false

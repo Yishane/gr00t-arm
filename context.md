@@ -13,7 +13,8 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - PRIORITY: keep the arm as simple as possible — just functional. The point of the
   project is the GR00T connection. Don't add features/parts that don't serve that.
 - No leader arm: gamepad + inverse kinematics teleop. State = commanded servo angles.
-- Microcontroller: Arduino Uno/Nano (firmware also supports ESP32).
+- Microcontroller: Arduino NANO (likely CH340 clone; may need 'old bootloader'). Firmware
+  pins D3,D5,D6,D9,D10 = base,shoulder,elbow,wrist,gripper.
 - Printer: Bambu (A1/P1/X1, 256 mm bed).
 - Power: adjustable bench supply → set 5.5 V, 3 A current limit.
 - Camera: NO USB webcam (don't make him buy one). Use his phone as webcam (Phone Link /
@@ -30,6 +31,9 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
    setup, assembly, wiring, all instructions  4. this file.
 5. He wants to PRESENT "how GR00T works" using this arm → the guide gets a presentable
    GR00T explainer mapped onto the arm (talking points + demo script). NO slide deck.
+
+## Repo
+- GitHub: https://github.com/Yishane/gr00t-arm (PRIVATE). Commit + push after each milestone.
 
 ## Layout
 - `cad/arm.py` — parametric CadQuery source for all parts → `cad/stl/`, `cad/render.py` → `cad/renders/`
@@ -52,7 +56,15 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - [x] Firmware written (not yet compiled)
 - [x] kinematics.py + tests (12 passing), incl. floor-clearance check
 - [x] CAD fixes + work cell (baseplate/mast/cradle/cup) + collision + reach checks + renders
-- [ ] Python: calibrate, teleop+record, LeRobot export, ACT train/run, GR00T modality/finetune/client
+- [x] Python: arm_io (real+sim), recorder, teleop (keyboard/gamepad), autodemo (scripted
+      pick->cup, also auto-collects demos), calibrate, export_dataset (GR00T LeRobot v2.1)
+- [x] software/gr00t/gr00t_arm_config.py (NEW_EMBODIMENT modality config)
+- [x] VERIFIED: GR00T's own LeRobotEpisodeLoader + stats.py load our exported sim dataset
+      (test script pattern: sparse clone of Isaac-GR00T in %TEMP%, OpenCV decode shim because
+      torchcodec lacks FFmpeg DLLs on Windows)
+- [ ] ACT path (lerobot: v2.1->v3 convert, train, run) + run_policy.py (ACT + GR00T client)
+- [ ] GR00T cloud scripts (setup, finetune, serve) + minimal zmq PolicyClient
+- [ ] Gotcha: user needs HF account + access to gated nvidia/Cosmos-Reason2-2B; cloud GPU acct
 - [ ] Compile firmware with arduino-cli
 - [ ] LaTeX guide
 
