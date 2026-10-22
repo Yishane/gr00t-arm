@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# recorded demos and exported datasets are big; keep them out of git
+data/
+outputs/
+checkpoints/
+# per-arm calibration (each physical arm differs)
+software/calibration.json
+# LaTeX build files
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.fls
+docs/*.fdb_latexmk
+docs/*.synctex.gz
