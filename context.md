@@ -2,6 +2,23 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
+## SWITCH TO OPEN-SOURCE ARM (2026-10-22, Yishane's decision) — READ FIRST
+- Arm = "Easy Robot Arm" by mobiobi, Printables 97370, CC BY-NC-SA, files unmodified in
+  cad/stl_opensource/easy_robot_arm/ (19 STLs + author's assembled STEP). He does NOT want
+  Claude to design arm STLs. Keep cad/stl/ (old arm parts kept; work-cell parts 07-12 still used).
+- Decisions: 5 servos on the arm (base, shoulder, elbow, wrist, gripper). The design's wrist-ROLL
+  servo is left OFF (sits on the desk) -> no firmware/dataset/GR00T changes, pins unchanged.
+  Arm60mm x2 for upper arm + forearm. No stepper (he could buy one; advised MG90S at shoulder first).
+- Do NOT recode for a 6th servo. Only numbers in software/config.py change.
+- README.md has the full milestone list (done / to do / how). Keep it updated with context.md.
+- STEP measurements (STEP frame: pitch axes along x, arm plane y-z): shoulder axis (y22.7,z8.2),
+  Arm90 elbow (22.7,98.2), Arm60 wrist at 60 from elbow; off-axis trunk roll axis z=78.3 (~20 below
+  wrist axis); finger gear pins vertical at x -26.9/-42.5 (15.6 apart), pads ~y -123.8 => ~87 mm
+  from wrist axis. Fingers open sideways. Base yaw axis x=-32.9,y=22.7.
+- NEXT (Claude): milestone 1b in README: finish measurements (shoulder height above desk, LATERAL,
+  TOOL_UP, ball grip point, GRIPPER_POINTS), update config.py + tests, reach/cup check, baseplate fit;
+  then milestone 2: guide.tex + assembly.py for the new arm.
+
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a
 gamepad, recording demos in LeRobot format, training ACT locally and fine-tuning
