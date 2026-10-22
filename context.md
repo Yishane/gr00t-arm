@@ -62,10 +62,15 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - [x] VERIFIED: GR00T's own LeRobotEpisodeLoader + stats.py load our exported sim dataset
       (test script pattern: sparse clone of Isaac-GR00T in %TEMP%, OpenCV decode shim because
       torchcodec lacks FFmpeg DLLs on Windows)
-- [ ] ACT path (lerobot: v2.1->v3 convert, train, run) + run_policy.py (ACT + GR00T client)
-- [ ] GR00T cloud scripts (setup, finetune, serve) + minimal zmq PolicyClient
+- [x] ACT path VERIFIED on RTX 5050: software/act (own uv env, lerobot 0.6.1[dataset,training],
+      torch 2.11 cu128). export_act.py (raw -> LeRobot v3), train_act.py (patches Windows
+      'last' symlink crash; ~2.3 step/s @ batch 8, 2.1 GB), run_policy.py act (~23 ms/call).
+- [x] GR00T client VERIFIED: policy_client.py talks to NVIDIA's real PolicyServer (ReplayPolicy
+      test harness in %TEMP%); server replies msgpack_numpy {nd,type,shape,data} arrays.
+      run_policy.py gr00t --host --server-port. Cloud scripts: software/gr00t/{setup_cloud,
+      finetune,serve}.sh (NOT run — needs cloud GPU + HF access).
 - [ ] Gotcha: user needs HF account + access to gated nvidia/Cosmos-Reason2-2B; cloud GPU acct
-- [ ] Compile firmware with arduino-cli
+- [x] Firmware compiles for Nano (arduino-cli via winget); firmware/upload.ps1 <COMx>
 - [ ] LaTeX guide
 
 ## Next

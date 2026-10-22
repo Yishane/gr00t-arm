@@ -1,0 +1,29 @@
+[project]
+name = "gr00t-arm-act"
+version = "0.1.0"
+description = "Local ACT training + running for the gr00t-arm (LeRobot, CUDA)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "lerobot[dataset,training]",
+    "torch",
+    "torchvision",
+    "pyserial",
+    "opencv-python",
+    "pandas",
+    "pyarrow",
+    "pyzmq",
+    "msgpack",
+]
+
+[tool.uv]
+package = false
+
+# RTX 50-series (Blackwell) needs CUDA 12.8 builds of PyTorch
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
