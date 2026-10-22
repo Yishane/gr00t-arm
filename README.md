@@ -16,11 +16,17 @@ run the learned policy back on the arm.
 
 ## The arm
 
-**Easy Robot Arm (SG90 servos)** by **mobiobi**
-<https://www.printables.com/model/97370-easy-robot-arm-sg90-servos-now-steppers-too-update>,
-license **CC BY-NC-SA** (credit the author, non-commercial, share alike).
-The files were downloaded unmodified into
-[`cad/stl_opensource/easy_robot_arm/`](cad/stl_opensource/easy_robot_arm/).
+> **"Easy Robot Arm (SG90 servos & now steppers too)"** by
+> [**mobiobi**](https://www.printables.com/@mobiobi), from
+> [Printables model 97370](https://www.printables.com/model/97370-easy-robot-arm-sg90-servos-now-steppers-too-update),
+> licensed under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+> The files are **unmodified**. The arm design is mobiobi's work, not ours.
+
+The files are in [`cad/stl_opensource/easy_robot_arm/`](cad/stl_opensource/easy_robot_arm/),
+with full credit and license notes in
+[`ATTRIBUTION.md`](cad/stl_opensource/easy_robot_arm/ATTRIBUTION.md).
+The license means: always credit mobiobi, no commercial use, and if the files
+are ever modified and shared, the changed versions must keep the same license.
 
 Why this one: it is all SG90, it needs only the screws that come with the
 SG90s, and it has the same joints as our design (base, shoulder, elbow, wrist,
@@ -139,7 +145,9 @@ The code stays the same. Only the numbers in `software/config.py` change.
 
 ### ⬜ 2. Update the guide and checks (Claude)
 - `docs/guide.tex`: new parts list, print table, assembly steps for this arm,
-  "roll servo stays off" note, new figures; rebuild the PDF.
+  "roll servo stays off" note, new figures, and a credit line for mobiobi's
+  arm (title, author, link, CC BY-NC-SA) on the title page and parts section;
+  rebuild the PDF.
 - `cad/assembly.py`: load the open-source STLs so the collision and reach
   checks and the renders use the real arm.
 - `context.md` kept up to date.
@@ -195,9 +203,18 @@ The code stays the same. Only the numbers in `software/config.py` change.
 ### ⬜ 10. Present
 - Guide Part I has the 3-minute GR00T talk script, the live demo plan and
   likely questions. The arm is the live demo.
+- Credit the arm on a slide or out loud: "Arm: Easy Robot Arm by mobiobi,
+  Printables, CC BY-NC-SA". The license requires credit wherever it's shown.
 
 ---
 
-## Credits
-- Arm design: **Easy Robot Arm** by mobiobi (Printables 97370), CC BY-NC-SA.
-- NVIDIA Isaac GR00T, Hugging Face LeRobot (ACT).
+## Credits and licenses
+- **Arm hardware design:** "Easy Robot Arm (SG90 servos & now steppers too)"
+  by [mobiobi](https://www.printables.com/@mobiobi),
+  [Printables 97370](https://www.printables.com/model/97370-easy-robot-arm-sg90-servos-now-steppers-too-update),
+  [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/). Used unmodified.
+  See [`ATTRIBUTION.md`](cad/stl_opensource/easy_robot_arm/ATTRIBUTION.md).
+- **Robot model:** [NVIDIA Isaac GR00T](https://github.com/NVIDIA/Isaac-GR00T) (N1.7).
+- **ACT policy and dataset format:** [Hugging Face LeRobot](https://github.com/huggingface/lerobot).
+- **Everything else** (firmware, Python software, work-cell parts in `cad/stl/`,
+  the guide) was written for this project by Yishane Kao with Claude Code.
