@@ -39,7 +39,8 @@
 
 \title{\textbf{gr00t-arm}\\[2pt]\large A desk robot arm that learns from demonstrations with NVIDIA GR00T\\[2pt]
 \normalsize How it connects to GR00T, and how to build, wire, calibrate, train and run it}
-\author{Yishane Kao}
+\author{Yishane Kao\\[2pt]\small Arm: \emph{Easy Robot Arm} by mobiobi
+  (\href{https://www.printables.com/model/97370}{Printables 97370}), CC BY-NC-SA, used unmodified}
 \date{October 2026}
 
 \begin{document}
@@ -171,7 +172,7 @@ Demonstrations & Scripted pick-and-place (auto-collected) or keyboard teleop & \
 \item \textbf{The problem.} ``A humanoid has to turn what it sees and what it's told into
   motor commands for dozens of joints. Writing that by hand doesn't scale. NVIDIA's answer is
   GR00T, a foundation model for robots.''
-\item \textbf{Point at the arm.} ``This is a \$10 arm: five hobby servos and my phone as the
+\item \textbf{Point at the arm.} ``This is a \$10 open-source arm, mobiobi's Easy Robot Arm: five hobby servos and my phone as the
   camera. GR00T doesn't care that it's small. The recipe is the same one used for humanoids.''
 \item \textbf{Inputs and outputs} (\cref{fig:loop}). ``Three inputs: the camera image, an
   instruction in English, and the current joint angles. One output: a chunk of the next
@@ -233,39 +234,47 @@ possible cost is cloud GPU time for GR00T, which has free options (\cref{sec:clo
 \toprule
 Part & Qty & Notes \\
 \midrule
-SG90 micro servo (with horns and screws) & 5 & base, shoulder, elbow, wrist, gripper \\
+SG90 micro servo (with horns and screws) & 5 & base, shoulder, elbow, wrist, gripper.
+  The arm's design has room for a 6th (wrist roll); we leave it out \\
 Arduino Nano + USB cable & 1 & the cable must carry data, not only charge \\
 Adjustable bench power supply & 1 & set to 5.5\,V, current limit 3\,A \\
-Breadboard + male--male jumper wires & -- & to share power between servos; with no
-  breadboard, join the 5 red wires together and the 5 brown wires together with spare wire \\
-Superglue (CA) & -- & glues each servo horn into its slot \\
+Breadboard + male--male jumper wires & -- & to share power between servos \\
+Superglue (CA) & -- & optional: only if a part slips on its horn or the gripper turns \\
 Ping-pong ball (40\,mm) & 1 & or print two \file{12_ball_half} and glue them \\
 Phone + webcam app & 1 & Phone Link (Android) or Iriun / DroidCam (any phone) \\
-PLA filament & $\approx$450\,g & Bambu printer \\
+PLA filament & a few hundred g & Bambu printer; one 1\,kg spool is plenty \\
 Optional: 470--1000\,$\mu$F capacitor & 1 & across the servo power rail; smooths current spikes \\
+Optional: small elastic bands & -- & the author's tip: around the joints to damp vibration \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Printing}
 
-All STLs are in \file{cad/stl}. They are generated from \file{cad/arm.py}; if a fit is off,
-change the number at the top of that file and re-run it (\cref{sec:fit}).
+The arm is mobiobi's \emph{Easy Robot Arm} \cite{easyarm}, printed without changes from the
+author's files in \path{cad/stl_opensource/easy_robot_arm/}. The work cell (baseplate, camera
+mast, phone cradle, cup) is ours, in \file{cad/stl}, generated from \file{cad/arm.py}.
 
 \begin{table}[htbp]
 \centering\small
-\caption{Print list. PLA, 0.2\,mm layers, 3 walls, 20\% infill unless noted. No part needs supports.}
+\caption{Print list. Arm parts: the author's settings, PLA, 0.2\,mm layers, supports on,
+10\% gyroid infill. Work-cell parts: PLA, 0.2\,mm, 3 walls, 20\% infill, no supports.}
 \label{tab:print}
 \begin{tabularx}{\linewidth}{@{}l c X@{}}
 \toprule
-File & Qty & How to print \\
+File & Qty & What it is / how to print \\
 \midrule
-\file{00_fit_test} & 1 & \textbf{print first}, flat \\
-\file{01_base} & 1 & upside down (top plate on the bed) \\
-\file{02_turntable} & 1 & disc flat on the bed \\
-\file{03_upper_arm}, \file{04_forearm} & 1 each & flat \\
-\file{05_gripper_body} & 1 & flat, as exported \\
-\file{06_gripper_jaw} & 1 & flat, as exported \\
+\multicolumn{3}{@{}l}{\emph{The arm} (\file{cad/stl_opensource/easy_robot_arm})} \\
+\file{Base} & 1 & drum; the base servo sits inside \\
+\file{BaseRotator} & 1 & turntable on the base servo; holds the shoulder servo \\
+\file{BaseCap} & 1 & screw-on ring that holds the turntable on the drum \\
+\file{Arm60mm} & 2 & upper arm and forearm (each carries the next servo) \\
+\file{offAxis_gTrunkUndr} & 1 & wrist piece; hangs the gripper below the wrist axis \\
+\file{gripperMount}, \file{gripperCap} & 1 each & hold the gripper servo; the cap clamps it to the wrist piece \\
+\file{gripperOne}, \file{gripper_Two} & 1 each & geared fingers (they open sideways) \\
+\file{gripperPinOne}, \file{gripperPinTwo} & 1 each & finger pivot pins \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{The work cell} (\file{cad/stl})} \\
 \file{07_baseplate} & 1 & flat; 250$\times$200\,mm, the longest print (15\% infill is fine) \\
 \file{08_camera_mast} & 1 & standing up, 4 walls \\
 \file{09_phone_cradle} & 1 & back face down (as exported) \\
@@ -276,25 +285,19 @@ File & Qty & How to print \\
 \end{tabularx}
 \end{table}
 
-\subsection{Fit test first}
-\label{sec:fit}
-The fit test has one servo pocket and one horn slot. An SG90 should drop into the pocket with
-a little play and its tabs should rest flat; a double-arm horn should press into the slot
-snugly. If the pocket is tight, increase \texttt{CLEAR} in \file{cad/arm.py}; if the horn is
-loose, decrease \texttt{HORN\_SLOT\_W}. Rebuild with:
-\begin{cmd}
-cd cad
-uv run --python 3.12 --with cadquery python arm.py
-\end{cmd}
+\noindent Not needed: \file{BaseLeg} (the drum stands in a ring on the baseplate instead),
+\file{Arm75mm}, \file{Arm90mm}, \file{gripperTrunk}, \file{offAxis_gTrunk},
+\file{twistMount} and the two \file{28BYJ-48} stepper parts. The \file{00}--\file{06} files
+in \file{cad/stl} are an older arm design and aren't used.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{arm_home}\hfill
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{work_cell}
-\caption{Left: the assembled arm in its home pose (blue = servos). Right: the work cell with
-the baseplate, cup and phone camera mast. Both were checked for collisions in software
-(\file{cad/assembly.py}): every marked ball spot and the cup can be reached without hitting
-the plate or the camera.}
+\caption{Left: the Easy Robot Arm in its home pose, built from the author's 3D model with two
+60\,mm links. Right: the work cell with the baseplate, cup and phone camera mast, the arm
+reaching spot B2. \file{cad/assembly.py} checks the arm against itself and the work cell:
+every marked ball spot, the lift above it and the drop over the cup are clear.}
 \label{fig:cell}
 \end{figure}
 
@@ -391,11 +394,15 @@ servo smoothly toward its target.
 
 \section{Assembly}
 
+The author gives no written steps. The parts are made to need only what comes with the SG90s
+(the horns and screws), and every servo slides into a pocket so it can be swapped. Look at
+the photos on the Printables page \cite{easyarm} for how each piece sits.
+
 \begin{note}[The one rule]
-Every servo must be at \textbf{90\,\textdegree} when its horn goes on, with the part it drives
-in the \textbf{home pose}: arm facing forward, upper arm straight up, forearm horizontal pointing
-forward, gripper in line with the forearm, jaw closed (parallel to the fixed finger). The
-software assumes this; get it right and calibration is only small trims.
+Every servo must be at \textbf{90\,\textdegree} when the part it drives goes on, with that
+part in the \textbf{home pose}: arm facing forward, upper arm straight up, forearm level and
+pointing forward, gripper level and in line with the forearm, fingers closed. The software
+assumes this; get it right and calibration is only small trims.
 \end{note}
 
 \begin{enumerate}
@@ -405,35 +412,39 @@ cd gr00t-arm\software
 uv run calibrate.py
 > center
 \end{cmd}
-All five turn to 90\,\textdegree. Leave them powered while fitting horns.
-\item \textbf{Glue the horns.} Put a drop of CA in each printed part's horn slot (the long
-  groove on the underside) and press a double-arm horn in, hub facing out. Parts with a slot:
-  turntable, upper arm, forearm, gripper body, gripper jaw. Let it set for a few minutes.
-\item \textbf{Base servo.} Drop the base servo into \file{01_base} from the top, shaft up,
-  cable out through the notch. Screw the two tabs down with the servo's screws.
-\item \textbf{Turntable.} Press the turntable's horn onto the base servo spline so the bracket's
-  flat face (where the shoulder servo goes) faces \emph{left} and the arm will swing forward/back.
-  Put the small horn screw through the access hole to lock it.
-\item \textbf{Shoulder servo.} Slide it into the bracket from the left face, tabs flat on the
-  plate, shaft pointing left, body behind the plate. Screw the tabs.
-\item \textbf{Upper arm.} Slot side toward the servo; press onto the shoulder spline pointing
-  \emph{straight up}. Horn screw through the access hole.
-\item \textbf{Elbow servo} into the pocket at the top of the upper arm, from the outer face,
-  shaft pointing left. Screw the tabs.
-\item \textbf{Forearm} onto the elbow spline, pointing \emph{forward, horizontal}. Horn screw.
-\item \textbf{Wrist servo} into the forearm's end pocket the same way.
-\item \textbf{Gripper body} onto the wrist spline, \emph{in line with the forearm}. Horn screw.
-\item \textbf{Gripper servo} into the gripper body's pocket, shaft pointing the same way.
-\item \textbf{Jaw} onto the gripper spline with the jaw \emph{closed}: parallel to the fixed
-  finger. Horn screw.
-\item \textbf{Work cell.} Set the arm base onto the baseplate's two pegs (inside the engraved
-  outline; spots A1--C3 in front, the cup ring to the left). Push the mast into its socket,
-  the pin into the mast top, and the phone cradle onto the pin. Clamp or tape the baseplate's
-  back edge to the desk.
+All five turn to 90\,\textdegree. Leave them powered while fitting parts, and don't turn a
+shaft by hand.
+\item \textbf{Base.} Base servo into the drum (\file{Base}), shaft up. Put the turntable
+  (\file{BaseRotator}) on its horn so the arm will swing forward and back. Screw
+  \file{BaseCap} over it onto the drum. Leave the \file{BaseLeg} feet off.
+\item \textbf{Shoulder.} Shoulder servo into the turntable. The first \file{Arm60mm} (upper
+  arm) onto its horn, pointing \emph{straight up}.
+\item \textbf{Elbow.} Elbow servo into the top of the upper arm. The second \file{Arm60mm}
+  (forearm) onto its horn, pointing \emph{forward, level}.
+\item \textbf{Wrist.} Wrist servo into the end of the forearm. The wrist piece
+  (\file{offAxis_gTrunkUndr}) onto its horn so the gripper will hang \emph{below} the
+  forearm, pointing forward and level.
+\item \textbf{Gripper.} Gripper servo into \file{gripperMount}; the fingers on their pins with
+  the gears meshed and the fingers \emph{closed}; then clamp \file{gripperMount} to the wrist
+  piece with \file{gripperCap}.
+\item \textbf{No wrist-roll servo.} The design has room for one between the wrist piece and
+  the gripper; we leave it out so the software stays at 5 joints. If the gripper turns on the
+  wrist piece, put a drop of superglue between the two discs.
+\item \textbf{Work cell.} Stand the drum in the ring on the baseplate (spots A1--C3 in front,
+  the cup ring to the left) and fix it with double-sided tape or a few dots of hot glue, so
+  the base servo turns the arm and not the drum. Push the mast into its socket, the pin into
+  the mast top, and the phone cradle onto the pin. Clamp or tape the baseplate's back edge to
+  the desk.
 \item \textbf{Phone.} Landscape on the cradle, resting on the lip, \emph{rear camera near the
   lip}. Open the webcam app.
 \item \textbf{Cables.} Leave slack at every joint so nothing pulls when the arm turns.
 \end{enumerate}
+
+\begin{note}[If the shoulder struggles]
+The author notes the shoulder servo works hardest. If it sags or buzzes, swap just that one
+for an MG90S (same size, metal gears, no code changes). Small elastic bands around the
+joints, as in the author's photos, damp vibration.
+\end{note}
 
 \section{Calibration}
 
@@ -446,11 +457,19 @@ Still in \file{calibrate.py}:
   \texttt{trim 1 -4}.
 \item Gripper: \texttt{s 4 <deg>} to try angles. Find an angle that is well open, and one that
   squeezes the ball firmly without the servo buzzing hard; set them with
-  \texttt{grip open 125} and \texttt{grip closed 85} (your numbers).
+  \texttt{grip open 125} and \texttt{grip closed 85} (your numbers). The fingers open
+  sideways; check with the ball held between them.
 \item \texttt{save}, then \texttt{quit}. This writes \file{software/calibration.json}.
 \end{enumerate}
+\begin{note}[Check the tool point]
+The arm's lengths in \file{software/config.py} were measured from the author's 3D model, not
+from your printed arm. In \cref{sec:first}, if the fingers close a little in front of, behind,
+above or below the ball, tell Claude how far off it is; \texttt{L\_TOOL} (along the gripper)
+and \texttt{TOOL\_UP} (how far the fingers hang below the wrist) get a small trim.
+\end{note}
 
 \section{First moves}
+\label{sec:first}
 
 \begin{cmd}
 uv run autodemo.py --spot B2 --camera 1
@@ -575,7 +594,8 @@ Symptom & Fix \\
 Upload fails & Try the other bootloader (the script does both); close other programs using the port. \\
 Servos twitch / Nano resets & Servo power must come from the supply; Nano GND tied to supply $-$; add the capacitor. \\
 A joint moves the wrong way & \file{calibrate.py}: \texttt{test}, then \texttt{flip <joint>}. \\
-Arm sags or buzzes holding pose & Normal for SG90s near their limit; keep the gripper light. MG90S servos are a drop-in upgrade. \\
+Arm sags or buzzes holding pose & Normal for SG90s near their limit, mostly at the shoulder; keep the gripper light. An MG90S at the shoulder is a drop-in upgrade. \\
+The drum turns instead of the arm & Fix the drum in its baseplate ring with tape or hot glue. \\
 ``Camera N didn't open'' & Try \texttt{--camera 0}, \texttt{1}, \texttt{2}; make sure the phone app is running. \\
 ``can't reach that'' in teleop & The target is out of reach or the gripper would hit the plate. Move back. \\
 GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
@@ -588,8 +608,9 @@ Policy runs but misses & More demos, more varied ball positions, same camera pos
 \section{Where everything is}
 
 \begin{description}[leftmargin=0pt,font=\ttfamily\normalsize]
-\item[cad/] \file{arm.py} (all parts, parametric), \file{assembly.py} (collision and reach
-  checks), \file{stl/}, \file{renders/}
+\item[cad/] \file{arm.py} (work-cell parts), \file{assembly.py} (collision and reach checks
+  on the author's model), \file{stl/}, \file{renders/}, and the arm itself (mobiobi's files,
+  CC BY-NC-SA, with \file{ATTRIBUTION.md}) in \path{stl_opensource/easy_robot_arm/}
 \item[firmware/] \file{arm/arm.ino}, \file{upload.ps1}
 \item[software/] \file{config.py} (geometry, calibration), \file{kinematics.py} (+ tests),
   \file{calibrate.py}, \file{teleop.py}, \file{autodemo.py}, \file{recorder.py},
@@ -606,6 +627,9 @@ Policy runs but misses & More demos, more varied ball positions, same camera pos
   \url{https://github.com/NVIDIA/Isaac-GR00T}.
 \bibitem{act} T.~Z. Zhao, V.~Kumar, S.~Levine, C.~Finn, ``Learning Fine-Grained Bimanual
   Manipulation with Low-Cost Hardware,'' RSS 2023, arXiv:2304.13705.
+\bibitem{easyarm} mobiobi, ``Easy Robot Arm (SG90 servos \& now steppers too),'' Printables
+  model 97370, CC BY-NC-SA,
+  \url{https://www.printables.com/model/97370-easy-robot-arm-sg90-servos-now-steppers-too-update}.
 \bibitem{lerobot} Hugging Face, ``LeRobot,'' \url{https://github.com/huggingface/lerobot}.
 \end{thebibliography}
 

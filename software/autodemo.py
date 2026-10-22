@@ -23,7 +23,7 @@ from recorder import TASK, Recorder
 # keep in sync with cad/arm.py SPOT_X / SPOT_Y / CUP_XY
 SPOTS = {f"{c}{r + 1}": (x, y) for c, x in zip("ABC", (85.0, 110.0, 135.0))
          for r, y in enumerate((0.0, 40.0, 80.0))}
-CUP = (0.0, 110.0)
+CUP = (20.0, 110.0)
 BALL_Z = 20.0        # ball centre when resting on the plate
 SAFE_Z = 75.0
 DROP_Z = 80.0
@@ -65,6 +65,7 @@ def plan(spot, jitter=0.0):
 def trajectory(waypoints, fps):
     """Servo commands at fps, moving in straight lines between waypoints."""
     cur = waypoints[0]
+    prev = K.solve(*cur[:4])
     for wp in waypoints[1:]:
         n = max(1, int(wp[5] * fps))
         for k in range(1, n + 1):
@@ -72,8 +73,9 @@ def trajectory(waypoints, fps):
             s = s * s * (3 - 2 * s)                      # ease in/out
             pose = [a + (b - a) * s for a, b in zip(cur[:4], wp[:4])]
             servo = K.solve(*pose)
-            if servo is None:                             # fall back to the end pose
-                servo = K.solve(*wp[:4])
+            if servo is None:                             # hold, or fall back to the end pose
+                servo = prev or K.solve(*wp[:4])
+            prev = servo
             grip = C.GRIPPER_CLOSED if wp[4] else C.GRIPPER_OPEN
             yield servo + [grip]
         cur = wp

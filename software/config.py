@@ -1,7 +1,8 @@
-"""Arm geometry and servo calibration. Geometry comes from the CAD
-(cad/assembly.py); calibration (OFFSET/SIGN/gripper) is checked after
-assembly with calibrate.py and saved to calibration.json, which overrides
-the defaults below.
+"""Arm geometry and servo calibration. Geometry is measured from the Easy
+Robot Arm's assembled model (mobiobi, CC BY-NC-SA; see cad/assembly.py),
+built with two 60 mm links and no base legs. Calibration (OFFSET/SIGN/
+gripper) is checked after assembly with calibrate.py and saved to
+calibration.json, which overrides the defaults below.
 
 Joint angle conventions (degrees here, radians in kinematics.py):
   base      yaw about the vertical axis, 0 = arm plane along +x,
@@ -15,21 +16,20 @@ import json
 from pathlib import Path
 
 # ------------------------------------------------------------- geometry (mm)
-SHOULDER_HEIGHT = 55.25  # desk -> shoulder axis
-L_UPPER = 65.0           # shoulder axis -> elbow axis
-L_FORE = 60.0            # elbow axis -> wrist axis
-L_TOOL = 75.0            # wrist axis -> ball centre, along the gripper
-TOOL_UP = 10.5           # ball centre sits this far "above" the gripper axis
-LATERAL = 52.8           # ball centre is offset sideways from the base axis
-                         # (each joint stacks its link 13.7 mm further out)
+SHOULDER_HEIGHT = 54.05  # baseplate top -> shoulder axis (drum stands on the plate)
+L_UPPER = 60.0           # shoulder axis -> elbow axis (Arm60mm)
+L_FORE = 60.0            # elbow axis -> wrist axis (Arm60mm)
+L_TOOL = 86.5            # wrist axis -> ball centre, along the gripper
+TOOL_UP = -24.75         # the off-axis trunk hangs the fingers below the wrist axis
+LATERAL = -1.8           # ball centre is this far to +y of the base axis
 
 # outline of the gripper in its own frame (mm): x along the gripper from the
-# wrist axis, y = "down" when the gripper is level (cad gripper_body frame).
-# Fingertips (jaw closed and open) plus the body corners.
-GRIPPER_POINTS = [(85, -37), (85, 16), (77, 38), (56, 26), (66, -37),
-                  (40, -37), (-14, -12), (-14, 14)] + [
-    (14 * c, 14 * s) for c, s in ((1, 0), (0.71, 0.71), (0, 1), (-0.71, 0.71),
-                                  (-1, 0), (-0.71, -0.71), (0, -1), (0.71, -0.71))]
+# wrist axis, y = "down" when the gripper is level. Corners of the trunk,
+# gripper mount + cap, and the fingers (they open sideways, so their outline
+# in the arm plane doesn't change with the gripper).
+GRIPPER_POINTS = [(-12, -10), (31.5, -10), (52.8, -0.5), (52.8, 44.5),
+                  (22.2, 44.5), (-12, 42.3), (102.8, 21.5), (102.8, 28.0),
+                  (34.4, 28.0)]
 FLOOR_CLEARANCE = 2.0   # keep every gripper point this far above the plate
 
 # ---------------------------------------------------------- calibration
@@ -45,13 +45,15 @@ SIGN = {"base": 1, "shoulder": -1, "elbow": -1, "wrist": -1}
 GRIPPER_OPEN = 125.0    # servo deg
 GRIPPER_CLOSED = 85.0   # a little past parallel so it squeezes the ball
 
-# soft joint limits (degrees) from the CAD collision sweep
+# soft joint limits (degrees) from the collision sweep in cad/assembly.py,
+# with 5 deg of margin
 LIMITS = {
     "base": (-90, 90),
     "shoulder": (0, 180),
-    "elbow": (-150, 0),
-    "wrist": (-90, 90),
+    "elbow": (-125, 0),
+    "wrist": (-85, 125),
 }
+FOLD_LIMIT = -175       # elbow + wrist: below this the gripper hits the upper arm
 SERVO_MIN = 0.0
 SERVO_MAX = 180.0
 

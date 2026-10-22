@@ -264,17 +264,20 @@ def fit_test() -> cq.Workplane:
 
 # ============================================================ work cell
 # Everything below is positioned in the arm frame: origin on the baseplate
-# top surface under the base servo shaft, +x forward, z up. The links stack
-# sideways toward +y, so the work area is in front of the arm and to +y.
+# top surface under the base servo shaft, +x forward, z up. The arm is
+# mobiobi's Easy Robot Arm (cad/stl_opensource/easy_robot_arm); its base
+# drum stands in a ring on the baseplate (the 3 BaseLeg feet aren't used).
 
 BP_X = (-58.0, 192.0)          # baseplate extent (250 x 200, fits a 256 bed)
 BP_Y = (-45.0, 155.0)
 BP_T = 4.0
-FOOT_HOLES = [(-47.0, 0.0), (47.0, 0.0)]   # base() clamp-foot holes
+DRUM_D = 74.6                  # Easy Robot Arm Base.stl outer diameter
+RING_GAP = 0.5                 # clearance around the drum in its ring
+RING_W, RING_H = 2.5, 3.0      # ring wall and height
 # ball start spots: 3x3 grid, all reachable gripper-down (software/kinematics)
 SPOT_X = (85.0, 110.0, 135.0)
 SPOT_Y = (0.0, 40.0, 80.0)
-CUP_XY = (0.0, 110.0)
+CUP_XY = (20.0, 110.0)         # at x = 0 the base would need just over 90 deg of yaw
 CUP_R = 30.0
 MAST_XY = (178.0, 55.0)
 MAST_W = 16.0                  # square mast section
@@ -295,15 +298,17 @@ def _engrave_cross(plate, x, y, size=10.0, w=1.2, depth=0.8):
 def baseplate() -> cq.Workplane:
     """Desk plate the arm base and the camera mast both locate on, so the
     camera sees the same scene every session. Engraved: ball start spots
-    A1..C3 and the cup ring. Clamp its back edge to the desk (or tape it)."""
+    A1..C3 and the cup ring. Clamp its back edge to the desk (or tape it).
+    The arm's base drum drops into the raised ring; tape or hot-glue it so
+    it can't turn."""
     w, d = BP_X[1] - BP_X[0], BP_Y[1] - BP_Y[0]
     cx, cy = sum(BP_X) / 2, sum(BP_Y) / 2
     plate = (cq.Workplane("XY").center(cx, cy).rect(w, d).extrude(BP_T)
              .edges("|Z").fillet(8))
-    # pegs through the base's clamp-foot holes
-    for x, y in FOOT_HOLES:
-        plate = plate.union(cq.Workplane("XY").workplane(offset=BP_T).center(x, y)
-                            .circle(2.0).extrude(8).faces(">Z").chamfer(0.6))
+    # ring that locates the arm's base drum
+    r_in = DRUM_D / 2 + RING_GAP
+    plate = plate.union(cq.Workplane("XY").workplane(offset=BP_T)
+                        .circle(r_in + RING_W).circle(r_in).extrude(RING_H))
     # mast socket
     boss = (cq.Workplane("XY").workplane(offset=BP_T).center(*MAST_XY)
             .rect(MAST_W + 12, MAST_W + 12).extrude(SOCKET_D - 2)
@@ -323,11 +328,7 @@ def baseplate() -> cq.Workplane:
     # cup ring
     ring = (cq.Workplane("XY").workplane(offset=BP_T - 0.8).center(*CUP_XY)
             .circle(CUP_R + 1.5).circle(CUP_R + 0.3).extrude(2))
-    plate = plate.cut(ring)
-    # outline of the arm base so it goes back in the same place
-    outline = (cq.Workplane("XY").workplane(offset=BP_T - 0.6)
-               .rect(66, 54).rect(64.4, 52.4).extrude(2))
-    return plate.cut(outline)
+    return plate.cut(ring)
 
 
 def _rot_y(deg):

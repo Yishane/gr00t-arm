@@ -9,8 +9,10 @@ All files in this folder are by someone else, not by this project.
   as listed on Printables. Deed: <https://creativecommons.org/licenses/by-nc-sa/4.0/>
 - **Downloaded:** 2026-10-22
 - **Changes:** none. Every file here is the author's original, unmodified.
-  `BaseLeg.stl` is printed 3 times, and the wrist-roll servo the design
-  provides for is left out at assembly. Neither changes the files.
+  `BaseLeg.stl` isn't printed (the drum stands in a ring on our own baseplate),
+  and the wrist-roll servo the design provides for is left out at assembly.
+  Neither changes the files. `cad/assembly.py` reads the author's STEP file to
+  check our software against it; it doesn't write any modified copy.
 
 What the license means for this project:
 - **Attribution:** credit "Easy Robot Arm by mobiobi (Printables 97370),

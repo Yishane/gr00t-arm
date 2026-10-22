@@ -6,10 +6,10 @@ NVIDIA GR00T learns robot skills. You record keyboard-teleoperated demos of
 dataset, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU, and
 run the learned policy back on the arm.
 
-> **Status (2026-10-22):** we are switching from our own self-designed arm to an
-> **open-source arm** (mobiobi's *Easy Robot Arm*). The software, firmware and
-> GR00T pipeline are done and verified. What's left is matching them to the new
-> arm's measurements, then building, recording and training. See
+> **Status (2026-10-22):** the arm is now an **open-source arm** (mobiobi's
+> *Easy Robot Arm*). The software, firmware and GR00T pipeline are done and
+> verified, and they're matched to the new arm's measurements and checked against
+> its 3D model. What's left is building, recording and training. See
 > [Milestones](#milestones).
 
 ---
@@ -53,7 +53,6 @@ gripper), so the code stays the same.
 | `Base.stl` | 1 | threaded drum; the base (yaw) servo sits inside |
 | `BaseCap.stl` | 1 | screw-on ring that holds the rotator on the base |
 | `BaseRotator.stl` | 1 | turntable on the base servo; holds the shoulder joint |
-| `BaseLeg.stl` | 3 | feet (the author's photo shows a tripod) |
 | `Arm60mm.stl` | 2 | upper arm and forearm (each carries the next servo) |
 | `offAxis_gTrunkUndr.stl` | 1 | wrist piece; hangs the gripper below the wrist axis (the version in the author's assembly) |
 | `gripperMount.stl` | 1 | holds the gripper servo; clamps onto the trunk disc |
@@ -61,7 +60,8 @@ gripper), so the code stays the same.
 | `gripperOne.stl`, `gripper_Two.stl` | 1 each | geared fingers (they open sideways) |
 | `gripperPinOne.stl`, `gripperPinTwo.stl` | 1 each | finger pivot pins |
 
-Not needed: `Arm75mm`, `Arm90mm` (longer links), `gripperTrunk`,
+Not needed: `BaseLeg` (the drum stands in a ring on our baseplate instead, and
+the legs would hang off its edge), `Arm75mm`, `Arm90mm` (longer links), `gripperTrunk`,
 `offAxis_gTrunk` (alternative wrist pieces), `twistMount`, and the two
 `28BYJ-48_*` stepper parts. `E-Z_RoboArm_v23.step` is the author's assembled
 model; we use it for measurements.
@@ -72,12 +72,17 @@ Without the roll servo, `gripperCap` just clamps `gripperMount` to the trunk.
 If the gripper still turns, put a drop of superglue between the two discs.
 
 ### Measured from the author's model (mm)
+These are in `software/config.py`. `cad/assembly.py` builds the arm from the
+author's STEP file to check them.
+- baseplate top to shoulder axis: 54.05 (drum standing on the plate, no legs)
 - shoulder axis to elbow axis: 60 with Arm60 (the author's model uses Arm90 = 90)
 - elbow axis to wrist axis: 60
-- wrist axis to fingertips: about 87 forward; the gripper sits about 20–25 below
-  the wrist axis (the "off-axis" trunk)
+- wrist axis to the point between the finger pads: 86.5 forward, 24.75 below
+  (the "off-axis" trunk hangs the gripper down); 1.8 mm to the side
 - the fingers turn on vertical pins 15.6 apart, so the jaws open **left/right**
   when the gripper is level (our old gripper opened up/down)
+- joint limits from the collision sweep: elbow −125…0°, wrist −85…125°, and the
+  gripper can't fold back into the upper arm (elbow + wrist ≥ −175°)
 
 ---
 
@@ -87,8 +92,10 @@ If the gripper still turns, put a drop of superglue between the two discs.
 - `cad/stl/` — our original self-designed parts. Arm parts `00`–`06` are now
   replaced by the open-source arm. The work-cell parts are still used: `07` baseplate,
   `08` camera mast, `09` phone cradle, `10` pin, `11` cup, `12` ball half.
-- `cad/arm.py`, `cad/assembly.py`, `cad/render.py` — CadQuery source, collision
-  and reach checks, and renders, still for the **old** arm (see milestone 1)
+- `cad/arm.py` — CadQuery source for the work-cell parts (and the old arm parts)
+- `cad/assembly.py` — builds the Easy Robot Arm from the author's STEP file;
+  collision sweep (`--check`), reach check of every ball spot and the cup
+  (`--cell`), renders and guide figures (`--docs`)
 - `firmware/arm/arm.ino` — serial servo firmware; `firmware/upload.ps1 COMx` uploads it
 - `software/` — Python: `config.py` (geometry + calibration), `kinematics.py`
   (+ tests), `calibrate.py`, `teleop.py`, `autodemo.py`, `recorder.py`,
@@ -96,7 +103,7 @@ If the gripper still turns, put a drop of superglue between the two discs.
 - `software/act/` — ACT export/train (own Python env, runs on the RTX 5050)
 - `software/gr00t/` — GR00T modality config + cloud scripts (`setup_cloud.sh`,
   `finetune.sh`, `serve.sh`)
-- `docs/guide.tex` → `docs/guide.pdf` — the build + GR00T guide (still describes the old arm)
+- `docs/guide.tex` → `docs/guide.pdf` — the build + GR00T guide
 - `context.md` — running notes for Claude, where work left off
 
 ---
@@ -126,35 +133,32 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - ✅ Downloaded all files into `cad/stl_opensource/easy_robot_arm/`.
 - ✅ Read the joint geometry from the author's STEP model (numbers above).
 
-### 🔄 1b. Match the software to the new arm (Claude)
-The code stays the same. Only the numbers in `software/config.py` change.
-1. Finish measuring from the STEP + STLs: shoulder height above the desk,
-   sideways offset of the gripper, the exact gripper drop below the wrist,
-   where a 40 mm ball sits between the fingers, and the gripper's outline
-   (for the floor check).
-2. Put them into `software/config.py`: `SHOULDER_HEIGHT`, `L_UPPER=60`,
-   `L_FORE=60`, `L_TOOL`, `TOOL_UP` (negative, because the gripper hangs below),
-   `LATERAL`, `GRIPPER_POINTS`, and the joint limits.
-3. Update `software/test_kinematics.py` for the new numbers; all tests must pass.
-4. Check that the gripper can hold the 40 mm ball. If not, use a smaller ball.
-5. Re-check reach: every ball spot and the cup must be reachable. If not,
-   move the spots and cup (the `SPOT_X`/`SPOT_Y`/`CUP_XY` values in
-   `cad/arm.py`) and rebuild the baseplate STL.
-6. Check how the new base sits on our baseplate: the new base is a 75 mm drum
-   with feet, and the baseplate was made for our old base.
+### ✅ 1b. Match the software to the new arm (Claude)
+- ✅ Measured from the STEP + STLs (numbers above); shoulder axis confirmed from
+  the SG90 shaft hole in `BaseRotator`, so it holds without the author's stepper.
+- ✅ `software/config.py` updated (geometry, gripper outline, joint limits);
+  `kinematics.py` also blocks the gripper folding into the upper arm.
+- ✅ `software/test_kinematics.py` updated: 13 tests pass.
+- ✅ The 40 mm ball should fit: each finger opens about 30°, and the ball stays
+  clear of the gripper mount (checked on the model's dimensions; confirm on the real arm).
+- ✅ Reach: all 9 ball spots, the lift above each, and the cup drop pass with no
+  collisions. The cup moved to x = 20 (at x = 0 the base would need just over 90°).
+  `autodemo.py` plans every spot cleanly in simulation.
+- ✅ Baseplate: the old base pegs are replaced by a ring the 75 mm drum stands in
+  (tape or hot-glue it so it can't turn). `BaseLeg` isn't printed.
 
-### ⬜ 2. Update the guide and checks (Claude)
-- `docs/guide.tex`: new parts list, print table, assembly steps for this arm,
-  "roll servo stays off" note, new figures, and a credit line for mobiobi's
-  arm (title, author, link, CC BY-NC-SA) on the title page and parts section;
-  rebuild the PDF.
-- `cad/assembly.py`: load the open-source STLs so the collision and reach
-  checks and the renders use the real arm.
-- `context.md` kept up to date.
+### ✅ 2. Update the guide and checks (Claude)
+- ✅ `docs/guide.tex` + PDF: credit on the title page and in the references, new
+  parts and print list, assembly steps for this arm, "no roll servo" note, new
+  figures, tool-point check after calibration.
+- ✅ `cad/assembly.py` builds the real arm from the author's STEP file (voxel
+  collision checks, so a sweep takes seconds).
+- ✅ `context.md` up to date.
 
 ### ⬜ 3. Print (You)
-- Print the parts in the table above on the Bambu (PLA, supports on).
-- Print the work cell from `cad/stl/`: `07_baseplate`, `08_camera_mast`,
+- Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
+- Print the work cell from `cad/stl/`: `07_baseplate` (reprint it if you printed
+  the old one: it now has the ring for the drum), `08_camera_mast`,
   `09_phone_cradle`, `10_pin`, `11_cup` (`12_ball_half` ×2 only if you have no
   ping-pong ball).
 
@@ -164,11 +168,13 @@ The code stays the same. Only the numbers in `software/config.py` change.
 - Flash: `firmware\upload.ps1 COM5` (use your port).
 
 ### ⬜ 5. Assemble (You)
-- Before fitting each horn, run the firmware so every servo sits at 90°.
+- Before fitting each horn, run `calibrate.py` → `center` so every servo sits at 90°.
   Then put each part on with the arm in the home pose: upper arm straight up,
   forearm pointing forward, gripper level and in line with the forearm.
 - Leave the roll servo out. Clamp `gripperMount` to the trunk with
   `gripperCap` (glue if it slips).
+- Stand the drum in the baseplate ring and tape or hot-glue it.
+- The guide's "Assembly" section has the step-by-step.
 
 ### ⬜ 6. Calibrate (You + `calibrate.py`)
 - `cd software; uv run calibrate.py`. Check each joint's direction, then set

@@ -5,8 +5,8 @@ The gripper target is the ball centre (x, y, z) in mm, origin on the desk
 under the base axis, z up, plus a pitch: the gripper's angle above
 horizontal (radians, 0 = level, -pi/2 = pointing straight down).
 
-The links stack sideways, so the ball centre sits LATERAL mm off the plane
-the arm swings in; the base yaw compensates for that.
+The ball centre can sit LATERAL mm off the plane the arm swings in; the
+base yaw compensates for that.
 """
 import math
 
@@ -63,7 +63,7 @@ def within_limits(joints_rad):
         lo, hi = C.LIMITS[name]
         if not lo - 1e-6 <= math.degrees(a) <= hi + 1e-6:
             return False
-    return True
+    return math.degrees(joints_rad[2] + joints_rad[3]) >= C.FOLD_LIMIT - 1e-6
 
 
 def to_servo(joints_rad):

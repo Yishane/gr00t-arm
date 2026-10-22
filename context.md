@@ -15,9 +15,20 @@ Read this first every session. Update the "Status" and "Next" sections before st
   Arm90 elbow (22.7,98.2), Arm60 wrist at 60 from elbow; off-axis trunk roll axis z=78.3 (~20 below
   wrist axis); finger gear pins vertical at x -26.9/-42.5 (15.6 apart), pads ~y -123.8 => ~87 mm
   from wrist axis. Fingers open sideways. Base yaw axis x=-32.9,y=22.7.
-- NEXT (Claude): milestone 1b in README: finish measurements (shoulder height above desk, LATERAL,
-  TOOL_UP, ball grip point, GRIPPER_POINTS), update config.py + tests, reach/cup check, baseplate fit;
-  then milestone 2: guide.tex + assembly.py for the new arm.
+- DONE 2026-10-22: milestones 1b + 2. config.py from the STEP: SHOULDER_HEIGHT 54.05 (drum on
+  plate, no legs; shoulder axis = SG90 shaft hole in BaseRotator z=8.3), L 60/60, L_TOOL 86.5,
+  TOOL_UP -24.75, LATERAL -1.8, new GRIPPER_POINTS, limits elbow -125..0, wrist -85..125,
+  FOLD_LIMIT elbow+wrist >= -175 (kinematics.within_limits). 13 tests pass.
+- cad/assembly.py now builds the arm from the STEP (upper arm = Arm60 turned upright; forearm +
+  gripper dropped 29.9 for Arm90->Arm60), voxel collision checks (fast). --check / --cell / --docs.
+  Cell check PASS for 9 spots (z 20 and 85) + cup drop (z 80).
+- Baseplate: pegs/outline replaced by a ring for the 74.6 mm drum (tape/hot glue). CUP_XY moved
+  to (20,110) in arm.py AND autodemo.py (x=0 needed >90 deg yaw). autodemo holds last pose if an
+  interpolated point is unsolvable.
+- Guide rewritten for the new arm (credit on title + bib, print list, assembly, tool-point check).
+- Author's page (read via Chrome; WebFetch gets 403) has no step-by-step: tips = use 60 mm arms,
+  elastic bands at joints, shoulder servo works hardest, servos hot-swappable.
+- He HAS a breadboard + jumper wires (confirmed 2026-10-22).
 
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5Ã— SG90 servos, teleoperated with a
@@ -58,7 +69,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - `software/` â€” Python: config, kinematics (+ tests), calibrate, teleop/record, export, train/run
 - `docs/` â€” LaTeX guide
 
-## CAD facts (cad/arm.py, cad/assembly.py)
+## CAD facts: OLD self-designed arm (superseded; numbers below are NOT the current arm)
 - 13 STLs in cad/stl: 00 fit test, 01â€“06 arm, 07 baseplate (250x200), 08 camera mast,
   09 phone cradle, 10 pin, 11 cup, 12 ball half (print 2 only if no ping-pong ball).
 - assembly.py: places parts + dummy SG90s; `--check` self-collision sweep, `--cell`
@@ -93,14 +104,14 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
       Figures from `cad/assembly.py --docs`.
 
 ## Next (all build deliverables done 2026-10-22; waiting on Yishane)
-1. He prints (fit test first), wires, assembles, calibrates — guide sections 7–11.
+1. He prints (Easy Robot Arm parts + work cell, no BaseLeg), wires, assembles, calibrates — guide sections 7–11.
 2. Record ~60 demos (autodemo --record 60), export, train ACT locally to validate data.
 3. He makes HF account + requests nvidia/Cosmos-Reason2-2B access; gets cloud GPU credit.
    COST (told him 2026-10-22): milestone 9 is the ONLY step that can cost money (~$10-20 paid).
    Free options documented in README m9 + guide sec:cloud: Lightning AI free credits (SSH Studio,
    scripts work as-is), Modal ~$30/mo free (needs a Modal wrapper Claude would write - not built).
    Colab/Kaggle 16 GB too small. Fallback: stop at ACT, demo with ACT. Recommended: do 3-8 first.
-   Unconfirmed: whether he has breadboard + jumpers (guide now gives a no-breadboard alternative).
+   He has a breadboard + jumpers.
 4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet —
    first real run may need fixes; check open_loop_eval plot).
 Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,
