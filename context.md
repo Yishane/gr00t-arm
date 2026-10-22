@@ -41,15 +41,6 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - `software/` — Python: config, kinematics (+ tests), calibrate, teleop/record, export, train/run
 - `docs/` — LaTeX guide
 
-## Open-source gripper (2026-10-22, Yishane's request)
-- He wants an open-source gripper, NOT one we design. Never delete cad/stl/ files.
-- `cad/stl_opensource/simple_sg90_claw/`: "Simple SG90 servo/micro servo Claw" by
-  CtrlPlusAlt, Printables 1778845, CC BY-NC, unmodified. README there has attribution + fit notes.
-- Mount: glue the wrist horn to the back of Claw_connector_V4 (replaces 05+06). Fingers are
-  ~58 mm vs our FINGER_END=45, so tool length/gripper angles need recalibration. Guide not yet updated.
-- Alternative if needed: Printables 1871958 (SG90 rack-and-pinion, 60 mm opening, CC-BY,
-  STEP only, needs 4x M3x35 + heat-set inserts).
-
 ## CAD facts (cad/arm.py, cad/assembly.py)
 - 13 STLs in cad/stl: 00 fit test, 01–06 arm, 07 baseplate (250x200), 08 camera mast,
   09 phone cradle, 10 pin, 11 cup, 12 ball half (print 2 only if no ping-pong ball).
