@@ -11,9 +11,10 @@ if [ -z "${HF_TOKEN:-}" ]; then
   exit 1
 fi
 
-sudo apt-get update -y
+SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"   # cloud pods often run as root, no sudo
+$SUDO apt-get update -y
 # GR00T's video decoder (torchcodec) needs FFmpeg 4-7; Ubuntu 22.04/24.04 ship 4.4 / 6.1
-sudo apt-get install -y git git-lfs ffmpeg tmux
+DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y git git-lfs ffmpeg tmux curl
 git lfs install
 
 command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh

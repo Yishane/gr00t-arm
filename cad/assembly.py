@@ -149,7 +149,7 @@ def collisions(parts: dict, tol=1.0, include_mated=False):
     return out
 
 
-def render(parts: dict, path: Path, title=""):
+def render(parts: dict, path: Path, title="", views=((20, -60), (0, -90))):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -157,9 +157,9 @@ def render(parts: dict, path: Path, title=""):
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     colors = {"servo": "#3b6fb6", "base": "#888888"}
-    fig = plt.figure(figsize=(12, 6))
-    for k, (elev, azim) in enumerate([(20, -60), (0, -90)]):
-        ax = fig.add_subplot(1, 2, k + 1, projection="3d")
+    fig = plt.figure(figsize=(6 * len(views), 6))
+    for k, (elev, azim) in enumerate(views):
+        ax = fig.add_subplot(1, len(views), k + 1, projection="3d")
         allv = []
         for name, shape in parts.items():
             verts, tris = shape.tessellate(0.2, 0.3)
@@ -196,6 +196,10 @@ if __name__ == "__main__":
            out / "11_assembly_reach.png", "assembly, reaching down, gripper open")
     render(scene(build(shoulder=-60, elbow=60)), out / "12_work_cell.png",
            "work cell: arm, baseplate, phone camera mast, cup")
+    if "--docs" in sys.argv:
+        docs = HERE.parent / "docs" / "figures"
+        render(build(), docs / "arm_home.png", views=((22, -55),))
+        render(scene(build(shoulder=-60, elbow=60)), docs / "work_cell.png", views=((25, -50),))
     if "--check" in sys.argv:
         # elbow/wrist self-collision (shoulder angle doesn't change these)
         print("elbow x wrist self-collisions:")

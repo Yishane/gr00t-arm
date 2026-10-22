@@ -1,0 +1,599 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.9in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage{amsmath}
+\usepackage{graphicx,booktabs,tabularx,array}
+\usepackage{enumitem}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{fancyvrb}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage[capitalise]{cleveref}
+
+\hypersetup{colorlinks=true,linkcolor=NavyBlue,urlcolor=NavyBlue}
+\setlist{itemsep=2pt,topsep=4pt}
+\graphicspath{{figures/}}
+
+% file / command names with underscores etc.
+\newcommand{\file}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\key}[1]{\tikz[baseline=(k.base)]\node[draw,rounded corners=2pt,inner sep=2pt,font=\ttfamily\footnotesize](k){#1};}
+
+% terminal commands
+\DefineVerbatimEnvironment{cmd}{Verbatim}{fontsize=\small,frame=single,framesep=2mm,
+  rulecolor=\color{gray!60},formatcom=\color{black!85}}
+
+\newtcolorbox{note}[1][Note]{colback=yellow!6,colframe=orange!70!black,fonttitle=\bfseries,
+  title=#1,left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{say}{colback=NavyBlue!4,colframe=NavyBlue!70,fonttitle=\bfseries,
+  title=What to say,left=2mm,right=2mm,top=1mm,bottom=1mm}
+
+\tikzset{
+  box/.style={draw,rounded corners=3pt,align=center,inner sep=5pt,font=\small,fill=white},
+  arr/.style={-{Stealth[length=2.5mm]},thick},
+}
+
+\title{\textbf{gr00t-arm}\\[2pt]\large A desk robot arm that learns from demonstrations with NVIDIA GR00T\\[2pt]
+\normalsize How it connects to GR00T, and how to build, wire, calibrate, train and run it}
+\author{Yishane Kao}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\clearpage
+
+%======================================================================
+\part{How the arm connects to GR00T}
+%======================================================================
+
+\section{The idea in one picture}
+
+GR00T is NVIDIA's \emph{robot foundation model}: one neural network, pretrained on a huge
+amount of robot and human data, that turns \textbf{what a robot sees}, \textbf{what it is
+told} and \textbf{where its joints are} into \textbf{the next motions}. It was built for
+humanoids, but it is designed so a \emph{new} body can be taught to it with a small amount of
+data. This arm is that new body: five \$2 servos, a phone for eyes, and about 60
+demonstrations.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=7mm and 9mm]
+  \node[box,fill=green!8] (cam) {\textbf{Phone camera}\\ image $640{\times}480$};
+  \node[box,fill=green!8,below=of cam] (lang) {\textbf{Instruction}\\ ``pick up the ball and\\ put it in the cup''};
+  \node[box,fill=green!8,below=of lang] (state) {\textbf{Joint state}\\ 5 servo angles};
+
+  \node[box,fill=NavyBlue!10,right=16mm of lang,minimum width=40mm,minimum height=46mm] (g) {};
+  \node[box,anchor=north,fill=NavyBlue!18] (vlm) at ($(g.north)+(0,-3mm)$)
+     {\textbf{System 2: vision-language model}\\ \footnotesize Cosmos-Reason2-2B\\ \footnotesize ``understands the scene''};
+  \node[box,anchor=south,fill=NavyBlue!18] (dit) at ($(g.south)+(0,3mm)$)
+     {\textbf{System 1: action head}\\ \footnotesize diffusion transformer\\ \footnotesize ``turns it into motion''};
+  \node[font=\bfseries,above=1mm of g] {GR00T N1.7 (3B parameters)};
+  \draw[arr] (vlm) -- (dit);
+
+  \node[box,fill=orange!10,right=16mm of g] (chunk) {\textbf{Action chunk}\\ next 16 sets of\\ 5 servo angles\\ ($\approx$0.5\,s)};
+  \node[box,fill=orange!10,below=of chunk] (arm) {\textbf{Arduino + servos}\\ play 8 of them,\\ then ask again};
+
+  \draw[arr] (cam.east) -- (vlm.west);
+  \draw[arr] (lang.east) -- (vlm.west);
+  \draw[arr] (state.east) -- (dit.west);
+  \draw[arr] (dit.east) -- (chunk.west);
+  \draw[arr] (chunk) -- (arm);
+  \draw[arr,dashed,gray] (arm.south) |- ++(0,-8mm) -| (state.south)
+     node[pos=0.25,below,font=\footnotesize,black]{the arm moves, the camera sees the change, repeat $\approx$4 times a second};
+\end{tikzpicture}
+\caption{The control loop. Everything on the left is produced by this arm; the middle is GR00T; the right is sent back to the arm.}
+\label{fig:loop}
+\end{figure}
+
+\section{What GR00T is, in plain words}
+
+\begin{description}[leftmargin=0pt]
+\item[A foundation model for robots.] Language models are pretrained on the internet and then
+  adapted to a task. GR00T does the same for robot \emph{motion}: it is pretrained on a mix of
+  real robot recordings, simulated robots and videos of humans, then \emph{post-trained}
+  (fine-tuned) on a few dozen demonstrations of a specific robot doing a specific task
+  \cite{gr00tn1,isaacgr00t}.
+\item[Two systems, like fast and slow thinking.] The \textbf{System 2} part is a
+  vision-language model: it looks at the camera image and reads the instruction, and produces
+  a rich description of the situation. The \textbf{System 1} part is an \emph{action head}, a
+  diffusion transformer: it takes that description plus the robot's current joint angles and
+  produces motor commands. System 2 is the ``what is going on and what should happen'', System
+  1 is the ``how do my joints get there''.
+\item[It outputs a short plan, not one move.] The action head predicts an \textbf{action
+  chunk}: the next 16 commands (about half a second). Predicting a chunk makes motions smooth
+  and lets the model commit to a plan instead of dithering every frame. We play the first 8 and
+  then ask again with a fresh image, so the arm keeps correcting itself.
+\item[How it generates actions: denoising.] The action head starts from random numbers and
+  refines them over a few steps (4 by default) into a sensible chunk, guided by what System 2
+  saw. This ``flow matching'' / diffusion trick is the same family of method image generators
+  use, applied to joint angles instead of pixels.
+\item[One brain, many bodies.] The big shared network is the same for every robot. What is
+  specific to a body is small: how its joint state is read in and how actions are read out.
+  GR00T has a reserved slot for robots it has never seen, \texttt{NEW\_EMBODIMENT}. Our arm is
+  registered there with 4 arm joints, 1 gripper and 1 camera.
+\end{description}
+
+\section{Every GR00T concept, and where it lives on this arm}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Mapping GR00T's pieces onto the arm. File names are in the GitHub repo.}
+\label{tab:map}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright}p{3.0cm}>{\raggedright}X >{\raggedright\arraybackslash}p{3.9cm}@{}}
+\toprule
+GR00T concept & On this arm & Where \\
+\midrule
+Vision input & One phone camera on a fixed mast looking down at the work area (key \texttt{front}). Fixed so every demo looks the same. & mast + cradle STLs, \file{arm_io.py} \\
+Language instruction & ``pick up the ball and put it in the cup'' stored with every demo & \file{recorder.py} \\
+Proprioceptive state & 5 servo angles in degrees: base, shoulder, elbow, wrist (\texttt{single\_arm}) and gripper (\texttt{gripper}) & \file{export_dataset.py} \\
+Embodiment & \texttt{NEW\_EMBODIMENT} with our modality config & \file{gr00t_arm_config.py} \\
+Dataset format & LeRobot v2.1 + \file{meta/modality.json} (parquet tables + mp4 videos) & \file{export_dataset.py} \\
+Action chunk & 16 future commands; we execute 8 then re-query & \file{run_policy.py} \\
+Relative vs absolute actions & Arm joints are predicted as \emph{changes} from the current angles (generalises better); the gripper as an absolute open/close target & \file{gr00t_arm_config.py} \\
+Post-training & Fine-tune on $\approx$60 demos on a rented cloud GPU, $\approx$3000 steps & \file{gr00t/finetune.sh} \\
+Inference & Model runs on the cloud GPU as a server; the laptop sends image + state, gets actions back over ZeroMQ & \file{gr00t/serve.sh}, \file{policy_client.py} \\
+Demonstrations & Scripted pick-and-place (auto-collected) or keyboard teleop & \file{autodemo.py}, \file{teleop.py} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{The whole pipeline}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm]
+  \node[box] (a) {\textbf{1. Demonstrate}\\ \footnotesize autodemo / teleop\\ \footnotesize 60 episodes};
+  \node[box,right=of a] (b) {\textbf{2. Record}\\ \footnotesize frames + angles\\ \footnotesize \file{data/raw}};
+  \node[box,right=of b] (c) {\textbf{3. Export}\\ \footnotesize GR00T dataset\\ \footnotesize \file{data/lerobot}};
+  \node[box,right=of c,fill=NavyBlue!10] (d) {\textbf{4. Fine-tune}\\ \footnotesize cloud GPU\\ \footnotesize $\approx$1--2 h};
+  \node[box,right=of d,fill=orange!10] (e) {\textbf{5. Run}\\ \footnotesize GR00T drives\\ \footnotesize the arm};
+  \foreach \x/\y in {a/b,b/c,c/d,d/e} \draw[arr] (\x) -- (\y);
+  \node[box,below=7mm of d,fill=gray!8] (act) {\textbf{4b. ACT on the laptop}\\ \footnotesize small model, free, $\approx$2.5\,h\\ \footnotesize same data, a good first check};
+  \draw[arr,gray] (c.south) |- (act.west);
+  \draw[arr,gray] (act.east) -| (e.south);
+\end{tikzpicture}
+\caption{From demonstrations to a running policy. ACT \cite{act} is a much smaller imitation-learning model that trains on the laptop; it checks the data before paying for a GPU.}
+\label{fig:pipeline}
+\end{figure}
+
+\section{Presenting it in a humanoids talk}
+\label{sec:present}
+
+\subsection{A 3-minute script}
+
+\begin{say}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{The problem.} ``A humanoid has to turn what it sees and what it's told into
+  motor commands for dozens of joints. Writing that by hand doesn't scale. NVIDIA's answer is
+  GR00T, a foundation model for robots.''
+\item \textbf{Point at the arm.} ``This is a \$10 arm: five hobby servos and my phone as the
+  camera. GR00T doesn't care that it's small. The recipe is the same one used for humanoids.''
+\item \textbf{Inputs and outputs} (\cref{fig:loop}). ``Three inputs: the camera image, an
+  instruction in English, and the current joint angles. One output: a chunk of the next
+  16 joint commands, about half a second of motion.''
+\item \textbf{Two systems.} ``Inside, a vision-language model figures out \emph{what} to do,
+  and a diffusion transformer turns that into \emph{how} the joints move. Slow thinking and
+  fast moving.''
+\item \textbf{New body.} ``GR00T has never seen this arm. I registered it as a new embodiment:
+  4 joints, a gripper, one camera, and fine-tuned it on about 60 demonstrations. That took
+  an hour or two on a rented GPU.''
+\item \textbf{Demo} (\cref{sec:demo}).
+\item \textbf{Back to humanoids.} ``A humanoid is the same loop with more joints, more cameras
+  and much more data. Pretraining on many bodies is what lets each new body learn from only a
+  handful of demonstrations.''
+\end{enumerate}
+\end{say}
+
+\subsection{Live demo plan}
+\label{sec:demo}
+Pick the most ambitious option you have working, and keep the next one ready.
+\begin{enumerate}
+\item \textbf{GR00T live.} Start \file{serve.sh} on the cloud GPU before class, connect with
+  \file{run_policy.py gr00t}. Needs internet. Put the ball on a marked spot, run it.
+\item \textbf{ACT live (no internet).} Same pipeline, smaller model running on the laptop:
+  \file{run_policy.py act}. Say clearly that this is the small model trained on the same data.
+\item \textbf{Scripted demo.} \file{autodemo.py --spot B2} always works. Explain that this
+  script is how the training demonstrations were collected, and that the learned policy never
+  sees the spot name, only the camera image.
+\item \textbf{Video.} Screen-record a successful GR00T run the day before as a backup.
+\end{enumerate}
+Show the dataset too: open one recorded \file{episode_000000.mp4} to make ``demonstration
+data'' concrete.
+
+\subsection{Questions you might get}
+\begin{description}[leftmargin=0pt,font=\normalfont\itshape]
+\item[Why not just program the pick-up?] You can, and the scripted demo does. But that only
+  works if the ball is exactly on a known spot. A learned policy reads the image, so the same
+  approach scales to tasks nobody can script, like folding a shirt.
+\item[How much data?] About 60 demonstrations here. Pretraining is what makes that enough.
+\item[Why chunks of actions?] Smoother motion, fewer model calls, and the model commits to a
+  plan. Re-planning every 8 steps still lets it correct mistakes.
+\item[Does it generalise?] Within reason: other spots on the plate, small lighting changes.
+  Not to a new task it was never shown.
+\item[Why the cloud?] Running GR00T needs a GPU with about 16\,GB of memory and fine-tuning
+  about 40\,GB; the laptop has 8\,GB.
+\end{description}
+
+%======================================================================
+\part{Build and run instructions}
+%======================================================================
+
+\section{What you need}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Parts. Nothing exotic; most of it you already have.}
+\begin{tabularx}{\linewidth}{@{}l c X@{}}
+\toprule
+Part & Qty & Notes \\
+\midrule
+SG90 micro servo (with horns and screws) & 5 & base, shoulder, elbow, wrist, gripper \\
+Arduino Nano + USB cable & 1 & the cable must carry data, not only charge \\
+Adjustable bench power supply & 1 & set to 5.5\,V, current limit 3\,A \\
+Breadboard + male--male jumper wires & -- & to share power between servos \\
+Superglue (CA) & -- & glues each servo horn into its slot \\
+Ping-pong ball (40\,mm) & 1 & or print two \file{12_ball_half} and glue them \\
+Phone + webcam app & 1 & Phone Link (Android) or Iriun / DroidCam (any phone) \\
+PLA filament & $\approx$450\,g & Bambu printer \\
+Optional: 470--1000\,$\mu$F capacitor & 1 & across the servo power rail; smooths current spikes \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Printing}
+
+All STLs are in \file{cad/stl}. They are generated from \file{cad/arm.py}; if a fit is off,
+change the number at the top of that file and re-run it (\cref{sec:fit}).
+
+\begin{table}[htbp]
+\centering\small
+\caption{Print list. PLA, 0.2\,mm layers, 3 walls, 20\% infill unless noted. No part needs supports.}
+\label{tab:print}
+\begin{tabularx}{\linewidth}{@{}l c X@{}}
+\toprule
+File & Qty & How to print \\
+\midrule
+\file{00_fit_test} & 1 & \textbf{print first}, flat \\
+\file{01_base} & 1 & upside down (top plate on the bed) \\
+\file{02_turntable} & 1 & disc flat on the bed \\
+\file{03_upper_arm}, \file{04_forearm} & 1 each & flat \\
+\file{05_gripper_body} & 1 & flat, as exported \\
+\file{06_gripper_jaw} & 1 & flat, as exported \\
+\file{07_baseplate} & 1 & flat; 250$\times$200\,mm, the longest print (15\% infill is fine) \\
+\file{08_camera_mast} & 1 & standing up, 4 walls \\
+\file{09_phone_cradle} & 1 & back face down (as exported) \\
+\file{10_pin} & 1 & lying flat \\
+\file{11_cup} & 1 & upright \\
+\file{12_ball_half} & 2 & only if you have no ping-pong ball; open side down \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Fit test first}
+\label{sec:fit}
+The fit test has one servo pocket and one horn slot. An SG90 should drop into the pocket with
+a little play and its tabs should rest flat; a double-arm horn should press into the slot
+snugly. If the pocket is tight, increase \texttt{CLEAR} in \file{cad/arm.py}; if the horn is
+loose, decrease \texttt{HORN\_SLOT\_W}. Rebuild with:
+\begin{cmd}
+cd cad
+uv run --python 3.12 --with cadquery python arm.py
+\end{cmd}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{arm_home}\hfill
+\includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{work_cell}
+\caption{Left: the assembled arm in its home pose (blue = servos). Right: the work cell with
+the baseplate, cup and phone camera mast. Both were checked for collisions in software
+(\file{cad/assembly.py}): every marked ball spot and the cup can be reached without hitting
+the plate or the camera.}
+\label{fig:cell}
+\end{figure}
+
+\section{Laptop software setup}
+
+\begin{enumerate}
+\item Install \textbf{uv} (Python manager) and \textbf{Arduino CLI} in PowerShell:
+\begin{cmd}
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+winget install ArduinoSA.CLI
+\end{cmd}
+\item Get the code and install the Python packages:
+\begin{cmd}
+gh repo clone Yishane/gr00t-arm
+cd gr00t-arm\software
+uv sync
+\end{cmd}
+\item Phone as webcam: install \textbf{Iriun Webcam} or \textbf{DroidCam} on the phone and the
+  PC (or on Android use Windows Phone Link $\rightarrow$ ``Use as connected camera''). It shows
+  up as a normal webcam. The laptop's own camera is usually index 0 and the phone 1 or 2.
+\end{enumerate}
+
+\section{Wiring}
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\linewidth}{!}{\begin{tikzpicture}[font=\small,x=1cm,y=1cm]
+  \def\yp{3.0}\def\yg{2.4}
+  % bench supply
+  \node[box,fill=gray!8,minimum width=24mm,minimum height=14mm] (psu) at (0.6,2.7)
+    {\textbf{Bench supply}\ 5.5\,V, limit 3\,A};
+  % rails
+  \draw[red,very thick] (psu.east |- 0,\yp) node[left=-1pt,black,font=\footnotesize]{$+$} -- (14.4,\yp)
+     node[right,black,font=\footnotesize]{$+$5.5\,V rail};
+  \draw[very thick] (psu.east |- 0,\yg) node[left=-1pt,font=\footnotesize]{$-$} -- (14.4,\yg)
+     node[right,font=\footnotesize]{GND rail};
+  % nano
+  \node[box,fill=NavyBlue!8,minimum width=30mm,minimum height=30mm] (nano) at (3.6,-0.2) {};
+  \node[font=\bfseries,anchor=north] at (nano.north) {Arduino Nano};
+  \node[font=\footnotesize,anchor=south] at (nano.south) {USB $\rightarrow$ laptop};
+  \foreach \i/\p in {0/D3,1/D5,2/D6,3/D9,4/D10}{
+    \pgfmathsetmacro{\py}{0.6-0.3*\i}
+    \node[font=\scriptsize,anchor=east] at (5.1,\py) {\p};
+    \fill (5.1,\py) circle (1.2pt);
+  }
+  \node[font=\scriptsize,anchor=west] at (2.1,-1.0) {GND};
+  \fill (2.1,-1.0) circle (1.2pt);
+  \draw[thick] (2.1,-1.0) -- (1.7,-1.0) -- (1.7,\yg);
+  \fill (1.7,\yg) circle (1.6pt);
+  % servos
+  \foreach \i/\n in {0/base,1/shoulder,2/elbow,3/wrist,4/gripper}{
+    \pgfmathsetmacro{\sx}{7.0+1.6*\i}
+    \pgfmathsetmacro{\py}{0.6-0.3*\i}
+    \node[box,fill=NavyBlue!20,minimum width=13mm,font=\footnotesize] (s\i) at (\sx,1.35) {\n};
+    \draw[red,thick] (\sx-0.35,1.6) -- (\sx-0.35,\yp);  \fill[red] (\sx-0.35,\yp) circle (1.6pt);
+    \draw[brown!70!black,thick] (\sx,1.6) -- (\sx,\yg);  \fill (\sx,\yg) circle (1.6pt);
+    \draw[orange,thick] (\sx+0.35,1.1) -- (\sx+0.35,\py) -- (5.1,\py);
+  }
+  \node[font=\footnotesize,anchor=north west,align=left] at (6.3,-0.9)
+    {servo plug: \textcolor{brown!70!black}{\textbf{brown} = GND}\quad
+     \textcolor{red}{\textbf{red} = +}\quad \textcolor{orange}{\textbf{orange} = signal}};
+\end{tikzpicture}}
+\caption{Wiring. Servo power comes from the bench supply, \emph{never} from the Nano's 5V
+pin. The Nano's GND must connect to the supply's negative so the signals have a common
+reference. Orange signal wires go to D3, D5, D6, D9, D10 in the order base, shoulder, elbow,
+wrist, gripper.}
+\label{fig:wiring}
+\end{figure}
+
+\begin{enumerate}
+\item Set the bench supply to \textbf{5.5\,V} with the current limit at \textbf{3\,A}, output off.
+\item Bench supply $+$ to the breadboard's red rail, $-$ to the blue rail. (Optional: the
+  capacitor across the two rails, its stripe/negative leg to the blue rail.)
+\item Each servo: red to the red rail, brown to the blue rail (use jumpers into the servo's
+  3-pin plug), orange to its Nano pin from \cref{fig:wiring}.
+\item One jumper from a Nano GND pin to the blue rail.
+\item Nano to the laptop by USB.
+\end{enumerate}
+\begin{note}[Why the separate supply]
+Five SG90s can pull over 2\,A when they start moving together. USB gives 0.5\,A: the Nano
+would reset and the arm would twitch. If the supply hits its current limit (the CC light
+comes on) something is jammed; turn it off and check.
+\end{note}
+
+\subsection{Upload the firmware}
+Find the Nano's port in Device Manager $\rightarrow$ Ports (e.g.\ COM5), then:
+\begin{cmd}
+cd gr00t-arm\firmware
+.\upload.ps1 COM5
+\end{cmd}
+The script tries the ``old bootloader'' (most Nano clones) and then the new one. The firmware
+listens on USB serial for lines like \texttt{90,90,90,90,125} (five angles) and moves each
+servo smoothly toward its target.
+
+\section{Assembly}
+
+\begin{note}[The one rule]
+Every servo must be at \textbf{90\,\textdegree} when its horn goes on, with the part it drives
+in the \textbf{home pose}: arm facing forward, upper arm straight up, forearm horizontal pointing
+forward, gripper in line with the forearm, jaw closed (parallel to the fixed finger). The
+software assumes this; get it right and calibration is only small trims.
+\end{note}
+
+\begin{enumerate}
+\item \textbf{Center all servos.} Wire all five servos with nothing attached, power on, and run
+\begin{cmd}
+cd gr00t-arm\software
+uv run calibrate.py
+> center
+\end{cmd}
+All five turn to 90\,\textdegree. Leave them powered while fitting horns.
+\item \textbf{Glue the horns.} Put a drop of CA in each printed part's horn slot (the long
+  groove on the underside) and press a double-arm horn in, hub facing out. Parts with a slot:
+  turntable, upper arm, forearm, gripper body, gripper jaw. Let it set for a few minutes.
+\item \textbf{Base servo.} Drop the base servo into \file{01_base} from the top, shaft up,
+  cable out through the notch. Screw the two tabs down with the servo's screws.
+\item \textbf{Turntable.} Press the turntable's horn onto the base servo spline so the bracket's
+  flat face (where the shoulder servo goes) faces \emph{left} and the arm will swing forward/back.
+  Put the small horn screw through the access hole to lock it.
+\item \textbf{Shoulder servo.} Slide it into the bracket from the left face, tabs flat on the
+  plate, shaft pointing left, body behind the plate. Screw the tabs.
+\item \textbf{Upper arm.} Slot side toward the servo; press onto the shoulder spline pointing
+  \emph{straight up}. Horn screw through the access hole.
+\item \textbf{Elbow servo} into the pocket at the top of the upper arm, from the outer face,
+  shaft pointing left. Screw the tabs.
+\item \textbf{Forearm} onto the elbow spline, pointing \emph{forward, horizontal}. Horn screw.
+\item \textbf{Wrist servo} into the forearm's end pocket the same way.
+\item \textbf{Gripper body} onto the wrist spline, \emph{in line with the forearm}. Horn screw.
+\item \textbf{Gripper servo} into the gripper body's pocket, shaft pointing the same way.
+\item \textbf{Jaw} onto the gripper spline with the jaw \emph{closed}: parallel to the fixed
+  finger. Horn screw.
+\item \textbf{Work cell.} Set the arm base onto the baseplate's two pegs (inside the engraved
+  outline; spots A1--C3 in front, the cup ring to the left). Push the mast into its socket,
+  the pin into the mast top, and the phone cradle onto the pin. Clamp or tape the baseplate's
+  back edge to the desk.
+\item \textbf{Phone.} Landscape on the cradle, resting on the lip, \emph{rear camera near the
+  lip}. Open the webcam app.
+\item \textbf{Cables.} Leave slack at every joint so nothing pulls when the arm turns.
+\end{enumerate}
+
+\section{Calibration}
+
+Still in \file{calibrate.py}:
+\begin{enumerate}
+\item \texttt{home} --- the arm should go to the home pose.
+\item \texttt{test} --- moves each joint a little and tells you which way it should go. If one
+  goes the wrong way, type \texttt{flip <joint>} (0 base, 1 shoulder, 2 elbow, 3 wrist).
+\item If a joint is a few degrees off in the home pose: \texttt{trim <joint> <degrees>}, e.g.\
+  \texttt{trim 1 -4}.
+\item Gripper: \texttt{s 4 <deg>} to try angles. Find an angle that is well open, and one that
+  squeezes the ball firmly without the servo buzzing hard; set them with
+  \texttt{grip open 125} and \texttt{grip closed 85} (your numbers).
+\item \texttt{save}, then \texttt{quit}. This writes \file{software/calibration.json}.
+\end{enumerate}
+
+\section{First moves}
+
+\begin{cmd}
+uv run autodemo.py --spot B2 --camera 1
+\end{cmd}
+Put the ball on spot B2 first. The arm should pick it up and drop it in the cup. Then try
+driving it yourself:
+\begin{cmd}
+uv run teleop.py --camera 1
+\end{cmd}
+Click the window, then: \key{W}/\key{S} forward/back, \key{A}/\key{D} left/right,
+\key{R}/\key{F} up/down, \key{Q}/\key{E} tilt the gripper, \key{Space} open/close,
+\key{H} home, \key{Esc} quit. If it says ``can't reach that'', the target is outside the arm's
+reach or would hit the plate; it refuses rather than crashing. Add \texttt{--sim} to any script
+to try it without hardware.
+
+\section{Collecting demonstrations}
+
+\begin{enumerate}
+\item \textbf{Automatic (recommended):}
+\begin{cmd}
+uv run autodemo.py --record 60 --camera 1
+\end{cmd}
+  It names a random spot; you place the ball and press Enter; it picks and places while
+  recording. 60 demos take about 20 minutes.
+\item \textbf{By hand (optional, adds variety):} in \file{teleop.py}, \key{Enter} starts a
+  recording, \key{Enter} again saves it, \key{Backspace} throws it away.
+\end{enumerate}
+\begin{note}[Good data]
+Keep the camera, lighting and cup exactly where they will be during the demo. Place the ball
+a little off-center sometimes. Delete any failed demo folder from \file{data/raw/pick_ball}.
+\end{note}
+Then export for GR00T:
+\begin{cmd}
+uv run export_dataset.py
+\end{cmd}
+This writes \file{data/lerobot/pick_ball} (\cref{tab:map}). GR00T's own data loader was used
+to check this format.
+
+\section{Training ACT on the laptop (free, optional but recommended)}
+
+\begin{cmd}
+cd software\act
+uv sync
+uv run export_act.py
+uv run train_act.py --steps 20000
+uv run ..\run_policy.py act --camera 1 ^
+    --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model
+\end{cmd}
+Training runs at about 2.3 steps per second on the RTX 5050 (about 2.5 hours for 20k steps).
+If ACT picks up the ball, the data is good and GR00T will learn from it too.
+
+\section{Fine-tuning and running GR00T in the cloud}
+
+\subsection{One-time accounts (you do these)}
+\begin{enumerate}
+\item \textbf{Hugging Face}: make a free account at \url{https://huggingface.co}, open
+  \url{https://huggingface.co/nvidia/Cosmos-Reason2-2B} and request access (GR00T is built on
+  it). Then create an access token (Settings $\rightarrow$ Access Tokens, ``read'').
+\item \textbf{A GPU cloud} such as RunPod or Lambda, with a few dollars of credit. Fine-tuning
+  needs a GPU with at least 40\,GB (L40S, A100 or H100).
+\end{enumerate}
+
+\subsection{Steps}
+\begin{enumerate}
+\item Start a Linux GPU machine (Ubuntu, L40S/A100/H100, $\ge$100\,GB disk). Note its SSH
+  address and port.
+\item Copy the GR00T scripts and the dataset up (from the \file{gr00t-arm} folder):
+\begin{cmd}
+scp -P <port> -r software\gr00t data\lerobot\pick_ball root@<ip>:~/
+\end{cmd}
+\item Log in and set up (installs GR00T and downloads the base model, $\approx$20 min):
+\begin{cmd}
+ssh -p <port> root@<ip>
+export HF_TOKEN=hf_your_token
+bash ~/gr00t/setup_cloud.sh
+\end{cmd}
+\item Fine-tune (about 1--2 hours; use \texttt{tmux} so it survives a disconnect):
+\begin{cmd}
+tmux
+bash ~/gr00t/finetune.sh ~/pick_ball
+\end{cmd}
+  At the end it plots predicted vs.\ recorded actions for episode 0 in \file{/tmp/open_loop_eval}.
+  The lines should overlap. Flat predicted lines mean something is wrong with the data.
+\item Serve the model:
+\begin{cmd}
+bash ~/gr00t/serve.sh
+\end{cmd}
+\item On the laptop, open a tunnel in one terminal and run the arm in another:
+\begin{cmd}
+ssh -p <port> -L 5555:localhost:5555 root@<ip>
+uv run run_policy.py gr00t --host localhost --camera 1
+\end{cmd}
+\item \textbf{Stop the cloud machine when you're done}: it bills by the hour.
+\end{enumerate}
+
+\begin{note}[Cost and time]
+A cloud GPU costs roughly \$1--3 per hour. Setup plus one fine-tune plus testing is a few
+hours, so budget \$10--20 for the first run. Download the checkpoint folder
+(\file{~/gr00t_arm_ckpt}) if you want to reuse it later without retraining.
+\end{note}
+
+\section{Troubleshooting}
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}p{4.6cm}X@{}}
+\toprule
+Symptom & Fix \\
+\midrule
+``No Arduino found'' & Check the USB cable carries data; pass \texttt{--port COM5}. \\
+Upload fails & Try the other bootloader (the script does both); close other programs using the port. \\
+Servos twitch / Nano resets & Servo power must come from the supply; Nano GND tied to supply $-$; add the capacitor. \\
+A joint moves the wrong way & \file{calibrate.py}: \texttt{test}, then \texttt{flip <joint>}. \\
+Arm sags or buzzes holding pose & Normal for SG90s near their limit; keep the gripper light. MG90S servos are a drop-in upgrade. \\
+``Camera N didn't open'' & Try \texttt{--camera 0}, \texttt{1}, \texttt{2}; make sure the phone app is running. \\
+``can't reach that'' in teleop & The target is out of reach or the gripper would hit the plate. Move back. \\
+GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
+\texttt{run\_policy}: server not reachable & Is \file{serve.sh} running and the SSH tunnel open? \\
+Policy runs but misses & More demos, more varied ball positions, same camera position as in training. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Where everything is}
+
+\begin{description}[leftmargin=0pt,font=\ttfamily\normalsize]
+\item[cad/] \file{arm.py} (all parts, parametric), \file{assembly.py} (collision and reach
+  checks), \file{stl/}, \file{renders/}
+\item[firmware/] \file{arm/arm.ino}, \file{upload.ps1}
+\item[software/] \file{config.py} (geometry, calibration), \file{kinematics.py} (+ tests),
+  \file{calibrate.py}, \file{teleop.py}, \file{autodemo.py}, \file{recorder.py},
+  \file{export_dataset.py}, \file{policy_client.py}, \file{run_policy.py}
+\item[software/gr00t/] \file{gr00t_arm_config.py}, \file{setup_cloud.sh}, \file{finetune.sh}, \file{serve.sh}
+\item[software/act/] \file{export_act.py}, \file{train_act.py}
+\item[context.md] running notes on the project's state
+\end{description}
+
+\begin{thebibliography}{9}
+\bibitem{gr00tn1} NVIDIA et al., ``GR00T N1: An Open Foundation Model for Generalist Humanoid
+  Robots,'' arXiv:2503.14734, 2025.
+\bibitem{isaacgr00t} NVIDIA, ``Isaac GR00T'' (code, GR00T N1.7 model, fine-tuning guides),
+  \url{https://github.com/NVIDIA/Isaac-GR00T}.
+\bibitem{act} T.~Z. Zhao, V.~Kumar, S.~Levine, C.~Finn, ``Learning Fine-Grained Bimanual
+  Manipulation with Low-Cost Hardware,'' RSS 2023, arXiv:2304.13705.
+\bibitem{lerobot} Hugging Face, ``LeRobot,'' \url{https://github.com/huggingface/lerobot}.
+\end{thebibliography}
+
+\end{document}

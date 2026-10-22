@@ -69,9 +69,17 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
       test harness in %TEMP%); server replies msgpack_numpy {nd,type,shape,data} arrays.
       run_policy.py gr00t --host --server-port. Cloud scripts: software/gr00t/{setup_cloud,
       finetune,serve}.sh (NOT run — needs cloud GPU + HF access).
-- [ ] Gotcha: user needs HF account + access to gated nvidia/Cosmos-Reason2-2B; cloud GPU acct
 - [x] Firmware compiles for Nano (arduino-cli via winget); firmware/upload.ps1 <COMx>
-- [ ] LaTeX guide
+- [x] LaTeX guide: docs/guide.tex -> docs/guide.pdf (13 pp, compiles clean with MiKTeX latexmk).
+      Part I = GR00T explainer + 3-min talk script + demo plan + Q&A; Part II = BOM, printing,
+      setup, wiring (TikZ), assembly, calibration, demos, ACT, GR00T cloud, troubleshooting.
+      Figures from `cad/assembly.py --docs`.
 
-## Next
-Continue from the first unchecked item in Status.
+## Next (all build deliverables done 2026-10-22; waiting on Yishane)
+1. He prints (fit test first), wires, assembles, calibrates — guide sections 7–11.
+2. Record ~60 demos (autodemo --record 60), export, train ACT locally to validate data.
+3. He makes HF account + requests nvidia/Cosmos-Reason2-2B access; gets cloud GPU credit.
+4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet —
+   first real run may need fixes; check open_loop_eval plot).
+Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,
+phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing).
