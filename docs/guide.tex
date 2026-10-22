@@ -227,7 +227,8 @@ data'' concrete.
 
 \begin{table}[htbp]
 \centering\small
-\caption{Parts. Nothing exotic; most of it you already have.}
+\caption{Parts. Nothing exotic; most of it you already have. Beyond these, the only
+possible cost is cloud GPU time for GR00T, which has free options (\cref{sec:cloud}).}
 \begin{tabularx}{\linewidth}{@{}l c X@{}}
 \toprule
 Part & Qty & Notes \\
@@ -235,7 +236,8 @@ Part & Qty & Notes \\
 SG90 micro servo (with horns and screws) & 5 & base, shoulder, elbow, wrist, gripper \\
 Arduino Nano + USB cable & 1 & the cable must carry data, not only charge \\
 Adjustable bench power supply & 1 & set to 5.5\,V, current limit 3\,A \\
-Breadboard + male--male jumper wires & -- & to share power between servos \\
+Breadboard + male--male jumper wires & -- & to share power between servos; with no
+  breadboard, join the 5 red wires together and the 5 brown wires together with spare wire \\
 Superglue (CA) & -- & glues each servo horn into its slot \\
 Ping-pong ball (40\,mm) & 1 & or print two \file{12_ball_half} and glue them \\
 Phone + webcam app & 1 & Phone Link (Android) or Iriun / DroidCam (any phone) \\
@@ -501,15 +503,26 @@ Training runs at about 2.3 steps per second on the RTX 5050 (about 2.5 hours for
 If ACT picks up the ball, the data is good and GR00T will learn from it too.
 
 \section{Fine-tuning and running GR00T in the cloud}
+\label{sec:cloud}
 
 \subsection{One-time accounts (you do these)}
 \begin{enumerate}
 \item \textbf{Hugging Face}: make a free account at \url{https://huggingface.co}, open
   \url{https://huggingface.co/nvidia/Cosmos-Reason2-2B} and request access (GR00T is built on
   it). Then create an access token (Settings $\rightarrow$ Access Tokens, ``read'').
-\item \textbf{A GPU cloud} such as RunPod or Lambda, with a few dollars of credit. Fine-tuning
-  needs a GPU with at least 40\,GB (L40S, A100 or H100).
+\item \textbf{GPU time.} Fine-tuning needs a GPU with at least 40\,GB (L40S, A100 or H100).
+  Try free credits first. \textbf{Lightning AI}'s free plan gives monthly credits and a
+  Studio you can SSH into, so the steps below work unchanged. \textbf{Modal}'s free plan gives
+  about \$30 a month, but it needs a small wrapper script first. Otherwise, rent a machine
+  on a paid cloud such as RunPod or Lambda. Free 16\,GB GPUs (Colab, Kaggle) are too small.
 \end{enumerate}
+
+\begin{note}[This is the only step that can cost money]
+Everything before this section is free. If you don't want to pay and there are no free
+credits, stop after ACT: it uses the same data and the same control loop, and it is a
+fine live demo (\cref{sec:demo}, option 2). Check the free plans' current terms on their
+pricing pages before signing up.
+\end{note}
 
 \subsection{Steps}
 \begin{enumerate}
@@ -545,8 +558,8 @@ uv run run_policy.py gr00t --host localhost --camera 1
 \end{enumerate}
 
 \begin{note}[Cost and time]
-A cloud GPU costs roughly \$1--3 per hour. Setup plus one fine-tune plus testing is a few
-hours, so budget \$10--20 for the first run. Download the checkpoint folder
+A paid cloud GPU costs roughly \$1--3 per hour. Setup plus one fine-tune plus testing is a
+few hours, so budget \$10--20 for the first run, or use free credits if they cover it. Download the checkpoint folder
 (\file{~/gr00t_arm_ckpt}) if you want to reuse it later without retraining.
 \end{note}
 

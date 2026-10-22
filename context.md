@@ -96,6 +96,11 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 1. He prints (fit test first), wires, assembles, calibrates — guide sections 7–11.
 2. Record ~60 demos (autodemo --record 60), export, train ACT locally to validate data.
 3. He makes HF account + requests nvidia/Cosmos-Reason2-2B access; gets cloud GPU credit.
+   COST (told him 2026-10-22): milestone 9 is the ONLY step that can cost money (~$10-20 paid).
+   Free options documented in README m9 + guide sec:cloud: Lightning AI free credits (SSH Studio,
+   scripts work as-is), Modal ~$30/mo free (needs a Modal wrapper Claude would write - not built).
+   Colab/Kaggle 16 GB too small. Fallback: stop at ACT, demo with ACT. Recommended: do 3-8 first.
+   Unconfirmed: whether he has breadboard + jumpers (guide now gives a no-breadboard alternative).
 4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet —
    first real run may need fixes; check open_loop_eval plot).
 Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,

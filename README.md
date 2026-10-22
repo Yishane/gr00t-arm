@@ -188,8 +188,24 @@ The code stays the same. Only the numbers in `software/config.py` change.
   `uv run ..\run_policy.py act --camera 1 --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model`.
 
 ### ⬜ 9. GR00T fine-tune in the cloud (You: accounts; Claude: helps)
-- Make a Hugging Face account and request access to `nvidia/Cosmos-Reason2-2B`.
-  Get cloud GPU credit (≥ 40 GB GPU).
+> **This is the only milestone that can cost money.** Fine-tuning GR00T needs a
+> GPU with ≥ 40 GB of memory (the laptop has 8 GB), so it has to be rented.
+> Paid, that's about $10–20 for the first run. Milestones 3–8 are all free, so
+> do those first and decide on this one once ACT works.
+>
+> **Free options to check first** (terms change, so check their pricing pages):
+> - **Lightning AI** free plan: monthly credits and a Studio you can SSH into,
+>   so the scripts below work as they are. The credits buy fewer hours on big GPUs.
+> - **Modal** Starter plan: about $30/month of free compute. It isn't an SSH box,
+>   so Claude would need to write a small Modal wrapper for the scripts first.
+> - Free 16 GB GPUs (Colab, Kaggle) are too small for this fine-tune as set up.
+>
+> **If you skip it:** ACT (milestone 8) runs the same pipeline for free on the
+> laptop. In the talk, explain GR00T with the guide's diagrams and do the live
+> demo with ACT, saying it's the small model trained on the same data.
+
+- Make a Hugging Face account and request access to `nvidia/Cosmos-Reason2-2B`
+  (free). Get GPU time: free credits from above, or a paid ≥ 40 GB GPU.
 - Export the dataset (`cd software; uv run export_dataset.py`), rent a Linux GPU
   box, copy `software/gr00t` + `data/lerobot/pick_ball` up with `scp`.
 - On the cloud box: `bash ~/gr00t/setup_cloud.sh` (needs `HF_TOKEN`), then
