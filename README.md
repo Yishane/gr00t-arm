@@ -108,6 +108,7 @@ author's STEP file to check them.
 - `software/gr00t/` — GR00T modality config + cloud scripts (`setup_cloud.sh`,
   `finetune.sh`, `serve.sh`)
 - `docs/guide.tex` → `docs/guide.pdf` — the build + GR00T guide
+- `docs/computer_to_nano.md` — how the laptop (and GR00T) talks to the Nano over USB
 - `context.md` — running notes for Claude, where work left off
 
 ---
