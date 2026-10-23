@@ -1,16 +1,16 @@
 # Learning guide: what this project teaches
 
 Four topics, each tied to the files in this repo where you can see it working.
-Suggested order: **3 → 2 → 4 → 1**. Start with the simplest layer (the board), then
-the maths that turns positions into angles, then the script that uses that maths on its
-own, and finish with GR00T, which sits on top of all of it.
+Suggested order: **2 → 3 → 1**. Start with the simplest layer (the board), then the
+script that runs the arm on its own, and finish with GR00T, which sits on top of both.
+IK is at the end as an optional bonus: you don't need it to understand the rest.
 
 | # | Topic | Main files |
 |---|---|---|
 | 1 | GR00T | `software/gr00t/`, `software/export_dataset.py`, `software/policy_client.py`, `software/run_policy.py` |
-| 2 | Inverse kinematics (IK) | `software/kinematics.py`, `software/config.py`, `software/test_kinematics.py` |
-| 3 | How the computer talks to the board | `firmware/arm/arm.ino`, `software/arm_io.py`, `docs/computer_to_nano.md` |
-| 4 | The automatic pick demo | `software/autodemo.py`, `software/recorder.py`, `software/test_autodemo.py` |
+| 2 | How the computer talks to the board | `firmware/arm/arm.ino`, `software/arm_io.py`, `docs/computer_to_nano.md` |
+| 3 | The automatic pick demo | `software/autodemo.py`, `software/recorder.py`, `software/test_autodemo.py` |
+| Bonus | Inverse kinematics (IK) | `software/kinematics.py`, `software/config.py`, `software/test_kinematics.py` |
 
 ---
 
@@ -84,7 +84,86 @@ a GPU.
 
 ---
 
-## 2. Inverse kinematics (IK)
+## 2. How the computer talks to the board
+
+This one already has its own write-up: **`docs/computer_to_nano.md`** (also guide
+section 10). In short:
+
+- The laptop sends the Nano one line of text over USB, 30 times a second: five servo
+  angles, e.g. `90.0,120.5,45.0,90.0,125.0`. Speed is 115200 baud.
+- The Nano (`firmware/arm/arm.ino`) splits the line, clamps each angle to 0–180°, and
+  moves each servo toward it at most 180°/s, so the arm never slams. It turns each angle
+  into a pulse width (500–2400 µs) on pins D3, D5, D6, D9, D10.
+- The Nano knows nothing about IK or GR00T. All the thinking happens on the laptop.
+- Servo power comes from the bench supply, not USB, with a shared ground.
+
+### Try it
+Without Python: Arduino IDE → Serial Monitor at 115200, line ending "Newline", type
+`90,90,90,90,125`, then `?` to see where the Nano thinks the servos are.
+In Python, `arm_io.Arm.send()` is the whole sending side, in 4 lines.
+
+---
+
+## 3. The automatic pick demo (`autodemo.py`)
+
+This is the "runs on its own" part: it does a full pick-and-place with no one driving,
+and it can record itself as training data. It uses IK, the maths that turns "put the
+gripper here" into joint angles, but you can treat that as a black box (the bonus section
+explains it if you're curious).
+
+### How to run it
+From `software/` on the laptop:
+
+| What | Command |
+|---|---|
+| Try it with no hardware | `uv run autodemo.py --sim --target block --spot C1 --other-spot A3` |
+| One real pick (ball on B2) | `uv run autodemo.py --spot B2 --camera 1` |
+| One real pick of the block | `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1` |
+| Record 150 demos | `uv run autodemo.py --record 150 --camera 1` |
+| Record without pressing Enter (sim testing only) | `uv run autodemo.py --sim --record 5 --yes` |
+
+When recording, each episode prints something like
+`block on C1, ball on A3 -> "pick up the block". Place them, then press Enter`.
+You place the two objects on those marked spots, press Enter, and the arm does the rest
+(about 9 s per pick). Stop any time with Ctrl+C: the half-finished episode is thrown away,
+and the next run carries on numbering from where you stopped.
+
+Its automatic tests run with `uv run pytest -q` (61 tests, including every spot × both
+objects, and checks that the arm never jumps more than 6° between frames).
+
+### How it works
+1. **Spots.** The baseplate has a 3×3 grid of marked spots, A1–C3 (`SPOTS`), plus the
+   cup (`CUP`). Positions are in mm, matching the printed plate.
+2. **Layout** (`layout()`, `pairs()`). For a recording, it randomly picks which object
+   to pick (about half and half) and two spots ≥ 60 mm apart, so the gripper can't hit the
+   other object.
+3. **Plan** (`plan()`). A list of 8 *waypoints*: home → above the object → down to grip
+   height → close → lift → over the cup → open → home. Each one has a time.
+   `best_pitch()` picks the most downward gripper tilt that IK can reach at each point.
+4. **Trajectory** (`trajectory()`). Between waypoints it makes 30 in-between poses per
+   second along a straight line, with ease-in/ease-out so it starts and stops gently. Each
+   pose goes through IK. If one can't be reached at that exact tilt, `solve_near()` tilts
+   the gripper a degree or two until it can, so the arm never jumps.
+5. **Run** (`run()`). The whole trajectory is worked out *before* the arm moves, so a bad
+   plan fails safely. Then each command is sent to the Nano, and if recording, the camera
+   frame + angles are saved at the same moment.
+6. **Save.** `recorder.py` writes the frames, a `steps.csv` of angles and a `meta.json` with
+   the sentence ("pick up the block"). That's one training example for GR00T or ACT.
+
+The key idea: **the script is the teacher**. It knows where things are because you told
+it; it does the pick perfectly 150 times while the camera watches; then GR00T learns to do
+the same from the *image and the sentence alone*.
+
+### Try it / questions
+- Run the sim command above and read the printed output next to `plan()`.
+- What happens if you set `SAFE_Z` too low? (Run the tests.)
+- Why does the recorder save both "state" (last command) and "action" (this command)?
+
+---
+
+## Bonus: inverse kinematics (IK)
+
+*Optional. Nice to know for robotics in general, but nothing else in this guide depends on it.*
 
 ### The problem
 - **Forward kinematics (FK):** *given the joint angles, where is the gripper?* Easy:
@@ -144,81 +223,6 @@ A far point like `(300, 0, 20, …)` is `None` at any tilt.
   any IK you write.
 - Questions to test yourself: what's the other solution that "elbow down" would give? Why
   does `best_pitch()` in autodemo try angles from −90° upward, and what does it give up?
-
----
-
-## 3. How the computer talks to the board
-
-This one already has its own write-up: **`docs/computer_to_nano.md`** (also guide
-section 10). In short:
-
-- The laptop sends the Nano one line of text over USB, 30 times a second: five servo
-  angles, e.g. `90.0,120.5,45.0,90.0,125.0`. Speed is 115200 baud.
-- The Nano (`firmware/arm/arm.ino`) splits the line, clamps each angle to 0–180°, and
-  moves each servo toward it at most 180°/s, so the arm never slams. It turns each angle
-  into a pulse width (500–2400 µs) on pins D3, D5, D6, D9, D10.
-- The Nano knows nothing about IK or GR00T. All the thinking happens on the laptop.
-- Servo power comes from the bench supply, not USB, with a shared ground.
-
-### Try it
-Without Python: Arduino IDE → Serial Monitor at 115200, line ending "Newline", type
-`90,90,90,90,125`, then `?` to see where the Nano thinks the servos are.
-In Python, `arm_io.Arm.send()` is the whole sending side, in 4 lines.
-
----
-
-## 4. The automatic pick demo (`autodemo.py`)
-
-This is the "runs on its own" part: it uses the IK from section 2 to do a full
-pick-and-place with no one driving, and it can record itself as training data.
-
-### How to run it
-From `software/` on the laptop:
-
-| What | Command |
-|---|---|
-| Try it with no hardware | `uv run autodemo.py --sim --target block --spot C1 --other-spot A3` |
-| One real pick (ball on B2) | `uv run autodemo.py --spot B2 --camera 1` |
-| One real pick of the block | `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1` |
-| Record 150 demos | `uv run autodemo.py --record 150 --camera 1` |
-| Record without pressing Enter (sim testing only) | `uv run autodemo.py --sim --record 5 --yes` |
-
-When recording, each episode prints something like
-`block on C1, ball on A3 -> "pick up the block". Place them, then press Enter`.
-You place the two objects on those marked spots, press Enter, and the arm does the rest
-(about 9 s per pick). Stop any time with Ctrl+C: the half-finished episode is thrown away,
-and the next run carries on numbering from where you stopped.
-
-Its automatic tests run with `uv run pytest -q` (61 tests, including every spot × both
-objects, and checks that the arm never jumps more than 6° between frames).
-
-### How it works
-1. **Spots.** The baseplate has a 3×3 grid of marked spots, A1–C3 (`SPOTS`), plus the
-   cup (`CUP`). Positions are in mm, matching the printed plate.
-2. **Layout** (`layout()`, `pairs()`). For a recording, it randomly picks which object
-   to pick (about half and half) and two spots ≥ 60 mm apart, so the gripper can't hit the
-   other object.
-3. **Plan** (`plan()`). A list of 8 *waypoints*: home → above the object → down to grip
-   height → close → lift → over the cup → open → home. Each one has a time.
-   `best_pitch()` picks the most downward gripper tilt that IK can reach at each point.
-4. **Trajectory** (`trajectory()`). Between waypoints it makes 30 in-between poses per
-   second along a straight line, with ease-in/ease-out so it starts and stops gently. Each
-   pose goes through IK. If one can't be reached at that exact tilt, `solve_near()` tilts
-   the gripper a degree or two until it can, so the arm never jumps.
-5. **Run** (`run()`). The whole trajectory is worked out *before* the arm moves, so a bad
-   plan fails safely. Then each command is sent to the Nano, and if recording, the camera
-   frame + angles are saved at the same moment.
-6. **Save.** `recorder.py` writes the frames, a `steps.csv` of angles and a `meta.json` with
-   the sentence ("pick up the block"). That's one training example for GR00T or ACT.
-
-The key idea: **the script is the teacher**. It knows where things are because you told
-it; it does the pick perfectly 150 times while the camera watches; then GR00T learns to do
-the same from the *image and the sentence alone*.
-
-### Try it / questions
-- Run the sim command above and read the printed output next to `plan()`.
-- What happens if you set `SAFE_Z` too low? (Run the tests.)
-- Why does the recorder save both "state" (last command) and "action" (this command)?
 
 ---
 
