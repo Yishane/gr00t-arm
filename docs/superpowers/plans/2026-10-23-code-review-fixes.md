@@ -69,7 +69,7 @@ def test_servo_ok_accepts_home_and_rejects_unsafe():
     assert not servo_ok([90, 90, 90, 190])          # outside servo range
 
 def test_servo_ok_rejects_gripper_in_the_plate():
-    j = ik(120, 0, 5, -math.pi / 2)    # pointing down, fingertips ~16 mm past the tool point
+    j = ik(80, 0, 0, -math.pi / 2)     # in limits, but the fingertips go through the plate
     assert j is not None and not servo_ok(to_servo_unchecked(j))
 
 def test_wrist_limit_matches_servo_range():
