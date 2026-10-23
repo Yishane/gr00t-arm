@@ -24,10 +24,13 @@ CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}" uv run python gr00t/experiment
   --global-batch-size "$BATCH" \
   --dataloader-num-workers 4
 
+# checkpoints are saved every 1000 steps, so checkpoint-$MAX_STEPS may not exist
+CKPT="$(ls -d "$OUT"/checkpoint-* | sort -V | tail -1)"
+
 # sanity check: does the model reproduce episode 0? (plot in /tmp/open_loop_eval)
 uv run python gr00t/eval/open_loop_eval.py \
   --dataset-path "$DATASET" \
   --embodiment-tag NEW_EMBODIMENT \
-  --model-path "$OUT/checkpoint-$MAX_STEPS" \
+  --model-path "$CKPT" \
   --traj-ids 0 --execution-horizon 16 --steps 250 || true
-echo "done: $OUT/checkpoint-$MAX_STEPS"
+echo "done: newest checkpoint $CKPT"
