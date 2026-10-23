@@ -115,7 +115,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 
 ## CAD facts: OLD self-designed arm (superseded; numbers below are NOT the current arm)
 - 13 STLs in cad/stl: 00 fit test, 01–06 arm, 07 baseplate (250x200), 08 camera mast,
-  09 phone cradle, 10 pin, 11 cup, 12 ball half (print 2 only if no ping-pong ball).
+  09 phone cradle, 10 pin, 11 cup, 12 ball half (print 2 only if no 40 mm ball).
 - assembly.py: places parts + dummy SG90s; `--check` self-collision sweep, `--cell`
   reach check of all ball spots + cup against the camera rig. All pass (2026-10-22).
 - Fixes made: fixed finger height, full-length horn slots in gripper, shoulder axis +2 mm
@@ -162,8 +162,9 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,
 phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing).
 - Colours (Yishane, 2026-10-23, wants it to look good): arm already printed BLACK (keep it).
-  Scheme: plate LIGHT GREY (not pure white: phone exposure/glare), ORANGE 40 mm ping-pong ball
-  (to buy), BLUE block (not red: too close to orange). Code never uses colour (policy learns
+  Scheme: plate LIGHT GREY (not pure white: phone exposure/glare), ORANGE 40 mm SOFT FOAM ball
+  (to buy; Yishane 2026-10-23: foam instead of ping-pong, grips better/rolls less; must stay 40 mm
+  or update autodemo.OBJECTS grip z + cad checks), BLUE block (not red: too close to orange). Code never uses colour (policy learns
   from images + joint angles). Keep ball/block/plate/lighting the same for recording and the demo.
 
 ## WORKING MODE until 2026-11-04 (Yishane, 2026-10-23)
