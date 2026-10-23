@@ -51,7 +51,7 @@ LIMITS = {
     "base": (-90, 90),
     "shoulder": (0, 180),
     "elbow": (-125, 0),
-    "wrist": (-85, 125),
+    "wrist": (-85, 90),     # the sweep allows 125, but at +90 the servo (OFFSET 90, SIGN -1) is at 0
 }
 FOLD_LIMIT = -175       # elbow + wrist: below this the gripper hits the upper arm
 SERVO_MIN = 0.0

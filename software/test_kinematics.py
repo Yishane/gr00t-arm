@@ -3,7 +3,7 @@ import math
 import pytest
 
 import config as C
-from kinematics import fk, from_servo, ik, solve, to_servo
+from kinematics import fk, from_servo, ik, servo_ok, solve, to_servo
 
 
 @pytest.mark.parametrize("target", [
@@ -69,3 +69,27 @@ def test_gripper_cant_fold_into_upper_arm():
     # forearm folded down, gripper curled back further: blocked by FOLD_LIMIT
     assert to_servo([0, math.pi / 2, math.radians(-110), math.radians(-70)]) is None
     assert to_servo([0, math.pi / 2, math.radians(-100), math.radians(-70)]) is not None
+
+
+def to_servo_unchecked(j):
+    """Servo degrees for joint angles, without the limit checks."""
+    return [C.OFFSET[n] + C.SIGN[n] * math.degrees(a) for n, a in zip(C.JOINTS, j)]
+
+
+def test_servo_ok_accepts_home_and_rejects_unsafe():
+    assert servo_ok([90, 90, 90, 90])
+    assert servo_ok([90, 90, 90, 90, 125])          # gripper value ignored
+    assert not servo_ok([90, 90, 120, 150])         # elbow -120 + wrist -60 < FOLD_LIMIT
+    assert not servo_ok([90, 90, float("nan"), 90])
+    assert not servo_ok([90, 90, 90, 190])          # outside servo range
+
+
+def test_servo_ok_rejects_gripper_in_the_plate():
+    j = ik(80, 0, 0, -math.pi / 2)     # in limits, but the fingertips go through the plate
+    assert j is not None and not servo_ok(to_servo_unchecked(j))
+
+
+def test_wrist_limit_matches_servo_range():
+    lo, hi = C.LIMITS["wrist"]
+    assert hi == 90
+    assert to_servo([0, math.pi / 2, -math.pi / 2, math.radians(hi)]) is not None

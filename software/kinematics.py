@@ -86,6 +86,17 @@ def from_servo(servo_deg):
             for n, s in zip(C.JOINTS, servo_deg)]
 
 
+def servo_ok(servo_deg):
+    """True if these servo degrees (4 arm joints; a 5th gripper value is
+    ignored) are safe to send: in servo range, inside the soft joint limits,
+    and the gripper stays above the plate."""
+    s = [float(a) for a in servo_deg[:4]]
+    if not all(math.isfinite(a) and C.SERVO_MIN - 1e-6 <= a <= C.SERVO_MAX + 1e-6 for a in s):
+        return False
+    j = from_servo(s)
+    return within_limits(j) and clear_of_floor(j)
+
+
 def solve(x, y, z, pitch):
     """IK straight to servo degrees, or None if unreachable or the gripper
     would hit the plate."""
