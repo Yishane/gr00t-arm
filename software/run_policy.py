@@ -9,11 +9,14 @@ again. Type just "ball" or "block" for short, or q / an empty line to quit.
 GR00T (model running on the cloud GPU, see gr00t/README.md):
     uv run run_policy.py gr00t --host <cloud-ip> --server-port 5555
 ACT (trained locally, run from software/act):
-    cd act && uv run ../run_policy.py act --checkpoint ../../outputs/act/checkpoints/last/pretrained_model
+    cd act && uv run ../run_policy.py act --checkpoint ../../outputs/act/pick_ball/checkpoints/020000/pretrained_model
 --task "pick up the ball" runs one instruction without asking.
 
 Each step: grab a camera frame + the current servo angles, ask the policy for
 the next chunk of actions, play the first --horizon of them at 30 Hz, repeat.
+A command that would break a joint limit or put the gripper in the plate is
+not sent (the arm holds still instead). If the policy fails 3 times in a row
+(timeout, server error, empty answer) the run stops and asks again.
 GR00T reads the instruction as words. ACT has no language input, so it gets
 the target as one extra state number (see act/export_act.py).
 """
@@ -23,8 +26,11 @@ import time
 import numpy as np
 
 import config as C
+import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
 from recorder import TASKS, target_of
+
+MAX_FAILS = 3   # policy failures in a row before a run gives up
 
 
 class Gr00tBackend:
@@ -112,23 +118,49 @@ def run(policy, arm, cam, task, horizon, seconds):
     servo = go_home(arm)
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
+    fails = 0
     try:
         while time.time() < t_end:
-            frame = cam.read()
+            frame = cam.read(fresh=True)
             t0 = time.perf_counter()
-            steps = policy.chunk(frame, servo, task)[:horizon]
-            print(f"policy call {1000 * (time.perf_counter() - t0):.0f} ms, "
-                  f"{len(steps)} steps, grip {steps[0][4]:.0f}")
+            try:
+                steps = policy.chunk(frame, servo, task)[:horizon]
+                if not steps:
+                    raise RuntimeError("empty action chunk")
+            except (TimeoutError, RuntimeError) as e:
+                fails += 1
+                print(f"policy call failed ({e})")
+                if fails >= MAX_FAILS:
+                    print(f"policy failed {MAX_FAILS} times, stopping this run")
+                    break
+                continue
+            fails = 0
+            ms = 1000 * (time.perf_counter() - t0)
+            sent, blocked = [], 0
             t_next = time.perf_counter()
             for cmd in steps:
                 cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
-                arm.send(cmd)
-                servo = cmd
+                if K.servo_ok(cmd[:4]):
+                    arm.send(cmd)
+                    servo = cmd
+                    sent.append(cmd)
+                else:
+                    blocked += 1                          # hold the last safe command
                 t_next += dt
                 time.sleep(max(0.0, t_next - time.perf_counter()))
+            grip = f", grip {sent[0][4]:.0f}" if sent else ""
+            print(f"policy call {ms:.0f} ms, {len(steps)} steps{grip}"
+                  + (f", {blocked} blocked" if blocked else ""))
     except KeyboardInterrupt:
         print("stopped")
     go_home(arm)
+
+
+def positive_int(text):
+    n = int(text)
+    if n < 1:
+        raise argparse.ArgumentTypeError("must be 1 or more")
+    return n
 
 
 def main():
@@ -140,7 +172,7 @@ def main():
     ap.add_argument("--server-port", type=int, default=5555)
     ap.add_argument("--checkpoint", help="ACT pretrained_model folder")
     ap.add_argument("--task", help="run this one instruction and exit (no prompt)")
-    ap.add_argument("--horizon", type=int, default=8,
+    ap.add_argument("--horizon", type=positive_int, default=8,
                     help="actions played per policy call (GR00T predicts 16)")
     ap.add_argument("--seconds", type=float, default=20.0,
                     help="how long each instruction runs")
