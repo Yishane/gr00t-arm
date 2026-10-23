@@ -13,6 +13,7 @@ Joint angle conventions (degrees here, radians in kinematics.py):
   wrist     gripper angle relative to the forearm, 0 = straight
 """
 import json
+import os
 from pathlib import Path
 
 # ------------------------------------------------------------- geometry (mm)
@@ -85,4 +86,6 @@ def save_calibration():
     }, indent=2))
 
 
-load_calibration()
+# the tests set this so a calibration.json from the real arm doesn't change them
+if not os.environ.get("GR00T_ARM_DEFAULT_CALIBRATION"):
+    load_calibration()

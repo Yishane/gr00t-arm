@@ -22,6 +22,17 @@ import config as C
 import kinematics as K
 from arm_io import HOME, Arm, SimArm
 
+# joint angles (deg) of the home pose, where every servo sits at 90
+HOME_DEG = {"base": 0, "shoulder": 90, "elbow": -90, "wrist": 0}
+
+
+def flip(name):
+    """Reverse a joint's direction. The servo angle at the home pose stays
+    the same, so an earlier trim on this joint is kept."""
+    at_home = C.OFFSET[name] + C.SIGN[name] * HOME_DEG[name]
+    C.SIGN[name] *= -1
+    C.OFFSET[name] = at_home - C.SIGN[name] * HOME_DEG[name]
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -66,10 +77,7 @@ def main():
                 cur = base
             elif cmd == "flip":
                 name = C.JOINTS[int(parts[1])]
-                C.SIGN[name] *= -1
-                # keep the home pose where it is: servo 90 at the home angle
-                home_deg = {"base": 0, "shoulder": 90, "elbow": -90, "wrist": 0}[name]
-                C.OFFSET[name] = 90 - C.SIGN[name] * home_deg
+                flip(name)
                 print(f"  {name}: sign {C.SIGN[name]}, offset {C.OFFSET[name]}")
             elif cmd == "trim":
                 name = C.JOINTS[int(parts[1])]

@@ -1,4 +1,10 @@
-from arm_io import SimArm
+import os
+
+# before anything imports config: the tests use the default calibration,
+# not the real arm's calibration.json
+os.environ["GR00T_ARM_DEFAULT_CALIBRATION"] = "1"
+
+from arm_io import SimArm  # noqa: E402
 
 
 class RecordingSimArm(SimArm):
