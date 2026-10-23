@@ -59,6 +59,21 @@ Read this first every session. Update the "Status" and "Next" sections before st
   run_policy act loop. 40 pytest pass (new software/test_autodemo.py). Guide updated + rebuilt (14 pp).
 - Dataset name kept as "pick_ball" (paths everywhere) even though it now has both objects.
 
+## CODE-REVIEW FIXES (2026-10-23) — DONE (milestone 2c)
+- 15 findings from two /code-review runs, plan in docs/superpowers/plans/2026-10-23-code-review-fixes.md.
+- kinematics.servo_ok(servo) = finite + servo range + within_limits + clear_of_floor. run_policy
+  skips (holds) any policy command that fails it, prints "N blocked"; MAX_FAILS=3 policy errors
+  (TimeoutError/RuntimeError/empty chunk) in a row -> back to the prompt. --horizon >= 1.
+- LIMITS wrist now (-85, 90): +90 is where the wrist servo hits 0 (was 125, unreachable).
+- arm_io: camera_backend() = DSHOW only on win32; Camera.read(fresh=True) grabs FLUSH=2 frames first
+  (run_policy uses it); CAP_PROP_BUFFERSIZE 1.
+- autodemo.solve_near: nearest pitch within PITCH_SEARCH=30 deg; trajectory raises ValueError instead
+  of hold/jump; run() plans fully before moving and rec.stop(keep=False) on any exception.
+- calibrate.flip(name) keeps trims (HOME_DEG). config skips calibration.json if env
+  GR00T_ARM_DEFAULT_CALIBRATION is set; software/conftest.py sets it (+ RecordingSimArm helper).
+- finetune.sh evaluates newest checkpoint; upload.ps1 stops on compile error (not run: no pwsh).
+- 60 pytest pass.
+
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a
 gamepad, recording demos in LeRobot format, training ACT locally and fine-tuning

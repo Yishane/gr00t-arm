@@ -84,7 +84,8 @@ author's STEP file to check them.
   (the "off-axis" trunk hangs the gripper down); 1.8 mm to the side
 - the fingers turn on vertical pins 15.6 apart, so the jaws open **left/right**
   when the gripper is level (our old gripper opened up/down)
-- joint limits from the collision sweep: elbow −125…0°, wrist −85…125°, and the
+- joint limits from the collision sweep: elbow −125…0°, wrist −85…90° (the sweep
+  allows 125°, but the wrist servo runs out at 90°), and the
   gripper can't fold back into the upper arm (elbow + wrist ≥ −175°)
 
 ---
@@ -191,6 +192,23 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   (2 tasks) and ACT, trained ACT 20 steps, and ran the `run_policy.py act`
   loop. 40 tests pass. Guide updated (print list, calibration, recording, demo
   plan, talk script).
+
+### ✅ 2c. Code-review fixes (Claude, 2026-10-23)
+- ✅ When GR00T or ACT drives, every command is checked first (joint limits,
+  gripper folding into the arm, gripper into the plate). Unsafe ones aren't
+  sent; the arm holds still and `run_policy.py` prints `N blocked`.
+- ✅ A GR00T timeout, server error or empty answer is retried. After 3 in a
+  row the run stops and asks for the next instruction, instead of quitting.
+- ✅ The policy gets a fresh camera frame each time (old buffered frames are dropped),
+  and the camera opens on Linux/macOS too.
+- ✅ `autodemo.py` no longer jumps at spot A1. It tilts the gripper a little
+  instead (biggest move per frame went from 51.6° to under 4°). It plans the
+  whole pick before moving, and Ctrl+C while recording throws away that half episode.
+- ✅ `calibrate.py`: `flip` keeps an earlier `trim`. The tests ignore your
+  `calibration.json`, so they still pass after you calibrate.
+- ✅ `finetune.sh` checks the newest checkpoint; `upload.ps1` says when the
+  *compile* failed (not run here: Windows-only).
+- ✅ 60 tests pass. Plan: `docs/superpowers/plans/2026-10-23-code-review-fixes.md`.
 
 ### ⬜ 3. Print (You)
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.

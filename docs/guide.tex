@@ -734,6 +734,8 @@ The drum turns instead of the arm & Fix the drum in its baseplate ring with tape
 ``can't reach that'' in teleop & The target is out of reach or the gripper would hit the plate. Move back. \\
 GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
 \texttt{run\_policy}: server not reachable & Is \file{serve.sh} running and the SSH tunnel open? \\
+\texttt{run\_policy}: ``policy call failed'' & One slow or failed GR00T reply; it retries. After 3 in a row it stops that run and asks again: check the SSH tunnel and \file{serve.sh}. \\
+\texttt{run\_policy}: ``N blocked'' & The model asked for a pose past a joint limit or into the plate, so those steps weren't sent and the arm held still. A few now and then is fine; many means more or better demos. \\
 Policy runs but misses & More demos, more varied object positions, same camera position as in training. \\
 Picks the wrong object & More demos (both objects about equally), and check the instructions saved in \file{meta.json} match what was picked. \\
 \bottomrule
