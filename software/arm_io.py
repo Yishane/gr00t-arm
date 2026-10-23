@@ -3,6 +3,7 @@
 Both have a simulated stand-in (--sim) so every script can run without the
 arm plugged in.
 """
+import sys
 import time
 
 import numpy as np
@@ -10,6 +11,7 @@ import numpy as np
 import config as C
 
 HOME = [90.0, 90.0, 90.0, 90.0]   # servo degrees for base, shoulder, elbow, wrist
+FLUSH = 2   # frames dropped by read(fresh=True)
 
 
 class Arm:
@@ -59,19 +61,30 @@ class SimArm:
         pass
 
 
+def camera_backend(cv2, platform=sys.platform):
+    """DirectShow on Windows (opens phone-webcam apps reliably); OpenCV's
+    default everywhere else, where DirectShow doesn't exist."""
+    return cv2.CAP_DSHOW if platform == "win32" else cv2.CAP_ANY
+
+
 class Camera:
     def __init__(self, index=0, width=640, height=480):
         import cv2
         self.cv2 = cv2
-        self.cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(index, camera_backend(cv2))
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)   # keep frames current (not every backend obeys)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.size = (width, height)
         if not self.cap.isOpened():
             raise SystemExit(f"Camera {index} didn't open. Try --camera 1 (or 2).")
 
-    def read(self):
-        """RGB uint8 frame, height x width x 3."""
+    def read(self, fresh=False):
+        """RGB uint8 frame, height x width x 3. fresh=True first drops frames
+        the driver buffered while nobody was reading."""
+        if fresh:
+            for _ in range(FLUSH):
+                self.cap.grab()
         ok, frame = self.cap.read()
         if not ok:
             raise RuntimeError("camera read failed")
@@ -90,7 +103,7 @@ class FakeCamera:
         self.size = (width, height)
         self.t = 0
 
-    def read(self):
+    def read(self, fresh=False):
         w, h = self.size
         img = np.full((h, w, 3), 40, np.uint8)
         x = int((np.sin(self.t / 15) * 0.4 + 0.5) * (w - 60))
