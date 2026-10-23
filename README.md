@@ -165,8 +165,8 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   object and drops it in the cup. The words are the only way to know which
   object to pick, so this shows GR00T using the language input.
 - ✅ Block: `cad/stl/13_block.stl`, a 25 mm cube with chamfered edges. Print it
-  in a colour that stands out from the ball and the plate (red or blue next
-  to a white ball). Set it with a face pointing at the arm's base, since the
+  in a colour that stands out from the ball and the plate (our scheme: black
+  arm, light grey plate, orange ball, blue block). Set it with a face pointing at the arm's base, since the
   fingers close sideways.
 - ✅ `autodemo.py --record N`: each episode puts both objects on random spots,
   picks the ball or the block (about 50/50), and saves the instruction in
@@ -193,9 +193,9 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 
 ### ⬜ 3. Print (You)
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
-- Print the work cell from `cad/stl/`: `07_baseplate` (reprint it if you printed
+- Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
-  `09_phone_cradle`, `10_pin`, `11_cup`, **`13_block`** (contrasting colour)
+  `09_phone_cradle`, `10_pin`, `11_cup`, **`13_block`** (blue)
   (`12_ball_half` ×2 only if you have no ping-pong ball).
 
 ### ⬜ 4. Wire and flash (You, guide "Wiring")

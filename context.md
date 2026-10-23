@@ -146,3 +146,12 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
    first real run may need fixes; check open_loop_eval plot).
 Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,
 phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing).
+- Colours (Yishane, 2026-10-23, wants it to look good): arm already printed BLACK (keep it).
+  Scheme: plate LIGHT GREY (not pure white: phone exposure/glare), ORANGE 40 mm ping-pong ball
+  (to buy), BLUE block (not red: too close to orange). Code never uses colour (policy learns
+  from images + joint angles). Keep ball/block/plate/lighting the same for recording and the demo.
+
+## WORKING MODE until 2026-11-04 (Yishane, 2026-10-23)
+- Do all work in Claude Code cloud sessions (claude.ai/code) on the GitHub repo, not on the laptop.
+- Claude may commit (and push, so the next cloud session sees it) without asking. After 2026-11-04
+  go back to asking before committing.
