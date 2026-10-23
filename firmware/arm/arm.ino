@@ -1,7 +1,6 @@
 // SG90 arm firmware: 5 servos (base, shoulder, elbow, wrist, gripper).
 //
-// Works on Arduino Uno/Nano (Servo library) and ESP32 (install the
-// "ESP32Servo" library from the Library Manager first).
+// For the Arduino Nano (uses the standard Servo library).
 //
 // Serial protocol, 115200 baud, one command per line:
 //   <a0>,<a1>,<a2>,<a3>,<a4>   target servo angles in degrees (floats ok)
@@ -13,13 +12,9 @@
 // Wiring: servo signal -> pins below. Servo red/brown -> external 5-6 V
 // supply, NOT the board's 5V pin. Supply ground -> board GND.
 
-#if defined(ESP32)
-#include <ESP32Servo.h>
-const int PINS[5] = {13, 14, 27, 26, 25};
-#else
 #include <Servo.h>
-const int PINS[5] = {3, 5, 6, 9, 10};
-#endif
+
+const int PINS[5] = {3, 5, 6, 9, 10};  // base, shoulder, elbow, wrist, gripper
 
 const int N = 5;
 // Per-joint limits in servo degrees. Tighten these once the arm is built
@@ -79,9 +74,6 @@ void handleLine(char *s) {
 void setup() {
   Serial.begin(115200);
   for (int i = 0; i < N; i++) {
-#if defined(ESP32)
-    servos[i].setPeriodHertz(50);
-#endif
     servos[i].attach(PINS[i], US_MIN, US_MAX);
     target[i] = current[i] = HOME[i];
     writeServo(i, current[i]);

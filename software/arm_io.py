@@ -27,7 +27,7 @@ class Arm:
                 raise SystemExit("No Arduino found. Plug it in or pass --port COM3.")
             port = ports[0]
         self.ser = serial.Serial(port, C.BAUD, timeout=1)
-        time.sleep(2.0)                         # Uno resets when the port opens
+        time.sleep(2.0)                         # the Nano resets when the port opens
         self.ser.reset_input_buffer()
         self.last = HOME + [C.GRIPPER_OPEN]
         print(f"arm on {port}")

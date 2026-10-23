@@ -109,7 +109,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 
 ## Layout
 - `cad/arm.py` — parametric CadQuery source for all parts → `cad/stl/`, `cad/render.py` → `cad/renders/`
-- `firmware/arm/arm.ino` — serial servo firmware (Uno/Nano/ESP32)
+- `firmware/arm/arm.ino` — serial servo firmware (Arduino Nano only)
 - `software/` — Python: config, kinematics (+ tests), calibrate, teleop/record, export, train/run
 - `docs/` — LaTeX guide
 
