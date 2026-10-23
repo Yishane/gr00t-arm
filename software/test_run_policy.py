@@ -65,3 +65,11 @@ def test_ping_is_false_on_a_server_error(monkeypatch):
 
 def test_docstring_act_path_matches_train_act():
     assert "outputs/act/pick_ball/checkpoints/" in run_policy.__doc__
+
+
+def test_nan_or_short_commands_are_never_sent():
+    arm = RecordingSimArm()
+    bad = [[90, 90, 90, 90, float("nan")], [90, 90, 90, 90]]
+    pol = ScriptedPolicy([bad] + [TimeoutError()] * 3)
+    run_policy.run(pol, arm, FakeCamera(), "pick up the ball", 8, 60)
+    assert all(len(c) == 5 and all(a == a for a in c) for c in arm.sent)   # a != a only for NaN

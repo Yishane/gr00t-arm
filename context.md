@@ -72,7 +72,7 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - calibrate.flip(name) keeps trims (HOME_DEG). config skips calibration.json if env
   GR00T_ARM_DEFAULT_CALIBRATION is set; software/conftest.py sets it (+ RecordingSimArm helper).
 - finetune.sh evaluates newest checkpoint; upload.ps1 stops on compile error (not run: no pwsh).
-- 60 pytest pass.
+- 61 pytest pass. Policy commands with NaN or not 5 values are blocked too (final review).
 
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a

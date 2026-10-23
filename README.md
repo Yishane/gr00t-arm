@@ -208,7 +208,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   `calibration.json`, so they still pass after you calibrate.
 - ✅ `finetune.sh` checks the newest checkpoint; `upload.ps1` says when the
   *compile* failed (not run here: Windows-only).
-- ✅ 60 tests pass. Plan: `docs/superpowers/plans/2026-10-23-code-review-fixes.md`.
+- ✅ 61 tests pass. Plan: `docs/superpowers/plans/2026-10-23-code-review-fixes.md`.
 
 ### ⬜ 3. Print (You)
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.

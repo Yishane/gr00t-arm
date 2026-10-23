@@ -21,6 +21,7 @@ GR00T reads the instruction as words. ACT has no language input, so it gets
 the target as one extra state number (see act/export_act.py).
 """
 import argparse
+import math
 import time
 
 import numpy as np
@@ -129,7 +130,7 @@ def run(policy, arm, cam, task, horizon, seconds):
                     raise RuntimeError("empty action chunk")
             except (TimeoutError, RuntimeError) as e:
                 fails += 1
-                print(f"policy call failed ({e})")
+                print(f"policy call failed ({type(e).__name__}: {e})")
                 if fails >= MAX_FAILS:
                     print(f"policy failed {MAX_FAILS} times, stopping this run")
                     break
@@ -140,7 +141,8 @@ def run(policy, arm, cam, task, horizon, seconds):
             t_next = time.perf_counter()
             for cmd in steps:
                 cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
-                if K.servo_ok(cmd[:4]):
+                if (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
+                        and K.servo_ok(cmd[:4])):
                     arm.send(cmd)
                     servo = cmd
                     sent.append(cmd)
