@@ -13,6 +13,7 @@ Joint angle conventions (degrees here, radians in kinematics.py):
   wrist     gripper angle relative to the forearm, 0 = straight
 """
 import json
+import os
 from pathlib import Path
 
 # ------------------------------------------------------------- geometry (mm)
@@ -51,7 +52,7 @@ LIMITS = {
     "base": (-90, 90),
     "shoulder": (0, 180),
     "elbow": (-125, 0),
-    "wrist": (-85, 125),
+    "wrist": (-85, 90),     # the sweep allows 125, but at +90 the servo (OFFSET 90, SIGN -1) is at 0
 }
 FOLD_LIMIT = -175       # elbow + wrist: below this the gripper hits the upper arm
 SERVO_MIN = 0.0
@@ -85,4 +86,6 @@ def save_calibration():
     }, indent=2))
 
 
-load_calibration()
+# the tests set this so a calibration.json from the real arm doesn't change them
+if not os.environ.get("GR00T_ARM_DEFAULT_CALIBRATION"):
+    load_calibration()

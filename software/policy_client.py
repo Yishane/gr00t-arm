@@ -72,7 +72,7 @@ class PolicyClient:
         try:
             self.call("ping", requires_input=False)
             return True
-        except (TimeoutError, zmq.error.ZMQError):
+        except (TimeoutError, RuntimeError, zmq.error.ZMQError):
             return False
 
     def get_action(self, observation, options=None):

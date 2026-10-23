@@ -4,6 +4,9 @@ import random
 import pytest
 
 import autodemo as A
+import recorder
+from arm_io import FakeCamera, SimArm
+from conftest import RecordingSimArm
 from recorder import TASKS, Recorder, target_of
 from run_policy import instruction
 
@@ -60,3 +63,51 @@ def test_recorded_episode_saves_its_instruction(tmp_path, monkeypatch):
     tasks = [json.loads((ep / "meta.json").read_text())["task"]
              for ep in sorted((tmp_path / "t").glob("episode_*"))]
     assert tasks == [TASKS["block"], TASKS["ball"]]
+
+
+MAX_STEP = 6.0   # deg per 1/30 s step on any arm servo (the firmware's slew is 180 deg/s)
+
+
+class CrashingCamera(FakeCamera):
+    """FakeCamera whose read() raises KeyboardInterrupt after `after` frames."""
+
+    def __init__(self, after):
+        super().__init__()
+        self.left = after
+
+    def read(self, fresh=False):
+        if self.left == 0:
+            raise KeyboardInterrupt
+        self.left -= 1
+        return super().read(fresh)
+
+
+@pytest.fixture
+def no_sleep(monkeypatch):
+    monkeypatch.setattr(A.time, "sleep", lambda s: None)
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_no_step_jumps(seed):
+    random.seed(seed)
+    for target in A.OBJECTS:
+        for spot in A.SPOTS:
+            c = list(A.trajectory(A.plan(spot, target, jitter=8.0), 30))
+            assert max(max(abs(a - b) for a, b in zip(p[:4], q[:4]))
+                       for p, q in zip(c, c[1:])) <= MAX_STEP, (spot, target)
+
+
+def test_unreachable_plan_fails_before_the_arm_moves(monkeypatch, no_sleep):
+    arm = RecordingSimArm()
+    monkeypatch.setattr(A, "solve_near", lambda *a: None)
+    with pytest.raises(ValueError):
+        A.run(arm, FakeCamera(), "B2", "ball")
+    assert arm.sent == []
+
+
+def test_interrupted_recording_leaves_no_episode(tmp_path, monkeypatch, no_sleep):
+    monkeypatch.setattr(recorder, "DATA", tmp_path)
+    rec = Recorder("t", fps=30, source="autodemo")
+    with pytest.raises(KeyboardInterrupt):
+        A.run(SimArm(), CrashingCamera(after=20), "B2", "ball", rec)
+    assert list((tmp_path / "t").glob("episode_*")) == []

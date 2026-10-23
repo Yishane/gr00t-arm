@@ -407,6 +407,107 @@ The script tries the ``old bootloader'' (most Nano clones) and then the new one.
 listens on USB serial for lines like \texttt{90,90,90,90,125} (five angles) and moves each
 servo smoothly toward its target.
 
+\section{How the laptop talks to the Nano}
+\label{sec:serial}
+
+The laptop does all the thinking; the Nano only moves servos. About 30 times a second
+the laptop sends the Nano one line of text over USB with five angles in it, and the Nano
+moves the five servos toward them. GR00T never talks to the Nano: it runs on the cloud GPU,
+answers the laptop, and the laptop passes the answer on. With ACT the model runs on the
+laptop instead and everything below stays the same.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=6mm and 10mm]
+  \node[box,fill=gray!8] (cam) {phone camera\\ \footnotesize (webcam app)};
+  \node[box,below=of cam,fill=gray!8] (you) {you type\\ \footnotesize ``pick up the ball''};
+  \node[box,right=20mm of $(cam)!0.5!(you)$,fill=orange!10,minimum height=16mm] (lap)
+    {\textbf{Laptop}\\ \footnotesize \file{run_policy.py}};
+  \node[box,right=18mm of lap,fill=NavyBlue!10,minimum height=16mm] (gpu)
+    {\textbf{Cloud GPU}\\ \footnotesize GR00T server};
+  \node[box,below=12mm of lap,fill=NavyBlue!8] (nano) {\textbf{Arduino Nano}\\ \footnotesize \file{arm.ino}};
+  \node[box,right=30mm of nano,fill=NavyBlue!20] (srv) {5 servos\\ \footnotesize power: 5.5\,V supply};
+  \draw[arr] (cam.east) -- (lap);
+  \draw[arr] (you.east) -- (lap);
+  \draw[arr,<->] (lap) -- node[above,font=\scriptsize,align=center]{internet\\port 5555} (gpu);
+  \draw[arr] (lap) -- node[right,font=\scriptsize,align=left]{USB serial, 115200 baud\\
+    \texttt{90.0,90.0,90.0,90.0,125.0} $\times$30/s} (nano);
+  \draw[arr] (nano) -- node[above,font=\scriptsize]{D3 D5 D6 D9 D10} (srv);
+\end{tikzpicture}
+\caption{Who talks to whom. The Nano only ever sees five angles per line.}
+\label{fig:serial}
+\end{figure}
+
+\subsection{The USB cable is a serial port}
+\begin{itemize}
+\item Plugged in, the Nano shows up as a COM port. The Python scripts find it by name
+  (``Arduino'', ``CH340'' or ``USB''); pass \texttt{--port COM5} if they pick the wrong one.
+\item Speed is \textbf{115200 baud} on both sides (\texttt{BAUD} in \file{config.py},
+  \texttt{Serial.begin} in \file{arm.ino}).
+\item Opening the port \textbf{resets the Nano}, so the laptop waits 2\,s first. On start the
+  Nano prints \texttt{READY} and moves every servo to 90\textdegree.
+\item Only one program can hold the port. Close the Arduino Serial Monitor before running Python.
+\end{itemize}
+
+\subsection{The messages}
+Plain text, one command per line:
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}p{4.6cm}X@{}}
+\toprule
+Laptop sends & The Nano \\
+\midrule
+\texttt{90,120.5,45,90,125} & sets new target angles (degrees) for base, shoulder, elbow, wrist, gripper \\
+\texttt{S 120} & sets the top servo speed to 120\textdegree/s (default 180) \\
+\texttt{?} & replies \texttt{P a0,a1,a2,a3,a4}, the angles it is at now (for debugging; Python doesn't use it) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+A line without exactly five numbers is ignored. You can type these into the Arduino Serial
+Monitor (115200 baud, ``Newline'' ending) to test the arm with no Python at all.
+
+\subsection{What the Nano does with them}
+\begin{enumerate}
+\item Reads characters up to a newline, splits the line on commas.
+\item Clamps each angle to 0--180\textdegree{} and stores it as that servo's \emph{target}.
+\item Every 10\,ms moves each servo a small step toward its target, at most 180\textdegree/s, so a
+  big jump in the commands becomes a smooth swing instead of a slam.
+\item Turns each angle into a pulse (0\textdegree{} = 500\,\textmu s, 180\textdegree{} = 2400\,\textmu s)
+  on that servo's signal pin.
+\end{enumerate}
+The Nano knows nothing about kinematics, the camera or GR00T. It also can't tell where the
+servos really are: SG90s don't report their position, so it only remembers what it sent.
+
+\subsection{Where the numbers come from}
+The numbers on the wire are always \emph{servo} angles (0--180\textdegree), not joint angles.
+\begin{itemize}
+\item \file{teleop.py} and \file{autodemo.py} think in gripper positions ($x,y,z$).
+  \file{kinematics.py} turns a position into joint angles, then into servo angles using
+  \file{calibration.json} (each servo's direction and zero).
+\item \file{run_policy.py}: the model was trained on servo angles, so its answer already
+  \emph{is} servo angles. The laptop clips each to 0--180\textdegree{} and sends it on.
+\end{itemize}
+
+\subsection{The loop when GR00T drives}
+\begin{enumerate}
+\item Grab a 640$\times$480 photo from the phone camera.
+\item Package the photo, the five angles last sent, and your sentence.
+\item Send it to the GR00T server (\file{policy_client.py}: a ZeroMQ request on port 5555
+  through the SSH tunnel). GR00T replies with \textbf{16} future steps of five angles each.
+\item Send the first \textbf{8} steps to the Nano, one line every $1/30$\,s (about 0.27\,s).
+\item Repeat with a new photo, for 20\,s (\texttt{--seconds}) or until Ctrl+C, then go home.
+\end{enumerate}
+The ``state'' GR00T sees is the angles last \emph{sent}, not measured ones, since the servos
+can't report back. The recordings were made the same way (every $1/30$\,s \file{recorder.py}
+saves the photo and the five angles just sent), so the model gets the same kind of state it
+learned from.
+
+\begin{note}[Power is a separate path]
+The USB cable only powers the Nano's chip and carries data. The servos run from the bench
+supply, and the supply's ground must be wired to the Nano's GND (\cref{fig:wiring}). Without
+the common ground the signal pulses have no shared reference and the servos jitter or don't move.
+\end{note}
+
 \section{Assembly}
 
 The author gives no written steps. The parts are made to need only what comes with the SG90s
@@ -623,6 +724,7 @@ few hours, so budget \$10--20 for the first run, or use free credits if they cov
 Symptom & Fix \\
 \midrule
 ``No Arduino found'' & Check the USB cable carries data; pass \texttt{--port COM5}. \\
+Port opens but nothing moves & Supply off, no common ground, or the Serial Monitor is holding the port. Test by hand: Serial Monitor at 115200, type \texttt{90,90,90,90,125}, then \texttt{?} (\cref{sec:serial}). \\
 Upload fails & Try the other bootloader (the script does both); close other programs using the port. \\
 Servos twitch / Nano resets & Servo power must come from the supply; Nano GND tied to supply $-$; add the capacitor. \\
 A joint moves the wrong way & \file{calibrate.py}: \texttt{test}, then \texttt{flip <joint>}. \\
@@ -632,6 +734,8 @@ The drum turns instead of the arm & Fix the drum in its baseplate ring with tape
 ``can't reach that'' in teleop & The target is out of reach or the gripper would hit the plate. Move back. \\
 GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
 \texttt{run\_policy}: server not reachable & Is \file{serve.sh} running and the SSH tunnel open? \\
+\texttt{run\_policy}: ``policy call failed'' & One slow or failed GR00T reply; it retries. After 3 in a row it stops that run and asks again: check the SSH tunnel and \file{serve.sh}. \\
+\texttt{run\_policy}: ``N blocked'' & The model asked for a pose past a joint limit or into the plate, so those steps weren't sent and the arm held still. A few now and then is fine; many means more or better demos. \\
 Policy runs but misses & More demos, more varied object positions, same camera position as in training. \\
 Picks the wrong object & More demos (both objects about equally), and check the instructions saved in \file{meta.json} match what was picked. \\
 \bottomrule

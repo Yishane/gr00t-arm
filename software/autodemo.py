@@ -40,6 +40,7 @@ MIN_GAP = 60.0
 TOO_CLOSE = {frozenset(("C3", "A2"))}   # at C3 the tilted gripper reaches back over A2
 SAFE_Z = 75.0
 DROP_Z = 80.0
+PITCH_SEARCH = 30   # deg: how far solve_near tilts the gripper to find a solution
 
 
 def best_pitch(x, y, z):
@@ -90,20 +91,31 @@ def plan(spot, target="ball", jitter=0.0):
     return out
 
 
+def solve_near(x, y, z, pitch):
+    """K.solve at this pitch, or at the nearest pitch (1 deg steps, up to
+    PITCH_SEARCH either way) that reaches (x, y, z). None if none does."""
+    for d in range(PITCH_SEARCH + 1):
+        for sgn in ((1,) if d == 0 else (1, -1)):
+            servo = K.solve(x, y, z, pitch + math.radians(sgn * d))
+            if servo:
+                return servo
+    return None
+
+
 def trajectory(waypoints, fps):
-    """Servo commands at fps, moving in straight lines between waypoints."""
+    """Servo commands at fps, moving in straight lines between waypoints.
+    Where the exact pitch can't reach a point, the gripper tilts a little
+    instead, so the arm never jumps."""
     cur = waypoints[0]
-    prev = K.solve(*cur[:4])
     for wp in waypoints[1:]:
         n = max(1, int(wp[5] * fps))
         for k in range(1, n + 1):
             s = k / n
             s = s * s * (3 - 2 * s)                      # ease in/out
             pose = [a + (b - a) * s for a, b in zip(cur[:4], wp[:4])]
-            servo = K.solve(*pose)
-            if servo is None:                             # hold, or fall back to the end pose
-                servo = prev or K.solve(*wp[:4])
-            prev = servo
+            servo = solve_near(*pose)
+            if servo is None:
+                raise ValueError(f"can't reach {pose}")
             grip = C.GRIPPER_CLOSED if wp[4] else C.GRIPPER_OPEN
             yield servo + [grip]
         cur = wp
@@ -112,17 +124,23 @@ def trajectory(waypoints, fps):
 def run(arm, cam, spot, target="ball", rec=None, jitter=0.0):
     dt = 1.0 / C.FPS
     last = arm.last
+    cmds = list(trajectory(plan(spot, target, jitter), C.FPS))   # fails here, before moving
     if rec:
         rec.start(task=TASKS[target])
     t_next = time.perf_counter()
-    for cmd in trajectory(plan(spot, target, jitter), C.FPS):
-        frame = cam.read()
+    try:
+        for cmd in cmds:
+            frame = cam.read()
+            if rec:
+                rec.add(frame, last, cmd)
+            arm.send(cmd)
+            last = cmd
+            t_next += dt
+            time.sleep(max(0.0, t_next - time.perf_counter()))
+    except BaseException:
         if rec:
-            rec.add(frame, last, cmd)
-        arm.send(cmd)
-        last = cmd
-        t_next += dt
-        time.sleep(max(0.0, t_next - time.perf_counter()))
+            rec.stop(keep=False)                          # don't leave half an episode
+        raise
     if rec:
         rec.stop()
 
