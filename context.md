@@ -30,6 +30,35 @@ Read this first every session. Update the "Status" and "Next" sections before st
   elastic bands at joints, shoulder servo works hardest, servos hot-swappable.
 - He HAS a breadboard + jumper wires (confirmed 2026-10-22).
 
+## NEW DEMO: BALL + BLOCK (2026-10-23, Yishane's request) â€” DONE (milestone 2b)
+- Task: ball + block both on the plate; he types "pick up the ball" / "pick up the block";
+  arm picks that one and drops it in the cup. Record target 100-200 episodes (~150).
+- Block = cad/stl/13_block.stl (arm.py block(), BLOCK=25 mm cube, 1 mm chamfer), print in a
+  contrasting colour; face toward the base (fingers close sideways).
+- recorder.TASKS = {"ball": "pick up the ball", "block": "pick up the block"}; TASK = ball's;
+  target_of(text) -> "ball"/"block"/None. Recorder.start(task=...) saves per-episode meta.json task.
+- autodemo: OBJECTS grip z {ball 20, block 18}; pairs() = spots >= MIN_GAP 60 apart minus
+  TOO_CLOSE {C3,A2} -> 24 pairs, B2 never used when recording; layout() picks target 50/50.
+  Flags --target --spot --other-spot; --task flag removed. Block z 16 failed (A1 gripper hits
+  base drum; tilted gripper hits the other object), z 18 OK. Pair check uses fingers as in the
+  STEP model (not fully open) -> watch the first real runs for the open fingers brushing the other object.
+- cad/assembly.py --cell: block/ball grip z from autodemo.OBJECTS + pair check (voxel overlap of
+  arm vs the other object, all pairs x 2 targets): PASS. Needs --with trimesh --with scipy
+  --with opencv-python-headless --with pyserial (it imports autodemo). Work-cell figure now
+  ball on C1 + block on A3.
+- run_policy.py: instruction> loop (q/empty quits, "ball"/"block" expand to the full sentence,
+  unclear text re-asks), --seconds 20 per instruction, Ctrl+C stops one run -> home -> ask again;
+  --task runs one non-interactively. Backends take task per call.
+- ACT has NO language input -> act/export_act.py adds a 6th state dim "target" (0 ball, 1 block,
+  index in sorted(TASKS)); run_policy ActBackend appends it if the checkpoint's state is 6-D.
+  GR00T state stays 5-D (gr00t_arm_config unchanged); language goes in via task_index.
+- teleop.py: T toggles rec.task (shown top-left).
+- One GRIPPER_CLOSED: calibrate it on the block (smaller); if the servo buzzes hard on the ball,
+  add a per-object closed angle (not built).
+- Verified in sim: 4 episodes -> export_dataset (2 tasks) + export_act + train_act 20 steps +
+  run_policy act loop. 40 pytest pass (new software/test_autodemo.py). Guide updated + rebuilt (14 pp).
+- Dataset name kept as "pick_ball" (paths everywhere) even though it now has both objects.
+
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5Ã— SG90 servos, teleoperated with a
 gamepad, recording demos in LeRobot format, training ACT locally and fine-tuning
@@ -104,8 +133,9 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
       Figures from `cad/assembly.py --docs`.
 
 ## Next (all build deliverables done 2026-10-22; waiting on Yishane)
-1. He prints (Easy Robot Arm parts + work cell, no BaseLeg), wires, assembles, calibrates — guide sections 7–11.
-2. Record ~60 demos (autodemo --record 60), export, train ACT locally to validate data.
+1. He prints (Easy Robot Arm parts + work cell incl. 13_block, no BaseLeg), wires, assembles, calibrates — guide sections 7–11.
+2. Record 100-200 demos, two objects (autodemo --record 150), export, train ACT locally to
+   validate data (check it picks the RIGHT object for each instruction).
 3. He makes HF account + requests nvidia/Cosmos-Reason2-2B access; gets cloud GPU credit.
    COST (told him 2026-10-22): milestone 9 is the ONLY step that can cost money (~$10-20 paid).
    Free options documented in README m9 + guide sec:cloud: Lightning AI free credits (SSH Studio,

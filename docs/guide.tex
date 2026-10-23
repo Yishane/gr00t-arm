@@ -58,14 +58,15 @@ GR00T is NVIDIA's \emph{robot foundation model}: one neural network, pretrained 
 amount of robot and human data, that turns \textbf{what a robot sees}, \textbf{what it is
 told} and \textbf{where its joints are} into \textbf{the next motions}. It was built for
 humanoids, but it is designed so a \emph{new} body can be taught to it with a small amount of
-data. This arm is that new body: five \$2 servos, a phone for eyes, and about 60
-demonstrations.
+data. This arm is that new body: five \$2 servos, a phone for eyes, and 100--200
+demonstrations. A ball and a block sit on the plate; you type ``pick up the ball'' or ``pick up
+the block'', and the arm drops that one in the cup. The words decide which object it goes for.
 
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[node distance=7mm and 9mm]
   \node[box,fill=green!8] (cam) {\textbf{Phone camera}\\ image $640{\times}480$};
-  \node[box,fill=green!8,below=of cam] (lang) {\textbf{Instruction}\\ ``pick up the ball and\\ put it in the cup''};
+  \node[box,fill=green!8,below=of cam] (lang) {\textbf{Instruction}\\ ``pick up the ball'' or\\ ``pick up the block''};
   \node[box,fill=green!8,below=of lang] (state) {\textbf{Joint state}\\ 5 servo angles};
 
   \node[box,fill=NavyBlue!10,right=16mm of lang,minimum width=40mm,minimum height=46mm] (g) {};
@@ -97,7 +98,7 @@ demonstrations.
 \item[A foundation model for robots.] Language models are pretrained on the internet and then
   adapted to a task. GR00T does the same for robot \emph{motion}: it is pretrained on a mix of
   real robot recordings, simulated robots and videos of humans, then \emph{post-trained}
-  (fine-tuned) on a few dozen demonstrations of a specific robot doing a specific task
+  (fine-tuned) on a small set of demonstrations of a specific robot doing a specific task
   \cite{gr00tn1,isaacgr00t}.
 \item[Two systems, like fast and slow thinking.] The \textbf{System 2} part is a
   vision-language model: it looks at the camera image and reads the instruction, and produces
@@ -130,15 +131,15 @@ demonstrations.
 GR00T concept & On this arm & Where \\
 \midrule
 Vision input & One phone camera on a fixed mast looking down at the work area (key \texttt{front}). Fixed so every demo looks the same. & mast + cradle STLs, \file{arm_io.py} \\
-Language instruction & ``pick up the ball and put it in the cup'' stored with every demo & \file{recorder.py} \\
+Language instruction & ``pick up the ball'' or ``pick up the block'', saved with each demo; typed in at run time & \file{recorder.py}, \file{run_policy.py} \\
 Proprioceptive state & 5 servo angles in degrees: base, shoulder, elbow, wrist (\texttt{single\_arm}) and gripper (\texttt{gripper}) & \file{export_dataset.py} \\
 Embodiment & \texttt{NEW\_EMBODIMENT} with our modality config & \file{gr00t_arm_config.py} \\
 Dataset format & LeRobot v2.1 + \file{meta/modality.json} (parquet tables + mp4 videos) & \file{export_dataset.py} \\
 Action chunk & 16 future commands; we execute 8 then re-query & \file{run_policy.py} \\
 Relative vs absolute actions & Arm joints are predicted as \emph{changes} from the current angles (generalises better); the gripper as an absolute open/close target & \file{gr00t_arm_config.py} \\
-Post-training & Fine-tune on $\approx$60 demos on a rented cloud GPU, $\approx$3000 steps & \file{gr00t/finetune.sh} \\
+Post-training & Fine-tune on 100--200 demos on a rented cloud GPU, $\approx$3000 steps & \file{gr00t/finetune.sh} \\
 Inference & Model runs on the cloud GPU as a server; the laptop sends image + state, gets actions back over ZeroMQ & \file{gr00t/serve.sh}, \file{policy_client.py} \\
-Demonstrations & Scripted pick-and-place (auto-collected) or keyboard teleop & \file{autodemo.py}, \file{teleop.py} \\
+Demonstrations & Scripted pick-and-place (auto-collected; random layout, ball or block about half each) or keyboard teleop & \file{autodemo.py}, \file{teleop.py} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -148,7 +149,7 @@ Demonstrations & Scripted pick-and-place (auto-collected) or keyboard teleop & \
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[node distance=5mm and 6mm]
-  \node[box] (a) {\textbf{1. Demonstrate}\\ \footnotesize autodemo / teleop\\ \footnotesize 60 episodes};
+  \node[box] (a) {\textbf{1. Demonstrate}\\ \footnotesize autodemo / teleop\\ \footnotesize 100--200 episodes};
   \node[box,right=of a] (b) {\textbf{2. Record}\\ \footnotesize frames + angles\\ \footnotesize \file{data/raw}};
   \node[box,right=of b] (c) {\textbf{3. Export}\\ \footnotesize GR00T dataset\\ \footnotesize \file{data/lerobot}};
   \node[box,right=of c,fill=NavyBlue!10] (d) {\textbf{4. Fine-tune}\\ \footnotesize cloud GPU\\ \footnotesize $\approx$1--2 h};
@@ -181,7 +182,8 @@ Demonstrations & Scripted pick-and-place (auto-collected) or keyboard teleop & \
   and a diffusion transformer turns that into \emph{how} the joints move. Slow thinking and
   fast moving.''
 \item \textbf{New body.} ``GR00T has never seen this arm. I registered it as a new embodiment:
-  4 joints, a gripper, one camera, and fine-tuned it on about 60 demonstrations. That took
+  4 joints, a gripper, one camera, and fine-tuned it on about 150 demonstrations, half picking
+  the ball and half the block, each with its sentence. That took
   an hour or two on a rented GPU.''
 \item \textbf{Demo} (\cref{sec:demo}).
 \item \textbf{Back to humanoids.} ``A humanoid is the same loop with more joints, more cameras
@@ -195,12 +197,16 @@ Demonstrations & Scripted pick-and-place (auto-collected) or keyboard teleop & \
 Pick the most ambitious option you have working, and keep the next one ready.
 \begin{enumerate}
 \item \textbf{GR00T live.} Start \file{serve.sh} on the cloud GPU before class, connect with
-  \file{run_policy.py gr00t}. Needs internet. Put the ball on a marked spot, run it.
+  \file{run_policy.py gr00t}. Needs internet. Put the ball and the block on two marked
+  spots, ask the audience which one, and type it: \texttt{pick up the block}. When it's done it
+  asks again, so swap the objects around and do the other one.
 \item \textbf{ACT live (no internet).} Same pipeline, smaller model running on the laptop:
   \file{run_policy.py act}. Say clearly that this is the small model trained on the same data.
-\item \textbf{Scripted demo.} \file{autodemo.py --spot B2} always works. Explain that this
-  script is how the training demonstrations were collected, and that the learned policy never
-  sees the spot name, only the camera image.
+  ACT can't read words: it gets ``ball'' or ``block'' as a single number (0 or 1). That
+  difference is a good point to make: GR00T understands the sentence, ACT only gets a switch.
+\item \textbf{Scripted demo.} \file{autodemo.py --target block --spot C1 --other-spot A3}
+  always works. Explain that this script is how the training demonstrations were collected,
+  and that the learned policy never sees the spot names, only the camera image and the words.
 \item \textbf{Video.} Screen-record a successful GR00T run the day before as a backup.
 \end{enumerate}
 Show the dataset too: open one recorded \file{episode_000000.mp4} to make ``demonstration
@@ -211,7 +217,11 @@ data'' concrete.
 \item[Why not just program the pick-up?] You can, and the scripted demo does. But that only
   works if the ball is exactly on a known spot. A learned policy reads the image, so the same
   approach scales to tasks nobody can script, like folding a shirt.
-\item[How much data?] About 60 demonstrations here. Pretraining is what makes that enough.
+\item[How much data?] 100--200 demonstrations here, about half for each object. Pretraining
+  is what makes that enough.
+\item[Does it really understand the words?] Both objects are on the plate in every demo, so
+  the only way to know which one to pick is the instruction. If it picks the right one after
+  you swap their places, it's using the words and the image together.
 \item[Why chunks of actions?] Smoother motion, fewer model calls, and the model commits to a
   plan. Re-planning every 8 steps still lets it correct mistakes.
 \item[Does it generalise?] Within reason: other spots on the plate, small lighting changes.
@@ -241,6 +251,8 @@ Adjustable bench power supply & 1 & set to 5.5\,V, current limit 3\,A \\
 Breadboard + male--male jumper wires & -- & to share power between servos \\
 Superglue (CA) & -- & optional: only if a part slips on its horn or the gripper turns \\
 Ping-pong ball (40\,mm) & 1 & or print two \file{12_ball_half} and glue them \\
+Printed block (25\,mm cube) & 1 & \file{13_block}, in a colour that stands out from the ball
+  and the plate (red or blue with a white ball) \\
 Phone + webcam app & 1 & Phone Link (Android) or Iriun / DroidCam (any phone) \\
 PLA filament & a few hundred g & Bambu printer; one 1\,kg spool is plenty \\
 Optional: 470--1000\,$\mu$F capacitor & 1 & across the servo power rail; smooths current spikes \\
@@ -281,6 +293,7 @@ File & Qty & What it is / how to print \\
 \file{10_pin} & 1 & lying flat \\
 \file{11_cup} & 1 & upright \\
 \file{12_ball_half} & 2 & only if you have no ping-pong ball; open side down \\
+\file{13_block} & 1 & the second object; contrasting colour, 15\% infill \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -296,8 +309,10 @@ in \file{cad/stl} are an older arm design and aren't used.
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{work_cell}
 \caption{Left: the Easy Robot Arm in its home pose, built from the author's 3D model with two
 60\,mm links. Right: the work cell with the baseplate, cup and phone camera mast, the arm
-reaching spot B2. \file{cad/assembly.py} checks the arm against itself and the work cell:
-every marked ball spot, the lift above it and the drop over the cup are clear.}
+gripping the ball on C1 with the block on A3. \file{cad/assembly.py} checks the arm against
+itself and the work cell: every marked spot (ball and block), the lift above it and the drop
+over the cup are clear, and the gripper never touches the other object in any layout the demos
+use.}
 \label{fig:cell}
 \end{figure}
 
@@ -456,9 +471,10 @@ Still in \file{calibrate.py}:
 \item If a joint is a few degrees off in the home pose: \texttt{trim <joint> <degrees>}, e.g.\
   \texttt{trim 1 -4}.
 \item Gripper: \texttt{s 4 <deg>} to try angles. Find an angle that is well open, and one that
-  squeezes the ball firmly without the servo buzzing hard; set them with
-  \texttt{grip open 125} and \texttt{grip closed 85} (your numbers). The fingers open
-  sideways; check with the ball held between them.
+  squeezes the \emph{block} firmly (it's the smaller object, so this also grips the ball);
+  set them with \texttt{grip open 125} and \texttt{grip closed 85} (your numbers). The
+  fingers open sideways; check with the block and then the ball held between them. If the
+  servo buzzes hard on the ball, tell Claude: the ball can get its own closed angle.
 \item \texttt{save}, then \texttt{quit}. This writes \file{software/calibration.json}.
 \end{enumerate}
 \begin{note}[Check the tool point]
@@ -474,7 +490,12 @@ and \texttt{TOOL\_UP} (how far the fingers hang below the wrist) get a small tri
 \begin{cmd}
 uv run autodemo.py --spot B2 --camera 1
 \end{cmd}
-Put the ball on spot B2 first. The arm should pick it up and drop it in the cup. Then try
+Put the ball on spot B2 first. The arm should pick it up and drop it in the cup. Then the
+block, with the ball on another spot:
+\begin{cmd}
+uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1
+\end{cmd}
+Turn the block so one face points at the arm's base: the fingers close sideways. Then try
 driving it yourself:
 \begin{cmd}
 uv run teleop.py --camera 1
@@ -490,16 +511,23 @@ to try it without hardware.
 \begin{enumerate}
 \item \textbf{Automatic (recommended):}
 \begin{cmd}
-uv run autodemo.py --record 60 --camera 1
+uv run autodemo.py --record 150 --camera 1
 \end{cmd}
-  It names a random spot; you place the ball and press Enter; it picks and places while
-  recording. 60 demos take about 20 minutes.
-\item \textbf{By hand (optional, adds variety):} in \file{teleop.py}, \key{Enter} starts a
-  recording, \key{Enter} again saves it, \key{Backspace} throws it away.
+  Each time it tells you where to put the ball and the block and which one it will pick, e.g.\
+  \texttt{block on C1, ball on A3 -> "pick up the block"}. Place both, press Enter, and it
+  picks and places while recording, saving the instruction with the demo. It picks the ball or
+  the block about half the time each. Aim for 100--200 demos (about 20 seconds each, so 150
+  take under an hour; split it into sessions, it keeps numbering where it left off).
+\item \textbf{By hand (optional, adds variety):} in \file{teleop.py}, \key{T} switches the
+  instruction between ``pick up the ball'' and ``pick up the block'' (shown at the top of the
+  window), \key{Enter} starts a recording, \key{Enter} again saves it, \key{Backspace} throws
+  it away. Always pick the object the instruction names.
 \end{enumerate}
 \begin{note}[Good data]
-Keep the camera, lighting and cup exactly where they will be during the demo. Place the ball
-a little off-center sometimes. Delete any failed demo folder from \file{data/raw/pick_ball}.
+Keep the camera, lighting and cup exactly where they will be during the demo. Both objects
+are on the plate in every demo; the middle spot B2 isn't used because it's too close to the
+others. Place the objects a little off-center sometimes, with a block face towards the base.
+Delete any failed demo folder from \file{data/raw/pick_ball}.
 \end{note}
 Then export for GR00T:
 \begin{cmd}
@@ -519,7 +547,10 @@ uv run ..\run_policy.py act --camera 1 ^
     --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model
 \end{cmd}
 Training runs at about 2.3 steps per second on the RTX 5050 (about 2.5 hours for 20k steps).
-If ACT picks up the ball, the data is good and GR00T will learn from it too.
+It asks for an instruction; type \texttt{pick up the ball} or \texttt{pick up the block} (or just
+\texttt{ball} / \texttt{block}). Each runs for 20 seconds (\texttt{--seconds}), then the arm goes
+home and it asks again; \texttt{q} quits. If ACT picks up the right object, the data is good
+and GR00T will learn from it too.
 
 \section{Fine-tuning and running GR00T in the cloud}
 \label{sec:cloud}
@@ -573,6 +604,7 @@ bash ~/gr00t/serve.sh
 ssh -p <port> -L 5555:localhost:5555 root@<ip>
 uv run run_policy.py gr00t --host localhost --camera 1
 \end{cmd}
+  Type the instruction at the \texttt{instruction>} prompt, the same as for ACT.
 \item \textbf{Stop the cloud machine when you're done}: it bills by the hour.
 \end{enumerate}
 
@@ -600,7 +632,8 @@ The drum turns instead of the arm & Fix the drum in its baseplate ring with tape
 ``can't reach that'' in teleop & The target is out of reach or the gripper would hit the plate. Move back. \\
 GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
 \texttt{run\_policy}: server not reachable & Is \file{serve.sh} running and the SSH tunnel open? \\
-Policy runs but misses & More demos, more varied ball positions, same camera position as in training. \\
+Policy runs but misses & More demos, more varied object positions, same camera position as in training. \\
+Picks the wrong object & More demos (both objects about equally), and check the instructions saved in \file{meta.json} match what was picked. \\
 \bottomrule
 \end{tabularx}
 \end{table}

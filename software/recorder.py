@@ -3,7 +3,7 @@
 data/raw/<dataset>/episode_000000/
     frames/000000.jpg ...   camera frames (RGB)
     steps.csv               t, state_0..4, action_0..4 (servo degrees)
-    meta.json               task text, fps, source (teleop / autodemo)
+    meta.json               task (the instruction), fps, source (teleop / autodemo)
 
 export_dataset.py turns these into a GR00T / LeRobot dataset.
 """
@@ -16,7 +16,18 @@ from pathlib import Path
 import cv2
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "raw"
-TASK = "pick up the ball and put it in the cup"
+# The instruction typed at run time (run_policy.py) is one of these. Both
+# objects are on the plate in every episode; the instruction says which one
+# goes in the cup.
+TASKS = {"ball": "pick up the ball", "block": "pick up the block"}
+TASK = TASKS["ball"]
+
+
+def target_of(task):
+    """Which object an instruction means ("ball" / "block"), or None."""
+    words = task.lower()
+    found = [name for name in TASKS if name in words]
+    return found[0] if len(found) == 1 else None
 
 
 class Recorder:
@@ -34,7 +45,9 @@ class Recorder:
         done = sorted(self.dir.glob("episode_*"))
         return int(done[-1].name.split("_")[1]) + 1 if done else 0
 
-    def start(self):
+    def start(self, task=None):
+        """task: this episode's instruction (default: the one given to __init__)."""
+        self.ep_task = task or self.task
         self.ep = self.dir / f"episode_{self.next_index():06d}"
         (self.ep / "frames").mkdir(parents=True)
         self.rows = []
@@ -58,8 +71,8 @@ class Recorder:
                            + [f"action_{i}" for i in range(5)])
                 w.writerows(self.rows)
             (self.ep / "meta.json").write_text(json.dumps(
-                {"task": self.task, "fps": self.fps, "source": self.source}, indent=2))
-            print(f"saved {self.ep.name}: {len(self.rows)} frames")
+                {"task": self.ep_task, "fps": self.fps, "source": self.source}, indent=2))
+            print(f'saved {self.ep.name}: {len(self.rows)} frames, "{self.ep_task}"')
         else:
             shutil.rmtree(self.ep)
             print("discarded episode")

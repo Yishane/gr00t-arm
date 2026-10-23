@@ -10,7 +10,7 @@ Commands
     flip <joint>        reverse a joint's direction (if `test` moved it backwards)
     trim <joint> <deg>  shift a joint's zero by deg (if home is a bit off)
     grip open <deg>     set the gripper's open angle
-    grip closed <deg>   set the gripper's closed angle (squeezes a ball)
+    grip closed <deg>   set the gripper's closed angle (squeezes the block, so also the ball)
     save                write calibration.json
     quit
 """

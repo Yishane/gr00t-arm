@@ -10,9 +10,11 @@ arm here is the author's Arm60mm turned upright, and everything above the
 elbow is moved down by the 30 mm difference. The 3 BaseLeg feet are left
 out: the base drum stands in a ring on our baseplate instead.
 
-Run:  uv run --python 3.12 --with cadquery --with matplotlib python assembly.py
+Run:  uv run --python 3.12 --with cadquery --with matplotlib --with trimesh --with scipy
+             --with opencv-python-headless --with pyserial python assembly.py
       --check   sweep elbow/wrist/shoulder for self-collisions
-      --cell    check every ball spot and the cup against the camera rig
+      --cell    check every ball/block spot and the cup against the camera rig,
+                and every target/other-object pair autodemo.py can lay out
       --docs    also write the figures used by docs/guide.tex
 
 Joint angles are the software ones (software/config.py): base yaw, shoulder
@@ -145,9 +147,10 @@ def build(base=0.0, shoulder=90.0, elbow=-90.0, wrist=0.0) -> dict:
             "gripper": chain(h["gripper"], 3)}
 
 
-def scene(parts: dict, ball_at=None, cache={}) -> dict:
+def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
     """Add the work cell (baseplate, camera mast, phone cradle with a dummy
-    phone, cup, ball) to an assembled arm."""
+    phone, cup, ball, block) to an assembled arm. ball_at is the ball centre,
+    block_at the centre of the block's bottom face."""
     if not cache:
         cache.update({"plate": arm.baseplate(), "mast": arm.camera_mast(),
                       "cradle": arm.phone_cradle(), "cup": arm.cup()})
@@ -169,6 +172,8 @@ def scene(parts: dict, ball_at=None, cache={}) -> dict:
     place("cup", c["cup"], cq.Location(cq.Vector(*arm.CUP_XY, 0)))
     if ball_at is not None:
         place("ball", cq.Workplane("XY").sphere(arm.BALL / 2), cq.Location(cq.Vector(*ball_at)))
+    if block_at is not None:
+        place("block", arm.block(), cq.Location(cq.Vector(*block_at)))
     return out
 
 
@@ -264,7 +269,7 @@ def render(parts: dict, path: Path, title="", views=((20, -60), (0, -90))):
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     arm_col = {"base": "#888888", "turntable": "#3b6fb6", "upper_arm": "#d9822b",
-               "forearm": "#d9822b", "gripper": "#3b6fb6", "ball": "#f4f4f4",
+               "forearm": "#d9822b", "gripper": "#3b6fb6", "ball": "#f4f4f4", "block": "#d83a34",
                "cup": "#6aa36f", "baseplate": "#c8c8c8"}
     fig = plt.figure(figsize=(6 * len(views), 6))
     for k, (elev, azim) in enumerate(views):
@@ -313,9 +318,10 @@ if __name__ == "__main__":
     render(home, out / "10_assembly_home.png", "Easy Robot Arm, home pose")
     reach = build(shoulder=40, elbow=-100, wrist=-30)
     render(reach, out / "11_assembly_reach.png", "reaching down")
-    spot = (arm.SPOT_X[1], arm.SPOT_Y[1], 20)
+    spot = (arm.SPOT_X[2], arm.SPOT_Y[0], 20)        # gripping the ball on C1, block on A3
     j = _tool_pose(*spot)
-    cell = scene(build(*j) if j else home, ball_at=spot)
+    cell = scene(build(*j) if j else home, ball_at=spot,
+                 block_at=(arm.SPOT_X[0], arm.SPOT_Y[2], 0))
     render(cell, out / "12_work_cell.png", "work cell: arm, baseplate, phone camera mast, cup")
     if "--docs" in sys.argv:
         docs = HERE.parent / "docs" / "figures"
@@ -336,9 +342,11 @@ if __name__ == "__main__":
             c = collisions((0, sh, 0, 0))
             print(f"  shoulder {sh:4d}:", c or "ok")
     if "--cell" in sys.argv:
-        # ball on each spot, lifted above it, and the drop over the cup
-        # (software/autodemo.py BALL_Z, SAFE_Z + 10, DROP_Z)
-        targets = [(x, y, z) for z in (20, 85) for x in arm.SPOT_X for y in arm.SPOT_Y]
+        # ball and block grip on each spot, lifted above it, and the drop over
+        # the cup (software/autodemo.py OBJECTS grip z, SAFE_Z + 10, DROP_Z)
+        import autodemo as A
+        zs = sorted(set(A.OBJECTS.values())) + [A.SAFE_Z + 10]
+        targets = [(x, y, z) for z in zs for x in arm.SPOT_X for y in arm.SPOT_Y]
         targets += [(arm.CUP_XY[0], arm.CUP_XY[1], 80)]
         fixed = cell_parts()
         bad = 0
@@ -351,4 +359,22 @@ if __name__ == "__main__":
             hits = collisions(j, fixed)
             print(t, [round(a) for a in j], "ok" if not hits else hits)
             bad += bool(hits)
+        # gripping one object with the other one on any spot autodemo.py
+        # allows next to it: the arm must not touch the other object
+        home = home_parts()
+        objects = {"ball": _voxels(cq.Workplane("XY").sphere(arm.BALL / 2).val())
+                   + (0, 0, arm.BALL / 2),
+                   "block": _voxels(arm.block().val())}
+        pairs = A.pairs()
+        print(f"pair check: {len(pairs)} spot pairs x 2 targets")
+        for target, other in (("ball", "block"), ("block", "ball")):
+            for t_spot, o_spot in pairs:
+                j = _tool_pose(*A.SPOTS[t_spot], A.OBJECTS[target])
+                mats = _matrices(*j)
+                pts = objects[other] + (*A.SPOTS[o_spot], 0)
+                hits = [(g, round(v)) for g in GROUPS if g != "base"
+                        for v in [_overlap(_points(g, home[g], mats[g]), pts)] if v > 0]
+                if hits:
+                    print(f"  {target} on {t_spot}, {other} on {o_spot}:", hits)
+                    bad += 1
         print("cell check:", "PASS" if not bad else f"{bad} problem(s)")

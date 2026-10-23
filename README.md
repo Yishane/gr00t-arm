@@ -1,16 +1,19 @@
 # gr00t-arm
 
 A small 3D-printed desk arm (SG90 servos, Arduino Nano) used to show how
-NVIDIA GR00T learns robot skills. You record keyboard-teleoperated demos of
-"pick up the ball, drop it in the cup", export them as a GR00T/LeRobot
-dataset, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU, and
-run the learned policy back on the arm.
+NVIDIA GR00T learns robot skills. A ball and a block sit on the plate. You
+type **"pick up the ball"** or **"pick up the block"**, and the arm picks that
+object and drops it in the cup. You record demos of both (scripted or by
+keyboard), export them as a GR00T/LeRobot dataset with the instruction saved
+per episode, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU,
+and run the learned policy back on the arm.
 
 > **Status (2026-10-22):** the arm is now an **open-source arm** (mobiobi's
 > *Easy Robot Arm*). The software, firmware and GR00T pipeline are done and
 > verified, and they're matched to the new arm's measurements and checked against
-> its 3D model. What's left is building, recording and training. See
-> [Milestones](#milestones).
+> its 3D model. **New demo (2026-10-23):** ball + block on the plate, and the
+> typed instruction picks which one goes in the cup (milestone 2b). What's left
+> is building, recording and training. See [Milestones](#milestones).
 
 ---
 
@@ -91,11 +94,12 @@ author's STEP file to check them.
 - `cad/stl_opensource/easy_robot_arm/` — **the arm we're building** (open source, see above)
 - `cad/stl/` — our original self-designed parts. Arm parts `00`–`06` are now
   replaced by the open-source arm. The work-cell parts are still used: `07` baseplate,
-  `08` camera mast, `09` phone cradle, `10` pin, `11` cup, `12` ball half.
+  `08` camera mast, `09` phone cradle, `10` pin, `11` cup, `12` ball half,
+  `13` block (the second object).
 - `cad/arm.py` — CadQuery source for the work-cell parts (and the old arm parts)
 - `cad/assembly.py` — builds the Easy Robot Arm from the author's STEP file;
-  collision sweep (`--check`), reach check of every ball spot and the cup
-  (`--cell`), renders and guide figures (`--docs`)
+  collision sweep (`--check`), reach check of every ball/block spot and the cup,
+  plus every two-object layout (`--cell`), renders and guide figures (`--docs`)
 - `firmware/arm/arm.ino` — serial servo firmware; `firmware/upload.ps1 COMx` uploads it
 - `software/` — Python: `config.py` (geometry + calibration), `kinematics.py`
   (+ tests), `calibrate.py`, `teleop.py`, `autodemo.py`, `recorder.py`,
@@ -155,12 +159,44 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   collision checks, so a sweep takes seconds).
 - ✅ `context.md` up to date.
 
+### ✅ 2b. New demo: ball + block, pick the one you name (Claude)
+- ✅ The task: a ball and a block are both on the plate. You type
+  **"pick up the ball"** or **"pick up the block"**, and the arm picks that
+  object and drops it in the cup. The words are the only way to know which
+  object to pick, so this shows GR00T using the language input.
+- ✅ Block: `cad/stl/13_block.stl`, a 25 mm cube with chamfered edges. Print it
+  in a colour that stands out from the ball and the plate (red or blue next
+  to a white ball). Set it with a face pointing at the arm's base, since the
+  fingers close sideways.
+- ✅ `autodemo.py --record N`: each episode puts both objects on random spots,
+  picks the ball or the block (about 50/50), and saves the instruction in
+  that episode's `meta.json`. It tells you where to put each object and which
+  one it will pick. Single run: `autodemo.py --target block --spot C1 --other-spot A3`.
+- ✅ Grip heights: the ball at its centre (z 20), the block at z 18 (lower, and
+  the fingertips hit the plate or the gripper hits the base drum).
+- ✅ Layouts: the two spots are ≥ 60 mm apart and C3 + A2 is left out, so the
+  gripper never touches the other object (`cad/assembly.py --cell` checks
+  all 24 spot pairs × 2 targets: PASS). The middle spot B2 isn't used for
+  recording (it's too close to every other spot).
+- ✅ `run_policy.py` asks `instruction>` in a loop: type the sentence (or just
+  `ball` / `block`). It runs for 20 s (or until Ctrl+C), goes home, asks
+  again; `q` quits. `--task "pick up the block"` runs one without asking.
+- ✅ `teleop.py`: **T** switches the instruction saved with the next recording.
+- ✅ GR00T gets the instruction as words (export already stores one task per
+  episode; `tasks.jsonl` now has both). ACT has no language input, so
+  `act/export_act.py` adds the target as a 6th state number (0 ball, 1
+  block) and `run_policy.py act` adds the same number from what you type.
+- ✅ Checked in simulation: recorded 4 two-object episodes, exported for GR00T
+  (2 tasks) and ACT, trained ACT 20 steps, and ran the `run_policy.py act`
+  loop. 40 tests pass. Guide updated (print list, calibration, recording, demo
+  plan, talk script).
+
 ### ⬜ 3. Print (You)
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
 - Print the work cell from `cad/stl/`: `07_baseplate` (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
-  `09_phone_cradle`, `10_pin`, `11_cup` (`12_ball_half` ×2 only if you have no
-  ping-pong ball).
+  `09_phone_cradle`, `10_pin`, `11_cup`, **`13_block`** (contrasting colour)
+  (`12_ball_half` ×2 only if you have no ping-pong ball).
 
 ### ⬜ 4. Wire and flash (You, guide "Wiring")
 - 5 servos to D3/D5/D6/D9/D10, servo power from the bench supply (5.5 V, 3 A
@@ -178,20 +214,29 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 
 ### ⬜ 6. Calibrate (You + `calibrate.py`)
 - `cd software; uv run calibrate.py`. Check each joint's direction, then set
-  the gripper open/closed angles on the real ball. This saves `calibration.json`.
+  the gripper open/closed angles. Set "closed" so it squeezes the **block**
+  (the smaller object), then check it still holds the ball without the servo
+  buzzing hard. This saves `calibration.json`.
 - Check the real tool point: command a spot and see if the ball lands under
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
-- Test: `uv run autodemo.py --spot B2 --camera 1` (phone as webcam).
-- Record about 60: `uv run autodemo.py --record 60 --camera 1`. Add some
-  keyboard ones with `uv run teleop.py --camera 1`.
+- Test: `uv run autodemo.py --spot B2 --camera 1` (phone as webcam), then the
+  block: `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1`.
+- **Record 100–200** (about 150 is a good target):
+  `uv run autodemo.py --record 150 --camera 1`. Each time it prints e.g.
+  `block on C1, ball on A3 -> "pick up the block"`; place both, press Enter.
+  About 20 s each, so 150 take under an hour. You can split it into sessions:
+  it keeps numbering where it left off.
+- Optional keyboard demos: `uv run teleop.py --camera 1`, press **T** to pick
+  the instruction, then pick that object.
 
 ### ⬜ 8. Train ACT locally (You run it; optional but it checks the data)
 - `cd software/act; uv sync; uv run export_act.py; uv run train_act.py --steps 20000`
   (about 2.5 hours on the RTX 5050).
 - Run it on the arm:
-  `uv run ..\run_policy.py act --camera 1 --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model`.
+  `uv run ..\run_policy.py act --camera 1 --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model`,
+  then type `pick up the ball` or `pick up the block` at the `instruction>` prompt.
 
 ### ⬜ 9. GR00T fine-tune in the cloud (You: accounts; Claude: helps)
 > **This is the only milestone that can cost money.** Fine-tuning GR00T needs a
@@ -217,14 +262,15 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - On the cloud box: `bash ~/gr00t/setup_cloud.sh` (needs `HF_TOKEN`), then
   `bash ~/gr00t/finetune.sh ~/pick_ball` (1–2 h, in `tmux`), then `bash ~/gr00t/serve.sh`.
 - On the laptop: SSH tunnel `ssh -p <port> -L 5555:localhost:5555 root@<ip>`, then
-  `uv run run_policy.py gr00t --host localhost --camera 1`.
+  `uv run run_policy.py gr00t --host localhost --camera 1` and type the instruction.
 - Stop the cloud machine afterwards (it bills by the hour; budget about $10–20).
   The guide's "Fine-tuning and running GR00T in the cloud" section has every step.
 - This has never been run for real, so expect the first run to need small fixes.
 
 ### ⬜ 10. Present
 - Guide Part I has the 3-minute GR00T talk script, the live demo plan and
-  likely questions. The arm is the live demo.
+  likely questions. The arm is the live demo: put both objects down, ask the
+  audience "ball or block?", type it, then swap them and do the other one.
 - Credit the arm on a slide or out loud: "Arm: Easy Robot Arm by mobiobi,
   Printables, CC BY-NC-SA". The license requires credit wherever it's shown.
 

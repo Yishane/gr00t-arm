@@ -45,6 +45,7 @@ LINK = 4.0             # thickness of link plates (horn slot is cut into these)
 L_UPPER = 65.0         # shoulder axis -> elbow axis
 L_FORE = 60.0          # elbow axis -> wrist axis
 BALL = 40.0            # ball the gripper is sized for (foam or ping-pong)
+BLOCK = 25.0           # second object: printed cube, in a colour that contrasts with the ball
 GRIP_SERVO = (40.0, 12.0)  # gripper servo shaft, in the gripper body frame
 FINGER_T = 12.0        # finger thickness
 # fingertips, measured from the gripper servo shaft (10 mm past the ball
@@ -405,6 +406,15 @@ def ball_half() -> cq.Workplane:
                      .translate((0, 0, -r - 1)))
 
 
+def block() -> cq.Workplane:
+    """The second object for "pick up the block". Print 1 in a colour that
+    stands out from the ball and the baseplate (red or blue next to a white
+    ball). Edges chamfered so it doesn't catch the fingers. Place it with one
+    face pointing at the arm's base, since the jaws close sideways."""
+    return (cq.Workplane("XY").box(BLOCK, BLOCK, BLOCK, centered=(True, True, False))
+            .edges().chamfer(1.0))
+
+
 PARTS = {
     "00_fit_test": fit_test,
     "01_base": base,
@@ -419,6 +429,7 @@ PARTS = {
     "10_pin": pin,
     "11_cup": cup,
     "12_ball_half": ball_half,
+    "13_block": block,
 }
 
 if __name__ == "__main__":

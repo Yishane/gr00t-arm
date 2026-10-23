@@ -2,10 +2,16 @@
 recordings, for training ACT on the laptop.
 
     uv run export_act.py                    # data/raw/pick_ball -> data/act/pick_ball
+
+ACT has no language input, so the instruction ("pick up the ball" / "pick up
+the block") goes in as a 6th state number: 0 = ball, 1 = block. run_policy.py
+adds the same number from what you type. GR00T reads the words themselves
+(export_dataset.py).
 """
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 
 import cv2
@@ -14,7 +20,11 @@ import pandas as pd
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "software"))
+from recorder import TASKS, target_of  # noqa: E402
+
 NAMES = ["base.pos", "shoulder.pos", "elbow.pos", "wrist.pos", "gripper.pos"]
+TARGETS = sorted(TASKS)                 # index = the 6th state number
 
 
 def export(raw: Path, out: Path):
@@ -30,7 +40,8 @@ def export(raw: Path, out: Path):
         repo_id=f"local/{out.name}", fps=fps, root=out, robot_type="gr00t_arm_sg90",
         use_videos=True,
         features={
-            "observation.state": {"dtype": "float32", "shape": (5,), "names": NAMES},
+            "observation.state": {"dtype": "float32", "shape": (6,),
+                                  "names": NAMES + ["target"]},
             "action": {"dtype": "float32", "shape": (5,), "names": NAMES},
             "observation.images.front": {"dtype": "video", "shape": (h, w, 3),
                                          "names": ["height", "width", "channels"]},
@@ -38,15 +49,19 @@ def export(raw: Path, out: Path):
     )
     for ep in episodes:
         task = json.loads((ep / "meta.json").read_text())["task"]
+        target = target_of(task)
+        if target is None:
+            raise SystemExit(f"{ep.name}: can't tell ball or block from task {task!r}")
         steps = pd.read_csv(ep / "steps.csv")
         state = steps[[f"state_{i}" for i in range(5)]].to_numpy(np.float32)
+        state = np.hstack([state, np.full((len(state), 1), TARGETS.index(target), np.float32)])
         action = steps[[f"action_{i}" for i in range(5)]].to_numpy(np.float32)
         for i in range(len(steps)):
             img = cv2.cvtColor(cv2.imread(str(ep / "frames" / f"{i:06d}.jpg")), cv2.COLOR_BGR2RGB)
             ds.add_frame({"observation.state": state[i], "action": action[i],
                           "observation.images.front": img, "task": task})
         ds.save_episode()
-        print(f"  {ep.name}: {len(steps)} frames")
+        print(f"  {ep.name}: {len(steps)} frames, {task!r}")
     ds.finalize()
     print(f"wrote {out}")
 

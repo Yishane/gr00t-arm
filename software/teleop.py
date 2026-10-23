@@ -9,6 +9,8 @@ Keys (click the window first):
     R / F      up / down                 Q / E   tilt gripper up / down
     SPACE      open / close gripper      H       go home
     ENTER      start / stop recording    BACKSPACE  discard current recording
+    T          switch the instruction saved with the next recording
+               ("pick up the ball" / "pick up the block")
     ESC        quit
 A gamepad works too if one is plugged in (left stick xy, triggers z, A = gripper).
 """
@@ -22,7 +24,7 @@ import pygame
 import config as C
 import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
-from recorder import TASK, Recorder
+from recorder import TASKS, Recorder
 
 SPEED = 90.0          # mm/s
 PITCH_SPEED = 60.0    # deg/s
@@ -38,7 +40,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     add_hw_args(ap)
     ap.add_argument("--dataset", default="pick_ball")
-    ap.add_argument("--task", default=TASK, help="language instruction stored with demos")
+    ap.add_argument("--task", default=TASKS["ball"],
+                    help="instruction stored with demos at the start (T switches it)")
     args = ap.parse_args()
 
     arm, cam = open_hardware(args)
@@ -68,6 +71,10 @@ def main():
                     grip_closed = not grip_closed
                 elif ev.key == pygame.K_h:
                     target = home_target()
+                elif ev.key == pygame.K_t and not rec.recording:
+                    names = list(TASKS.values())
+                    rec.task = names[(names.index(rec.task) + 1) % len(names)
+                                     if rec.task in names else 0]
                 elif ev.key == pygame.K_RETURN:
                     rec.stop() if rec.recording else rec.start()
                 elif ev.key == pygame.K_BACKSPACE and rec.recording:
@@ -116,6 +123,7 @@ def main():
         status = (f"x{x:6.0f} y{y:6.0f} z{z:5.0f} pitch{math.degrees(p):5.0f}  "
                   f"grip {'closed' if grip_closed else 'open'}  {msg}")
         screen.blit(font.render(status, True, (230, 230, 230)), (8, 492))
+        screen.blit(font.render(f'task: "{rec.task}"', True, (230, 230, 230)), (8, 8))
         if rec.recording:
             pygame.draw.circle(screen, (230, 40, 40), (620, 20), 10)
             screen.blit(font.render(f"REC {len(rec.rows)}", True, (230, 40, 40)), (530, 12))
