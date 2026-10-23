@@ -164,7 +164,10 @@ phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing)
 - Colours (Yishane, 2026-10-23, wants it to look good): arm already printed BLACK (keep it).
   Scheme: plate LIGHT GREY (not pure white: phone exposure/glare), ORANGE 40 mm SOFT FOAM ball
   (to buy; Yishane 2026-10-23: foam instead of ping-pong, grips better/rolls less; must stay 40 mm
-  or update autodemo.OBJECTS grip z + cad checks), BLUE block (not red: too close to orange). Code never uses colour (policy learns
+  or update autodemo.OBJECTS grip z + cad checks)
+  PENDING: he'll measure the foam ball he buys (may not be 40 mm). When he sends the diameter D:
+  autodemo.OBJECTS['ball'] = D/2 (grip at centre), cad/arm.py BALL = D, rerun cad/assembly.py --cell
+  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., BLUE block (not red: too close to orange). Code never uses colour (policy learns
   from images + joint angles). Keep ball/block/plate/lighting the same for recording and the demo.
 
 ## WORKING MODE until 2026-11-04 (Yishane, 2026-10-23)
