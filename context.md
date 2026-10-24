@@ -74,6 +74,14 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - finetune.sh evaluates newest checkpoint; upload.ps1 stops on compile error (not run: no pwsh).
 - 61 pytest pass. Policy commands with NaN or not 5 values are blocked too (final review).
 
+## CAMERA FRAMING (2026-10-24)
+- Yishane uses the phone's 0.5x ULTRA-WIDE lens. Estimate (CAD camera at mast (178,55,185), 65 deg down,
+  assumed ~108x85 deg landscape FOV): tool point in frame 100% of autodemo frames; spots/cup/base in frame;
+  elbow/wrist/back of gripper leave the TOP of the frame in ~60-80% of frames (fine: state has joint angles).
+  With 1x (~64x50 deg) the tool point would be out ~23% of frames. Autodemo max arm height 174 mm, gripper
+  tool z <= ~93; fully straight up would be 277. teleop R and a policy can go higher: offered a z cap, not built.
+- Tell him: check the webcam app actually uses the 0.5x lens; same lens for recording and running.
+
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a
 gamepad, recording demos in LeRobot format, training ACT locally and fine-tuning
