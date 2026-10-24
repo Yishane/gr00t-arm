@@ -74,6 +74,25 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - finetune.sh evaluates newest checkpoint; upload.ps1 stops on compile error (not run: no pwsh).
 - 61 pytest pass. Policy commands with NaN or not 5 values are blocked too (final review).
 
+## CAMERA FRAMING (2026-10-24)
+- Yishane uses the phone's 0.5x ULTRA-WIDE lens. Estimate (CAD camera at mast (178,55,185), 65 deg down,
+  assumed ~108x85 deg landscape FOV): tool point in frame 100% of autodemo frames; spots/cup/base in frame;
+  elbow/wrist/back of gripper leave the TOP of the frame in ~60-80% of frames (fine: state has joint angles).
+  With 1x (~64x50 deg) the tool point would be out ~23% of frames. Autodemo max arm height 174 mm, gripper
+  tool z <= ~93; fully straight up would be 277. teleop R and a policy can go higher: offered a z cap, not built.
+- He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
+- Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
+
+## WEBCAM (2026-10-24) — Yishane bought a USB webcam (supersedes "no webcam" decision)
+- KitGody 1080P, 90 deg diagonal FOV, "rotatable", plug and play (amazon.ca B0FHKFZBTR). Mount type unknown.
+- Model check (FOV assumed ~66x50 at 640x480): from the current mast spot (178,55) the best pose is
+  height ~230 mm, tilt 60 deg down: needs 18 up/19 down/22 side vs ~25/25/33 available -> gripper,
+  9 spots and cup in frame in every autodemo frame. Current phone pose (185 mm, 65 deg) would lose the
+  gripper ~23% of frames. Phone at 0.5x would also work on the current mast.
+- NEXT: when it arrives, he sends webcam size + mount (clip? 1/4-20 tripod hole?) -> design a webcam
+  mount for the mast (taller mast ~230, tilt 60), rerun cell checks, update guide sec:camsetup.
+- His photos (handheld, from beside the base) show the printed light grey plate + drum in its ring.
+
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a
 gamepad, recording demos in LeRobot format, training ACT locally and fine-tuning

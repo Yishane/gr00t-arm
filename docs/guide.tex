@@ -552,8 +552,33 @@ shaft by hand.
   the mast top, and the phone cradle onto the pin. Clamp or tape the baseplate's back edge to
   the desk.
 \item \textbf{Phone.} Landscape on the cradle, resting on the lip, \emph{rear camera near the
-  lip}. Open the webcam app.
+  lip}. Open the webcam app and set up the camera as in \cref{sec:camsetup}.
 \item \textbf{Cables.} Leave slack at every joint so nothing pulls when the arm turns.
+\end{enumerate}
+
+\subsection{Camera setup and framing check}
+\label{sec:camsetup}
+\begin{enumerate}
+\item In the webcam app (Iriun, DroidCam or Phone Link), pick the \textbf{rear} camera.
+  If it lets you choose the lens, pick \textbf{0.5$\times$ (ultra-wide)}: from the mast it keeps
+  the fingers in view in every pose of the scripted picks. 1$\times$ also works if the check
+  below passes, but it's tighter (the 3D model says the fingers would leave the top of the picture
+  in roughly a quarter of the frames). Any resolution of 640$\times$480 or more is fine; the code
+  scales it to 640$\times$480.
+\item Find the camera index and see the live picture:
+\begin{cmd}
+uv run teleop.py --camera 1
+\end{cmd}
+  The window shows what the camera sees. Wrong camera or ``didn't open''? Try \texttt{--camera 0} or \texttt{2}.
+\item \textbf{Framing check.} Press \key{H} (home), then drive the gripper with
+  \key{W}\key{A}\key{S}\key{D} and \key{F} down to the corner spots A1 and C3 and over the cup,
+  and with \key{R} up to about $z = 95$ (shown at the bottom of the window). The \emph{fingers},
+  all nine spots and the cup must stay in the picture. The elbow and upper arm going off the
+  top is fine: the model gets those joints as angles anyway.
+\item If the fingers leave the picture: switch to 0.5$\times$, or tell Claude what is cut off
+  (the phone's tilt is \texttt{CAM\_DOWN} in \file{cad/arm.py} and the cradle can be reprinted).
+\item Once it looks right, don't touch it: same lens, same phone position, same lighting for
+  every recording and for the live demo. If the app has focus or exposure lock, turn it on.
 \end{enumerate}
 
 \begin{note}[If the shoulder struggles]
