@@ -92,7 +92,8 @@ Read this first every session. Update the "Status" and "Next" sections before st
   side photo (head tilted fully down) + clip grip range + size -> design mount same day; he calibrates
   while it prints (calibration moved up to Oct 26).
 - Live demo = whichever model works best on Nov 2 (ACT fallback is fine). No changes after Nov 1.
-- Told him to do HF account + Cosmos-Reason2-2B access request + check Lightning AI credits NOW.
+- DONE 2026-10-24: HF account made, access to nvidia/Cosmos-Reason2-2B GRANTED. Token: make a Read token
+  only when setting up the cloud box (never paste it in chat/repo). Still to do: cloud GPU (Lightning AI credits?).
 - Confidence given: serial/firmware high; arm motion med-high; scripted picks medium (first real test);
   ACT medium; GR00T lowest (never run end to end).
 
