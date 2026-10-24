@@ -83,6 +83,16 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## WEBCAM (2026-10-24) — Yishane bought a USB webcam (supersedes "no webcam" decision)
+- KitGody 1080P, 90 deg diagonal FOV, "rotatable", plug and play (amazon.ca B0FHKFZBTR). Mount type unknown.
+- Model check (FOV assumed ~66x50 at 640x480): from the current mast spot (178,55) the best pose is
+  height ~230 mm, tilt 60 deg down: needs 18 up/19 down/22 side vs ~25/25/33 available -> gripper,
+  9 spots and cup in frame in every autodemo frame. Current phone pose (185 mm, 65 deg) would lose the
+  gripper ~23% of frames. Phone at 0.5x would also work on the current mast.
+- NEXT: when it arrives, he sends webcam size + mount (clip? 1/4-20 tripod hole?) -> design a webcam
+  mount for the mast (taller mast ~230, tilt 60), rerun cell checks, update guide sec:camsetup.
+- His photos (handheld, from beside the base) show the printed light grey plate + drum in its ring.
+
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a
 gamepad, recording demos in LeRobot format, training ACT locally and fine-tuning
