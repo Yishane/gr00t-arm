@@ -83,6 +83,16 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## SCHEDULE — PRESENTATION 2026-11-04 (set 2026-10-24)
+- Oct 24-26 build (print, wire, flash, assemble) | Oct 27 calibrate + camera framing check |
+  Oct 28 scripted pick tests + config tuning | Oct 29 record ~150 demos, ACT overnight |
+  Oct 30 test ACT, more demos if needed; EVENING = GR00T go/no-go (only if ACT works + cloud access) |
+  Oct 31-Nov 1 GR00T cloud | Nov 2 backup videos + rehearse | Nov 3 buffer, nothing new | Nov 4 present.
+- Live demo = whichever model works best on Nov 2 (ACT fallback is fine). No changes after Nov 1.
+- Told him to do HF account + Cosmos-Reason2-2B access request + check Lightning AI credits NOW.
+- Confidence given: serial/firmware high; arm motion med-high; scripted picks medium (first real test);
+  ACT medium; GR00T lowest (never run end to end).
+
 ## WEBCAM (2026-10-24) — Yishane bought a USB webcam (supersedes "no webcam" decision)
 - KitGody 1080P, 90 deg diagonal FOV, "rotatable", plug and play (amazon.ca B0FHKFZBTR). Mount type unknown.
 - Model check (FOV assumed ~66x50 at 640x480): from the current mast spot (178,55) the best pose is
