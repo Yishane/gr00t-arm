@@ -80,7 +80,8 @@ Read this first every session. Update the "Status" and "Next" sections before st
   elbow/wrist/back of gripper leave the TOP of the frame in ~60-80% of frames (fine: state has joint angles).
   With 1x (~64x50 deg) the tool point would be out ~23% of frames. Autodemo max arm height 174 mm, gripper
   tool z <= ~93; fully straight up would be 277. teleop R and a policy can go higher: offered a z cap, not built.
-- Tell him: check the webcam app actually uses the 0.5x lens; same lens for recording and running.
+- He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
+- Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
 ## Goal
 3D-printed 4-DOF + gripper desk arm driven by 5× SG90 servos, teleoperated with a
