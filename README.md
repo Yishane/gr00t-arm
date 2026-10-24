@@ -215,7 +215,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
 - Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
-  `09_phone_cradle`, `10_pin`, `11_cup`, **`13_block`** (blue)
+  `09_phone_cradle`, `10_pin`, `11_cup` (black), **`13_block`** (blue)
   (`12_ball_half` ×2 only if you have no ball).
 - Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
