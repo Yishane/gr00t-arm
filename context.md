@@ -88,6 +88,9 @@ Read this first every session. Update the "Status" and "Next" sections before st
   Oct 28 scripted pick tests + config tuning | Oct 29 record ~150 demos, ACT overnight |
   Oct 30 test ACT, more demos if needed; EVENING = GR00T go/no-go (only if ACT works + cloud access) |
   Oct 31-Nov 1 GR00T cloud | Nov 2 backup videos + rehearse | Nov 3 buffer, nothing new | Nov 4 present.
+- Update: webcam arrives Oct 26; all physical hardware built by Oct 26. On the 26th he sends webcam
+  side photo (head tilted fully down) + clip grip range + size -> design mount same day; he calibrates
+  while it prints (calibration moved up to Oct 26).
 - Live demo = whichever model works best on Nov 2 (ACT fallback is fine). No changes after Nov 1.
 - Told him to do HF account + Cosmos-Reason2-2B access request + check Lightning AI credits NOW.
 - Confidence given: serial/firmware high; arm motion med-high; scripted picks medium (first real test);
