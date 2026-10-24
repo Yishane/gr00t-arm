@@ -167,7 +167,7 @@ phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing)
   or update autodemo.OBJECTS grip z + cad checks)
   PENDING: he'll measure the foam ball he buys (may not be 40 mm). When he sends the diameter D:
   autodemo.OBJECTS['ball'] = D/2 (grip at centre), cad/arm.py BALL = D, rerun cad/assembly.py --cell
-  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., BLUE block (not red: too close to orange). Code never uses colour (policy learns
+  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., BLUE block (not red: too close to orange), BLACK cup (fixed in place, Yishane 2026-10-24). Code never uses colour (policy learns
   from images + joint angles). Keep ball/block/plate/lighting the same for recording and the demo.
 
 ## WORKING MODE until 2026-11-04 (Yishane, 2026-10-23)
