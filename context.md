@@ -83,6 +83,13 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## GUIDE/README UPDATED 2026-10-26 to current plan
+- Camera = USB webcam everywhere (phone + cradle kept as fallback); webcam mount listed as "not in this
+  version yet". Servo 180 vs 360 check (guide sec:servotest + troubleshooting row); he hit a 360 servo
+  and is buying Miuzei SG90 180 (or MG90S). Arduino IDE upload option (he uses IDE 2.3.10, COM3).
+  Part I: System 2 -> embeddings (not words/positions), System 1 generates commands; imitation learning.
+  Cloud: on only when used; serving ~16 GB (laptop 8 GB probably too small, worth one try).
+
 ## SCHEDULE — PRESENTATION 2026-11-04 (set 2026-10-24)
 - Oct 24-26 build (print, wire, flash, assemble) | Oct 27 calibrate + camera framing check |
   Oct 28 scripted pick tests + config tuning | Oct 29 record ~150 demos, ACT overnight |

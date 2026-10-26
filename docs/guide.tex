@@ -58,14 +58,14 @@ GR00T is NVIDIA's \emph{robot foundation model}: one neural network, pretrained 
 amount of robot and human data, that turns \textbf{what a robot sees}, \textbf{what it is
 told} and \textbf{where its joints are} into \textbf{the next motions}. It was built for
 humanoids, but it is designed so a \emph{new} body can be taught to it with a small amount of
-data. This arm is that new body: five \$2 servos, a phone for eyes, and 100--200
+data. This arm is that new body: five \$2 servos, a webcam for eyes, and 100--200
 demonstrations. A ball and a block sit on the plate; you type ``pick up the ball'' or ``pick up
 the block'', and the arm drops that one in the cup. The words decide which object it goes for.
 
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[node distance=7mm and 9mm]
-  \node[box,fill=green!8] (cam) {\textbf{Phone camera}\\ image $640{\times}480$};
+  \node[box,fill=green!8] (cam) {\textbf{Camera}\\ image $640{\times}480$};
   \node[box,fill=green!8,below=of cam] (lang) {\textbf{Instruction}\\ ``pick up the ball'' or\\ ``pick up the block''};
   \node[box,fill=green!8,below=of lang] (state) {\textbf{Joint state}\\ 5 servo angles};
 
@@ -101,11 +101,17 @@ the block'', and the arm drops that one in the cup. The words decide which objec
   (fine-tuned) on a small set of demonstrations of a specific robot doing a specific task
   \cite{gr00tn1,isaacgr00t}.
 \item[Two systems, like fast and slow thinking.] The \textbf{System 2} part is a
-  vision-language model: it looks at the camera image and reads the instruction, and produces
-  a rich description of the situation. The \textbf{System 1} part is an \emph{action head}, a
-  diffusion transformer: it takes that description plus the robot's current joint angles and
-  produces motor commands. System 2 is the ``what is going on and what should happen'', System
-  1 is the ``how do my joints get there''.
+  vision-language model: it looks at the camera image and reads the instruction, and turns
+  them into \emph{embeddings}: long lists of numbers that capture what is in the scene and what
+  was asked. Not words, and not positions. The \textbf{System 1} part is the \emph{action
+  head}, a diffusion transformer: it takes those numbers plus the robot's current joint angles
+  and generates the motor commands itself. System 2 is the ``what is going on and what should
+  happen'', System 1 is the ``how do my joints get there''.
+\item[It learns by copying, not by trial and error.] Fine-tuning shows GR00T the recorded
+  demonstrations and trains it to output what the demonstration did next in each situation
+  (\emph{imitation learning}). There is no reward and no practising on the real arm. It never
+  gets told where the ball is: it works that out from the camera image, which is the part the
+  AI is for.
 \item[It outputs a short plan, not one move.] The action head predicts an \textbf{action
   chunk}: the next 16 commands (about half a second). Predicting a chunk makes motions smooth
   and lets the model commit to a plan instead of dithering every frame. We play the first 8 and
@@ -130,7 +136,7 @@ the block'', and the arm drops that one in the cup. The words decide which objec
 \toprule
 GR00T concept & On this arm & Where \\
 \midrule
-Vision input & One phone camera on a fixed mast looking down at the work area (key \texttt{front}). Fixed so every demo looks the same. & mast + cradle STLs, \file{arm_io.py} \\
+Vision input & One USB webcam on a fixed mast looking down at the work area (key \texttt{front}). Fixed so every demo looks the same. & mast + webcam mount, \file{arm_io.py} \\
 Language instruction & ``pick up the ball'' or ``pick up the block'', saved with each demo; typed in at run time & \file{recorder.py}, \file{run_policy.py} \\
 Proprioceptive state & 5 servo angles in degrees: base, shoulder, elbow, wrist (\texttt{single\_arm}) and gripper (\texttt{gripper}) & \file{export_dataset.py} \\
 Embodiment & \texttt{NEW\_EMBODIMENT} with our modality config & \file{gr00t_arm_config.py} \\
@@ -173,8 +179,8 @@ Demonstrations & Scripted pick-and-place (auto-collected; random layout, ball or
 \item \textbf{The problem.} ``A humanoid has to turn what it sees and what it's told into
   motor commands for dozens of joints. Writing that by hand doesn't scale. NVIDIA's answer is
   GR00T, a foundation model for robots.''
-\item \textbf{Point at the arm.} ``This is a \$10 open-source arm, mobiobi's Easy Robot Arm: five hobby servos and my phone as the
-  camera. GR00T doesn't care that it's small. The recipe is the same one used for humanoids.''
+\item \textbf{Point at the arm.} ``This is a \$10 open-source arm, mobiobi's Easy Robot Arm: five hobby servos and a cheap webcam as
+  the camera. GR00T doesn't care that it's small. The recipe is the same one used for humanoids.''
 \item \textbf{Inputs and outputs} (\cref{fig:loop}). ``Three inputs: the camera image, an
   instruction in English, and the current joint angles. One output: a chunk of the next
   16 joint commands, about half a second of motion.''
@@ -196,7 +202,7 @@ Demonstrations & Scripted pick-and-place (auto-collected; random layout, ball or
 \label{sec:demo}
 Pick the most ambitious option you have working, and keep the next one ready.
 \begin{enumerate}
-\item \textbf{GR00T live.} Start \file{serve.sh} on the cloud GPU before class, connect with
+\item \textbf{GR00T live.} Start the cloud machine and \file{serve.sh} about 30 minutes before class, connect with
   \file{run_policy.py gr00t}. Needs internet. Put the ball and the block on two marked
   spots, ask the audience which one, and type it: \texttt{pick up the block}. When it's done it
   asks again, so swap the objects around and do the other one.
@@ -226,8 +232,8 @@ data'' concrete.
   plan. Re-planning every 8 steps still lets it correct mistakes.
 \item[Does it generalise?] Within reason: other spots on the plate, small lighting changes.
   Not to a new task it was never shown.
-\item[Why the cloud?] Running GR00T needs a GPU with about 16\,GB of memory and fine-tuning
-  about 40\,GB; the laptop has 8\,GB.
+\item[Why the cloud?] Fine-tuning GR00T needs a GPU with about 40\,GB of memory and running it
+  about 16\,GB; the laptop has 8\,GB. The cloud machine is only switched on while it's used.
 \end{description}
 
 %======================================================================
@@ -244,8 +250,10 @@ possible cost is cloud GPU time for GR00T, which has free options (\cref{sec:clo
 \toprule
 Part & Qty & Notes \\
 \midrule
-SG90 micro servo (with horns and screws) & 5 & base, shoulder, elbow, wrist, gripper.
-  The arm's design has room for a 6th (wrist roll); we leave it out \\
+SG90 micro servo, \textbf{180\textdegree} (with horns and screws) & 5 & base, shoulder, elbow, wrist, gripper.
+  \textbf{Not} the 360\textdegree{} / ``continuous'' version, which looks the same but can't hold
+  an angle (\cref{sec:servotest}). MG90S (same size, metal gears) also fits. The arm's design
+  has room for a 6th (wrist roll); we leave it out \\
 Arduino Nano + USB cable & 1 & the cable must carry data, not only charge \\
 Adjustable bench power supply & 1 & set to 5.5\,V, current limit 3\,A \\
 Breadboard + male--male jumper wires & -- & to share power between servos \\
@@ -253,7 +261,7 @@ Superglue (CA) & -- & optional: only if a part slips on its horn or the gripper 
 Orange soft foam ball (40\,mm) & 1 & squeezable PU/stress-ball foam: grips better and rolls less than a ping-pong ball. Keep it 40\,mm (the grip height and finger opening assume it); a ping-pong ball or two glued \file{12_ball_half} also work \\
 Printed block (25\,mm cube) & 1 & \file{13_block}, in a colour that stands out from the ball
   and the plate (blue, with an orange ball on a light grey plate) \\
-Phone + webcam app & 1 & Phone Link (Android) or Iriun / DroidCam (any phone) \\
+USB webcam with monitor clip & 1 & ours: KitGody 1080p, 90\textdegree{} view. Plug and play. A phone with a webcam app (Iriun, DroidCam, Phone Link) also works, on \file{09_phone_cradle} \\
 PLA filament & a few hundred g & Bambu printer; one 1\,kg spool is plenty \\
 Optional: 470--1000\,$\mu$F capacitor & 1 & across the servo power rail; smooths current spikes \\
 Optional: small elastic bands & -- & the author's tip: around the joints to damp vibration \\
@@ -289,7 +297,8 @@ File & Qty & What it is / how to print \\
 \multicolumn{3}{@{}l}{\emph{The work cell} (\file{cad/stl})} \\
 \file{07_baseplate} & 1 & flat; 250$\times$200\,mm, the longest print (15\% infill is fine) \\
 \file{08_camera_mast} & 1 & standing up, 4 walls \\
-\file{09_phone_cradle} & 1 & back face down (as exported) \\
+\file{09_phone_cradle} & 1 & only if you use a phone as the camera; back face down \\
+Webcam mount & 1 & not in this version yet: designed once the webcam's clip and size are measured \\
 \file{10_pin} & 1 & lying flat \\
 \file{11_cup} & 1 & upright, black \\
 \file{12_ball_half} & 2 & only if you have no 40\,mm ball; open side down \\
@@ -308,7 +317,7 @@ in \file{cad/stl} are an older arm design and aren't used.
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{arm_home}\hfill
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{work_cell}
 \caption{Left: the Easy Robot Arm in its home pose, built from the author's 3D model with two
-60\,mm links. Right: the work cell with the baseplate, cup and phone camera mast, the arm
+60\,mm links. Right: the work cell with the baseplate, cup and camera mast (drawn with the phone cradle; the webcam mount replaces it), the arm
 gripping the ball on C1 with the block on A3. \file{cad/assembly.py} checks the arm against
 itself and the work cell: every marked spot (ball and block), the lift above it and the drop
 over the cup are clear, and the gripper never touches the other object in any layout the demos
@@ -330,9 +339,10 @@ gh repo clone Yishane/gr00t-arm
 cd gr00t-arm\software
 uv sync
 \end{cmd}
-\item Phone as webcam: install \textbf{Iriun Webcam} or \textbf{DroidCam} on the phone and the
-  PC (or on Android use Windows Phone Link $\rightarrow$ ``Use as connected camera''). It shows
-  up as a normal webcam. The laptop's own camera is usually index 0 and the phone 1 or 2.
+\item Plug in the USB webcam; it needs no driver. The laptop's own camera is usually index 0
+  and the webcam 1 (\texttt{--camera 1}). Using a phone instead: install \textbf{Iriun Webcam}
+  or \textbf{DroidCam} on the phone and the PC (or Windows Phone Link on Android); it shows up
+  as a normal webcam too.
 \end{enumerate}
 
 \section{Wiring}
@@ -398,14 +408,26 @@ comes on) something is jammed; turn it off and check.
 \end{note}
 
 \subsection{Upload the firmware}
-Find the Nano's port in Device Manager $\rightarrow$ Ports (e.g.\ COM5), then:
+Find the Nano's port in Device Manager $\rightarrow$ Ports (e.g.\ COM3), then:
 \begin{cmd}
 cd gr00t-arm\firmware
-.\upload.ps1 COM5
+.\upload.ps1 COM3
 \end{cmd}
-The script tries the ``old bootloader'' (most Nano clones) and then the new one. The firmware
+The script tries the ``old bootloader'' (most Nano clones) and then the new one.
+\textbf{Or with the Arduino IDE:} open \file{firmware/arm/arm.ino}, pick Tools $\rightarrow$ Board
+$\rightarrow$ Arduino Nano, Processor $\rightarrow$ ATmega328P (Old Bootloader) (if the upload fails,
+plain ATmega328P), Port $\rightarrow$ your COM port, then Upload. The firmware
 listens on USB serial for lines like \texttt{90,90,90,90,125} (five angles) and moves each
 servo smoothly toward its target.
+
+\subsection{Check every servo before you fit it}
+\label{sec:servotest}
+SG90s also come in a 360\textdegree{} ``continuous'' version that looks identical. It can't
+hold an angle: it treats 90 as ``stop'' and anything else as ``keep spinning''. Test each servo
+on its own, before it goes into the arm and with no horn on: send it 0, then 180 (in
+\file{calibrate.py}: \texttt{s 0 0}, then \texttt{s 0 180} with the servo on D3). A good servo
+turns to one end and \emph{stops}, then to the other end and stops. If it keeps spinning, put it
+aside. Label each good servo with its joint as you plug it in.
 
 \section{How the laptop talks to the Nano}
 \label{sec:serial}
@@ -419,7 +441,7 @@ laptop instead and everything below stays the same.
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[node distance=6mm and 10mm]
-  \node[box,fill=gray!8] (cam) {phone camera\\ \footnotesize (webcam app)};
+  \node[box,fill=gray!8] (cam) {webcam\\ \footnotesize (USB)};
   \node[box,below=of cam,fill=gray!8] (you) {you type\\ \footnotesize ``pick up the ball''};
   \node[box,right=20mm of $(cam)!0.5!(you)$,fill=orange!10,minimum height=16mm] (lap)
     {\textbf{Laptop}\\ \footnotesize \file{run_policy.py}};
@@ -490,7 +512,7 @@ The numbers on the wire are always \emph{servo} angles (0--180\textdegree), not 
 
 \subsection{The loop when GR00T drives}
 \begin{enumerate}
-\item Grab a 640$\times$480 photo from the phone camera.
+\item Grab a 640$\times$480 photo from the webcam.
 \item Package the photo, the five angles last sent, and your sentence.
 \item Send it to the GR00T server (\file{policy_client.py}: a ZeroMQ request on port 5555
   through the SSH tunnel). GR00T replies with \textbf{16} future steps of five angles each.
@@ -548,23 +570,26 @@ shaft by hand.
   wrist piece, put a drop of superglue between the two discs.
 \item \textbf{Work cell.} Stand the drum in the ring on the baseplate (spots A1--C3 in front,
   the cup ring to the left) and fix it with double-sided tape or a few dots of hot glue, so
-  the base servo turns the arm and not the drum. Push the mast into its socket, the pin into
-  the mast top, and the phone cradle onto the pin. Clamp or tape the baseplate's back edge to
+  the base servo turns the arm and not the drum. Push the mast into its socket and fit the webcam mount
+  on top (or, with a phone, the pin into the mast top and the phone cradle onto the pin). Clamp or tape the baseplate's back edge to
   the desk.
-\item \textbf{Phone.} Landscape on the cradle, resting on the lip, \emph{rear camera near the
-  lip}. Open the webcam app and set up the camera as in \cref{sec:camsetup}.
+\item \textbf{Camera.} Clip the webcam onto its mount, facing the arm, and set it up as in
+  \cref{sec:camsetup}. (Phone: landscape on the cradle, resting on the lip, rear camera near the
+  lip.)
 \item \textbf{Cables.} Leave slack at every joint so nothing pulls when the arm turns.
 \end{enumerate}
 
 \subsection{Camera setup and framing check}
 \label{sec:camsetup}
 \begin{enumerate}
-\item In the webcam app (Iriun, DroidCam or Phone Link), pick the \textbf{rear} camera.
-  If it lets you choose the lens, pick \textbf{0.5$\times$ (ultra-wide)}: from the mast it keeps
-  the fingers in view in every pose of the scripted picks. 1$\times$ also works if the check
-  below passes, but it's tighter (the 3D model says the fingers would leave the top of the picture
-  in roughly a quarter of the frames). Any resolution of 640$\times$480 or more is fine; the code
-  scales it to 640$\times$480.
+\item \textbf{Webcam:} plug it in; nothing to set up. On the 3D model, a 90\textdegree{} webcam
+  about 230\,mm above the plate and tilted about 60\textdegree{} down keeps the fingers, all nine
+  spots and the cup in view during every scripted pick; the mount is built for that. Its hinge
+  can drift, so mark its angle with tape once the check below passes.
+  \textbf{Phone:} in the webcam app pick the \textbf{rear} camera and, if it lets you choose,
+  the \textbf{0.5$\times$ (ultra-wide)} lens. 1$\times$ is tight from the phone cradle (the
+  fingers would leave the top of the picture in roughly a quarter of the frames).
+  Any resolution of 640$\times$480 or more is fine; the code scales it to 640$\times$480.
 \item Find the camera index and see the live picture:
 \begin{cmd}
 uv run teleop.py --camera 1
@@ -575,9 +600,9 @@ uv run teleop.py --camera 1
   and with \key{R} up to about $z = 95$ (shown at the bottom of the window). The \emph{fingers},
   all nine spots and the cup must stay in the picture. The elbow and upper arm going off the
   top is fine: the model gets those joints as angles anyway.
-\item If the fingers leave the picture: switch to 0.5$\times$, or tell Claude what is cut off
-  (the phone's tilt is \texttt{CAM\_DOWN} in \file{cad/arm.py} and the cradle can be reprinted).
-\item Once it looks right, don't touch it: same lens, same phone position, same lighting for
+\item If the fingers leave the picture: tilt the webcam (or use 0.5$\times$ on a phone), or
+  tell Claude what is cut off so the mount can be changed and reprinted.
+\item Once it looks right, don't touch it: same camera, same position, same lighting for
   every recording and for the live demo. If the app has focus or exposure lock, turn it on.
 \end{enumerate}
 
@@ -731,7 +756,11 @@ ssh -p <port> -L 5555:localhost:5555 root@<ip>
 uv run run_policy.py gr00t --host localhost --camera 1
 \end{cmd}
   Type the instruction at the \texttt{instruction>} prompt, the same as for ACT.
-\item \textbf{Stop the cloud machine when you're done}: it bills by the hour.
+\item \textbf{Stop the cloud machine when you're done}: it bills by the hour. You don't keep it
+  running until the presentation: turn it on only to fine-tune, to test, and on demo day.
+  Running the trained model needs far less GPU memory than training it, so a smaller, cheaper
+  GPU (around 16\,GB) is usually enough then. The laptop's RTX 5050 has 8\,GB, which is probably
+  too little, but it's worth one try once the model is trained.
 \end{enumerate}
 
 \begin{note}[Cost and time]
@@ -755,7 +784,8 @@ Servos twitch / Nano resets & Servo power must come from the supply; Nano GND ti
 A joint moves the wrong way & \file{calibrate.py}: \texttt{test}, then \texttt{flip <joint>}. \\
 Arm sags or buzzes holding pose & Normal for SG90s near their limit, mostly at the shoulder; keep the gripper light. An MG90S at the shoulder is a drop-in upgrade. \\
 The drum turns instead of the arm & Fix the drum in its baseplate ring with tape or hot glue. \\
-``Camera N didn't open'' & Try \texttt{--camera 0}, \texttt{1}, \texttt{2}; make sure the phone app is running. \\
+``Camera N didn't open'' & Try \texttt{--camera 0}, \texttt{1}, \texttt{2}; is the webcam plugged in (or the phone app running)? \\
+A servo spins non-stop & It's a 360\textdegree{} continuous servo; swap it for a 180\textdegree{} one (\cref{sec:servotest}). \\
 ``can't reach that'' in teleop & The target is out of reach or the gripper would hit the plate. Move back. \\
 GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
 \texttt{run\_policy}: server not reachable & Is \file{serve.sh} running and the SSH tunnel open? \\
