@@ -102,6 +102,13 @@ This is `run(...)` in `software/run_policy.py`:
    (about 0.27 s total).
 5. Go back to step 1 with a new photo.
 
+Steps 1-3 for the next chunk actually happen *while* step 4 is still playing:
+once the steps left to play take about as long as the last call did (~0.28 s
+to the cloud), the laptop sends the next request in the background. When the
+answer arrives it skips the steps GR00T planned for the time the call was out
+and carries on, so the arm doesn't stop between chunks. `--no-pipeline` turns
+this off (it waits for each call, and the arm pauses ~0.28 s each time).
+
 It stops after 20 s (`--seconds`) or when you press Ctrl+C, then sends the
 home pose and asks for the next instruction.
 

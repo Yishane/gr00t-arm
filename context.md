@@ -68,10 +68,19 @@ Newest notes are here; older dated sections below give the history.
   time <= last call latency; observation = fresh frame + last sent angles), skips the steps that
   elapsed during the call (keep >= 1), shutdown(wait=False, cancel_futures=True) so Ctrl+C never waits;
   tests in a NEW software/test_pipeline.py with real sleeps (test_run_policy.py patches time.sleep
-  globally). Then Task 2: --no-pipeline flag + docs + context. Nothing of the plan is implemented yet.
+  globally). Then Task 2: --no-pipeline flag + docs + context. DONE 2026-10-27 by the local agent (see PIPELINING DONE below).
 - Also not yet merged into main: the quiet-boot Nano connect fix (arm_io) and later context/plan commits
   on claude/relaxed-dirac-y3xj6m -> merge that branch (PR) before working on his laptop.
 - Lambda: make sure the dry-run instance is TERMINATED.
+
+### PIPELINING DONE (2026-10-27, local agent, branch claude/relaxed-dirac-y3xj6m)
+- run_policy.run(..., pipeline=True) is the default; `--no-pipeline` turns it off. Tests in
+  software/test_pipeline.py (real sleeps). Extra: _CALL_LOCK serializes policy calls (one ZMQ socket;
+  a call left running by Ctrl+C must not overlap the next instruction). Docs: computer_to_nano.md sec 5,
+  guide 'The loop when GR00T drives'. Untested against the real cloud server / real arm.
+- LIMIT: GR00T's chunk is 16 steps (0.53 s). Pipelining hides the call only if call + webcam read
+  <= ~0.27 s. Dry run was 280 ms + ~50 ms read -> expect a short (~60-80 ms) hitch per chunk instead of
+  ~330 ms. A closer region (Arizona) would remove it. Deferred review minors in the 2026-10-27 final message.
 
 ### Schedule (presentation Nov 4)
 - Tue Oct 27: finish HW5, arm (calibrate test, scripted picks --camera -1, send offsets), print +

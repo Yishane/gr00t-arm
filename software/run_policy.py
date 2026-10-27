@@ -14,6 +14,9 @@ ACT (trained locally, run from software/act):
 
 Each step: grab a camera frame + the current servo angles, ask the policy for
 the next chunk of actions, play the first --horizon of them at 30 Hz, repeat.
+The next call goes out while the current chunk is still playing, so the arm
+doesn't stop and wait for it; the steps that played during the call are
+skipped in the new chunk. --no-pipeline waits for each call instead.
 A command that would break a joint limit or put the gripper in the plate is
 not sent (the arm holds still instead). If the policy fails 3 times in a row
 (timeout, server error, empty answer) the run stops and asks again.
@@ -22,7 +25,9 @@ the target as one extra state number (see act/export_act.py).
 """
 import argparse
 import math
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, wait
 
 import numpy as np
 
@@ -32,6 +37,9 @@ from arm_io import HOME, add_hw_args, open_hardware
 from recorder import TASKS, target_of
 
 MAX_FAILS = 3   # policy failures in a row before a run gives up
+# one policy call at a time: the GR00T client has one socket, and a call left
+# running by Ctrl+C must finish before the next instruction's first call
+_CALL_LOCK = threading.Lock()
 
 
 class Gr00tBackend:
@@ -113,19 +121,55 @@ def go_home(arm):
     return servo
 
 
-def run(policy, arm, cam, task, horizon, seconds):
-    """Run one instruction until the time is up or Ctrl+C."""
+def _timed_chunk(policy, frame, servo, task):
+    """One policy call -> (steps, ms). Runs on the worker thread when prefetching."""
+    while not _CALL_LOCK.acquire(timeout=0.1):   # short waits so Ctrl+C gets through
+        pass
+    try:
+        t0 = time.perf_counter()
+        steps = policy.chunk(frame, servo, task)
+        return steps, 1000 * (time.perf_counter() - t0)
+    finally:
+        _CALL_LOCK.release()
+
+
+def _result(future):
+    """future.result(), but Ctrl+C still gets through while waiting (a plain
+    blocking wait ignores it on Windows)."""
+    while not wait([future], timeout=0.1).done:
+        pass
+    return future.result()
+
+
+def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
+    """Run one instruction until the time is up or Ctrl+C.
+    pipeline: ask for the next chunk while the current one plays, so the arm
+    doesn't stop for the length of each policy call."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
     fails = 0
+    lat = 0.0                # how long the last policy call took, s
+    rd = 0.0                 # how long the last fresh camera read took, s
+    pending = t_req = None   # the next chunk, requested while this one plays
+    pool = ThreadPoolExecutor(max_workers=1)
     try:
         while time.time() < t_end:
-            frame = cam.read(fresh=True)
-            t0 = time.perf_counter()
+            prefetched = pending is not None
             try:
-                steps = policy.chunk(frame, servo, task)[:horizon]
+                if prefetched:
+                    future, pending = pending, None
+                    steps, ms = _result(future)
+                    # drop the steps the model planned for while the call was out
+                    skip = round((time.perf_counter() - t_req) / dt)
+                    steps = steps[min(skip, max(len(steps) - 1, 0)):]
+                else:
+                    t0 = time.perf_counter()
+                    frame = cam.read(fresh=True)
+                    rd = time.perf_counter() - t0
+                    steps, ms = _timed_chunk(policy, frame, servo, task)
+                steps = steps[:horizon]
                 if not steps:
                     raise RuntimeError("empty action chunk")
             except (TimeoutError, RuntimeError) as e:
@@ -136,10 +180,10 @@ def run(policy, arm, cam, task, horizon, seconds):
                     break
                 continue
             fails = 0
-            ms = 1000 * (time.perf_counter() - t0)
+            lat = ms / 1000
             sent, blocked = [], 0
             t_next = time.perf_counter()
-            for cmd in steps:
+            for i, cmd in enumerate(steps):
                 cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
                 if (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
                         and K.servo_ok(cmd[:4])):
@@ -148,13 +192,25 @@ def run(policy, arm, cam, task, horizon, seconds):
                     sent.append(cmd)
                 else:
                     blocked += 1                          # hold the last safe command
+                if pipeline and pending is None and (len(steps) - i) * dt <= lat + rd:
+                    # read + call take about as long as what's left to play: send it
+                    # now with a fresh frame + the command just sent (the read uses
+                    # this step's wait; the skip counts from when the frame was taken)
+                    t0 = time.perf_counter()
+                    frame = cam.read(fresh=True)
+                    t_req = time.perf_counter()
+                    rd = t_req - t0
+                    pending = pool.submit(_timed_chunk, policy, frame, servo, task)
                 t_next += dt
                 time.sleep(max(0.0, t_next - time.perf_counter()))
             grip = f", grip {sent[0][4]:.0f}" if sent else ""
             print(f"policy call {ms:.0f} ms, {len(steps)} steps{grip}"
-                  + (f", {blocked} blocked" if blocked else ""))
+                  + (f", {blocked} blocked" if blocked else "")
+                  + (", prefetched" if prefetched else ""))
     except KeyboardInterrupt:
         print("stopped")
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)   # never wait for a slow call
     go_home(arm)
 
 
@@ -178,6 +234,9 @@ def main():
                     help="actions played per policy call (GR00T predicts 16)")
     ap.add_argument("--seconds", type=float, default=20.0,
                     help="how long each instruction runs")
+    ap.add_argument("--no-pipeline", action="store_true",
+                    help="wait for each policy call instead of asking for the next "
+                         "chunk while the current one plays")
     args = ap.parse_args()
 
     task = None
@@ -191,12 +250,14 @@ def main():
     go_home(arm)
     try:
         if task:
-            run(policy, arm, cam, task, args.horizon, args.seconds)
+            run(policy, arm, cam, task, args.horizon, args.seconds,
+                pipeline=not args.no_pipeline)
             return
         print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
               f"(q to quit)")
         while (task := ask()) is not None:
-            run(policy, arm, cam, task, args.horizon, args.seconds)
+            run(policy, arm, cam, task, args.horizon, args.seconds,
+                pipeline=not args.no_pipeline)
     finally:
         go_home(arm)
         arm.close()

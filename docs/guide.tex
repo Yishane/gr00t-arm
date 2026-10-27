@@ -525,6 +525,10 @@ The numbers on the wire are always \emph{servo} angles (0--180\textdegree), not 
 \item Send the first \textbf{8} steps to the Nano, one line every $1/30$\,s (about 0.27\,s).
 \item Repeat with a new photo, for 20\,s (\texttt{--seconds}) or until Ctrl+C, then go home.
 \end{enumerate}
+Steps 1--3 for the next chunk run \emph{while} step 4 is still playing: once what is left to
+play takes about as long as the last call did ($\sim$0.28\,s to the cloud), the next request
+goes out in the background. The new chunk skips the steps planned for the time the call was
+out, so the arm doesn't stop between chunks; \texttt{--no-pipeline} turns this off.
 The ``state'' GR00T sees is the angles last \emph{sent}, not measured ones, since the servos
 can't report back. The recordings were made the same way (every $1/30$\,s \file{recorder.py}
 saves the photo and the five angles just sent), so the model gets the same kind of state it
