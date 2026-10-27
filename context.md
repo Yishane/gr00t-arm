@@ -34,7 +34,7 @@ Newest notes are here; older dated sections below give the history.
 - If v2 still fails on his hardware: revert to plain open (reset) + 2 s wait; optionally make the
   firmware ease to 90 at boot (needs a re-upload).
 
-### GR00T cloud (MAIN PLAN; ACT = backup) — DRY RUN IN PROGRESS
+### GR00T cloud (MAIN PLAN; ACT = backup) — DRY RUN DONE (see result below)
 - Provider: Lambda Cloud (signed up), 1x A100 SXM 40 GB, $1.99/h, billed per minute, NO stop
   (terminate = everything deleted; optional persistent filesystem ~$0.20/GB/mo, region-locked).
   Base image Lambda Stack 22.04, region Virginia (us-east-1) this time (Arizona us-west-2 preferred
@@ -52,6 +52,14 @@ Newest notes are here; older dated sections below give the history.
 - Real run later: download the checkpoint (scp -r ubuntu@<ip>:~/gr00t_arm_ckpt/checkpoint-N .)
   before terminating. Budget ~ $11-13 total (dry run ~$3, real ~$6-8, demo ~$2).
 - HF: account + Cosmos-Reason2-2B access granted; GR00T-N1.7-3B open. Token never in chat/repo.
+
+### DRY RUN RESULT (2026-10-27) — PIPELINE WORKS END TO END
+- Fine-tune 200 steps (BATCH=16) on the fake dataset OK; open-loop eval ran: MAE 14.5 deg (expected
+  for fake data). serve.sh + SSH tunnel + `run_policy.py gr00t --sim` OK: first call 1019 ms (warm-up),
+  then ~280 ms per call from Vancouver to Virginia; "2 blocked" = safety check working.
+- 280 ms call + 8 steps (~270 ms) -> arm would pause ~0.28 s between chunks. Options (not done yet):
+  Arizona region, --horizon 16, or pipelining (request the next chunk while playing the current one).
+- Told him to terminate the instance after the test.
 
 ### Schedule (presentation Nov 4)
 - Tue Oct 27: finish HW5, arm (calibrate test, scripted picks --camera -1, send offsets), print +
