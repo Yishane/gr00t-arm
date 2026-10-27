@@ -61,6 +61,18 @@ Newest notes are here; older dated sections below give the history.
   Arizona region, --horizon 16, or pipelining (request the next chunk while playing the current one).
 - Told him to terminate the instance after the test.
 
+### NEXT CODE TASK — HANDED TO HIS LOCAL AGENT (2026-10-27)
+- Cloud session ended (out of cloud credits). Implement docs/superpowers/plans/2026-10-27-pipelined-policy.md
+  with superpowers:executing-plans (he chose that skill): run_policy.run(..., pipeline=True) requests the
+  next chunk in a 1-thread ThreadPoolExecutor while the current chunk plays (submit when remaining play
+  time <= last call latency; observation = fresh frame + last sent angles), skips the steps that
+  elapsed during the call (keep >= 1), shutdown(wait=False, cancel_futures=True) so Ctrl+C never waits;
+  tests in a NEW software/test_pipeline.py with real sleeps (test_run_policy.py patches time.sleep
+  globally). Then Task 2: --no-pipeline flag + docs + context. Nothing of the plan is implemented yet.
+- Also not yet merged into main: the quiet-boot Nano connect fix (arm_io) and later context/plan commits
+  on claude/relaxed-dirac-y3xj6m -> merge that branch (PR) before working on his laptop.
+- Lambda: make sure the dry-run instance is TERMINATED.
+
 ### Schedule (presentation Nov 4)
 - Tue Oct 27: finish HW5, arm (calibrate test, scripted picks --camera -1, send offsets), print +
   mount webcam, framing check; start MATH 255 HW6 (due Thu 5:59 pm); sleep by 23:00.
