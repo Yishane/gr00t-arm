@@ -2,6 +2,74 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
+## >>> LATEST STATE (2026-10-27 night) — READ THIS FIRST <<<
+Newest notes are here; older dated sections below give the history.
+
+### Where everything is
+- Branch claude/relaxed-dirac-y3xj6m. Yishane merges it into main via PRs himself (PR #1-#8 merged).
+  main has everything up to 324cb88 (first no-reset connect). NOT yet in main: the quiet-boot
+  connect fix (arm_io._wait_ready/_after_boot) -> needs one more PR merge.
+- His laptop clone: C:\Users\yskao\Projects\gr00t-arm (Windows, PowerShell). Old clone
+  C:\Users\yskao\gr00t-arm holds his calibration.json (not in git) -> copy into the new clone.
+- Nano on COM3 (CH340 clone). Arduino IDE 2.3.10 works for uploads; upload.ps1 needs
+  `powershell -ExecutionPolicy Bypass -File .\upload.ps1 COM3`. Upload with servos unplugged.
+
+### Hardware (all built except the webcam mount)
+- Arm assembled + wired; firmware on the Nano (READY, "?" works, commands need commas).
+- He once wired the bench supply reversed -> some servos may be damaged; told him to test each.
+- Motion is "jumpy" (stop-start, not wrong directions): explained as SG90 deadband/gear slop,
+  harmless for data; suggested 3 A limit, capacitor, MG90S shoulder, light rubber bands. No PID
+  possible (SG90s have no position feedback; feedback servo = 4-wire/STS3215/encoders).
+- Calibration saved; gripper reversed vs defaults (open ~10, closed ~90). Unclear if `test`/flip
+  was fully checked in the new clone (calibration.json copy!).
+- Webcam mount 14_webcam_mount.stl designed (see section below); he still has to print it and buy a
+  1/4"-20 x ~3/8" screw. Scripted picks can be tested now with `--camera -1` (fake camera).
+- Block printed GREEN. Ball: orange 40 mm foam or ping-pong (not white).
+
+### Connection change (arm_io.Arm) — status: second version UNTESTED on his Nano
+- v1 (DTR low + "?" every 0.5 s) FAILED on his Nano ("doesn't answer"): likely the CH340 driver still
+  resets it and the old bootloader hangs if it keeps receiving bytes.
+- v2 (pushed, not yet in main): ask once; stay silent until READY or BOOT_S=3 s; ask again;
+  last resort pulse DTR and repeat. Sets speed 180 after connecting. 65 tests pass.
+- If v2 still fails on his hardware: revert to plain open (reset) + 2 s wait; optionally make the
+  firmware ease to 90 at boot (needs a re-upload).
+
+### GR00T cloud (MAIN PLAN; ACT = backup) — DRY RUN IN PROGRESS
+- Provider: Lambda Cloud (signed up), 1x A100 SXM 40 GB, $1.99/h, billed per minute, NO stop
+  (terminate = everything deleted; optional persistent filesystem ~$0.20/GB/mo, region-locked).
+  Base image Lambda Stack 22.04, region Virginia (us-east-1) this time (Arizona us-west-2 preferred
+  later for lower latency). SSH user `ubuntu`, key ~/.ssh/id_ed25519 (added to Lambda).
+- Instance IP this session: 132.226.96.174 (will change on every new launch).
+- Done on it: scp software/gr00t up, sed CRLF fix, setup_cloud.sh (first try failed: invalid
+  HF_TOKEN; fixed with a new Read token) -> "setup done".
+- NOW: in tmux, `MAX_STEPS=200 SAVE_STEPS=100 BATCH=16 bash ~/gr00t/finetune.sh
+  ~/gr00t/dryrun/pick_ball_sim` (BATCH=16 for the 40 GB card; BATCH=8 if OOM).
+  Expect "done: newest checkpoint .../checkpoint-200".
+- NEXT in the dry run: `bash ~/gr00t/serve.sh`; laptop window 1:
+  `ssh -N -L 5555:localhost:5555 ubuntu@<ip>`; window 2 (software/):
+  `uv run run_policy.py gr00t --host localhost --sim --task "pick up the ball" --seconds 5`
+  -> expect "connected to GR00T" + "policy call N ms". Then TERMINATE the instance.
+- Real run later: download the checkpoint (scp -r ubuntu@<ip>:~/gr00t_arm_ckpt/checkpoint-N .)
+  before terminating. Budget ~ $11-13 total (dry run ~$3, real ~$6-8, demo ~$2).
+- HF: account + Cosmos-Reason2-2B access granted; GR00T-N1.7-3B open. Token never in chat/repo.
+
+### Schedule (presentation Nov 4)
+- Tue Oct 27: finish HW5, arm (calibrate test, scripted picks --camera -1, send offsets), print +
+  mount webcam, framing check; start MATH 255 HW6 (due Thu 5:59 pm); sleep by 23:00.
+- Wed Oct 28: record ~150 demos (autodemo.py --record 150 --camera 1), ACT overnight.
+- Oct 30-Nov 1 GR00T real fine-tune + test; Nov 2 backup videos; nothing new after Nov 1.
+- Notion To-Do List page updated by Claude (Tue/Wed blocks). He finished APSC 278 Assignment 3
+  (he declined Claude ticking it in Notion — don't edit Notion without asking).
+
+### Talk / video notes (from chat)
+- Explained: VLA (ACT is NOT a VLA: no language; ACT = Action Chunking with Transformers, Stanford
+  2023, ALOHA), System 2 = VLM -> embeddings, System 1 = DiT action head generating 16-step chunks by
+  denoising (flow matching, 4 steps), imitation learning not RL, closed loop via camera.
+  Biggest GR00T vs ACT difference = pretraining (not speed). He prefers GR00T; fine.
+- Video: starts as a fake boring "what is a humanoid/VLA" lecture -> "nobody cares" -> sunglasses
+  throw -> Spectrum "F-L-Y" + "building a robotic arm" title; Michael Reeves-style humour; a
+  "here's the plan" script was drafted in chat.
+
 ## SWITCH TO OPEN-SOURCE ARM (2026-10-22, Yishane's decision) — READ FIRST
 - Arm = "Easy Robot Arm" by mobiobi, Printables 97370, CC BY-NC-SA, files unmodified in
   cad/stl_opensource/easy_robot_arm/ (19 STLs + author's assembled STEP). He does NOT want
