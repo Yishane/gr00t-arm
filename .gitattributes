@@ -1,4 +1,2 @@
 *.sh text eol=lf
 *.py text eol=lf
-# shell scripts run on Linux cloud machines: keep LF even when cloned on Windows
-*.sh text eol=lf
