@@ -110,6 +110,7 @@ author's STEP file to check them.
   `finetune.sh`, `serve.sh`)
 - `docs/guide.tex` → `docs/guide.pdf` — the build + GR00T guide
 - `docs/learning_guide.md` — what to learn from this project (GR00T, IK, serial, autodemo)
+- `docs/gr00t_dry_run.md` — run the GR00T cloud pipeline once on a fake dataset (`software/gr00t/dryrun/`)
 - `docs/computer_to_nano.md` — how the laptop (and GR00T) talks to the Nano over USB
 - `context.md` — running notes for Claude, where work left off
 

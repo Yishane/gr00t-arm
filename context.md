@@ -83,6 +83,12 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## GR00T IS THE MAIN PLAN (Yishane, 2026-10-27); ACT = cheap safety net
+- Dry-run kit: docs/gr00t_dry_run.md + software/gr00t/dryrun/pick_ball_sim (20 sim episodes, 1.4 MB,
+  2 tasks, exported with export_dataset.py). finetune.sh now takes SAVE_STEPS (default 1000) and exits
+  clearly if no checkpoint. Dry run: MAX_STEPS=200 SAVE_STEPS=100; laptop test with run_policy --sim.
+  He does it while assembling the arm; waiting on his results (policy ms, errors, provider/GPU).
+
 ## GUIDE/README UPDATED 2026-10-26 to current plan
 - Camera = USB webcam everywhere (phone + cradle kept as fallback); webcam mount listed as "not in this
   version yet". Servo 180 vs 360 check (guide sec:servotest + troubleshooting row); he hit a 360 servo
