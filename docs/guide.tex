@@ -470,8 +470,10 @@ laptop instead and everything below stays the same.
   (``Arduino'', ``CH340'' or ``USB''); pass \texttt{--port COM5} if they pick the wrong one.
 \item Speed is \textbf{115200 baud} on both sides (\texttt{BAUD} in \file{config.py},
   \texttt{Serial.begin} in \file{arm.ino}).
-\item Opening the port \textbf{resets the Nano}, so the laptop waits 2\,s first. On start the
-  Nano prints \texttt{READY} and moves every servo to 90\textdegree.
+\item Opening a port normally \textbf{resets the Nano} (servos twitch, then snap to 90\textdegree).
+  The Python scripts open it with the reset line (DTR) held off so it keeps running, ask
+  \texttt{?} until it answers, and set the speed back to 180\textdegree/s. When the Nano does start
+  (power-up, reset button, Arduino Serial Monitor) it prints \texttt{READY} and moves every servo to 90\textdegree.
 \item Only one program can hold the port. Close the Arduino Serial Monitor before running Python.
 \end{itemize}
 

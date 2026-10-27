@@ -83,6 +83,12 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## 2026-10-28 NO RESET ON CONNECT
+- He saw a twitch when autodemo starts (Nano reset by DTR when the port opens). arm_io.Arm now opens the
+  port with dtr=rts=False, then _wait_ready() sends "?" until "P ..." (4 s timeout), then speed(180)
+  (calibrate.py's speed(60) would otherwise persist). No firmware change -> no re-upload. If his CH340
+  driver still pulses DTR it just takes ~2 s. 63 tests pass. Untested on his hardware yet.
+
 ## 2026-10-28 HARDWARE BUILT (all but the webcam mount)
 - Arm assembled and wired; firmware on the Nano (READY, "?" works; commands need commas).
   Earlier he wired the bench supply reversed: told him to damage-test each servo one by one.

@@ -36,9 +36,13 @@ the wrong one.
 
 - Speed: **115200 baud** (`BAUD` in `software/config.py`, `Serial.begin` in
   `firmware/arm/arm.ino`; both must match).
-- Opening the port **resets the Nano**, so the laptop waits 2 s before it
-  sends anything. When the Nano starts, it prints `READY` and moves every
-  servo to 90°.
+- Opening a serial port normally **resets the Nano** (the servos twitch, then
+  snap to 90°). The Python scripts open it with the reset line (DTR) held off,
+  so the Nano keeps running, then send `?` until it answers. If a driver resets
+  it anyway, that just takes ~2 s longer. They also set the speed back to the
+  default 180°/s, since a run that isn't reset keeps the last speed it was given.
+- When the Nano does start (power-up, reset button, or the Arduino IDE's Serial
+  Monitor), it prints `READY` and moves every servo to 90°.
 - Only one program can hold the port at a time. Close the Arduino IDE's
   Serial Monitor before running the Python scripts.
 

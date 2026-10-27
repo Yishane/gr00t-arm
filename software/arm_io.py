@@ -26,11 +26,31 @@ class Arm:
             if not ports:
                 raise SystemExit("No Arduino found. Plug it in or pass --port COM3.")
             port = ports[0]
-        self.ser = serial.Serial(port, C.BAUD, timeout=1)
-        time.sleep(2.0)                         # Uno resets when the port opens
-        self.ser.reset_input_buffer()
+        # Opening a port normally pulses DTR, which resets the Nano (servos
+        # twitch, then snap to 90). Hold DTR/RTS low so it keeps running.
+        self.ser = serial.Serial()
+        self.ser.port, self.ser.baudrate, self.ser.timeout = port, C.BAUD, 0.1
+        self.ser.dtr = self.ser.rts = False
+        self.ser.open()
+        self._wait_ready()
+        self.ser.timeout = 1
+        self.speed(180)       # the firmware's default; calibrate.py slows it down
         self.last = HOME + [C.GRIPPER_OPEN]
         print(f"arm on {port}")
+
+    def _wait_ready(self, seconds=4.0):
+        """Ask "?" until the firmware answers. Instant if the Nano kept
+        running; covers its ~2 s boot if a driver reset it anyway."""
+        self.ser.reset_input_buffer()
+        t_end = time.time() + seconds
+        while time.time() < t_end:
+            self.ser.write(b"?\n")
+            t_ask = time.time() + 0.5
+            while time.time() < t_ask:
+                if self.ser.readline().startswith(b"P "):
+                    return
+        raise SystemExit("The Nano doesn't answer. Is arm.ino uploaded, and is the "
+                         "Arduino IDE's Serial Monitor closed?")
 
     def send(self, angles):
         angles = [float(a) for a in angles]
