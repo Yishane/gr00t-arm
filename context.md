@@ -83,6 +83,13 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## 2026-10-27 STATUS
+- Block printed GREEN. He suggested a white ping-pong ball: advised against (white on light grey plate =
+  low contrast); colour it with marker or get orange. Ball still undecided.
+- upload.ps1: execution policy fixed with -ExecutionPolicy Bypass; then both bootloaders "not in sync"
+  on COM3 although the IDE uploaded with the same cable earlier -> told him: unplug servos/power and
+  D0/D1, close IDE, upload arm.ino from the IDE with the settings that worked. Waiting on result.
+
 ## WEBCAM MOUNT DONE 2026-10-27: cad/stl/14_webcam_mount.stl (arm.webcam_mount / webcam_dummy)
 - Webcam measured by Yishane: head 91x28x25, lens centred; clip bar 61 long x 42 wide (tapers); head tilt
   hinge only ~20 deg; clip leg hinge stays where left; 1/4"-20 hole (~6 mm) on the folding back leg,
@@ -223,7 +230,7 @@ phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing)
   or update autodemo.OBJECTS grip z + cad checks)
   PENDING: he'll measure the foam ball he buys (may not be 40 mm). When he sends the diameter D:
   autodemo.OBJECTS['ball'] = D/2 (grip at centre), cad/arm.py BALL = D, rerun cad/assembly.py --cell
-  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., BLUE block (not red: too close to orange), BLACK cup (fixed in place, Yishane 2026-10-24). Code never uses colour (policy learns
+  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., GREEN block (2026-10-27: out of blue filament; was blue), BLACK cup (fixed in place, Yishane 2026-10-24). Code never uses colour (policy learns
   from images + joint angles). Keep ball/block/plate/lighting the same for recording and the demo.
 
 ## WORKING MODE until 2026-11-04 (Yishane, 2026-10-23)

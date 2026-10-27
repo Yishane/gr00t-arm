@@ -36,7 +36,7 @@ It has two parts, nicknamed "slow thinking" and "fast thinking":
 
 1. **System 2, the vision-language model** (Cosmos-Reason2-2B). It looks at the
    image and reads the sentence and works out *what's going on*: there's an orange ball
-   here, a blue block there, and I've been asked for the block.
+   here, a green block there, and I've been asked for the block.
 2. **System 1, the action head** (a diffusion transformer). It takes System 2's
    understanding plus the current joint angles and works out *how the joints should move*.
 
