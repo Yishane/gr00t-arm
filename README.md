@@ -131,7 +131,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   (~2.3 steps/s, ~23 ms per action).
 - ✅ GR00T client **verified** against NVIDIA's real PolicyServer; cloud
   fine-tune/serve scripts written (not yet run, since that needs a cloud GPU).
-- ✅ Work cell: baseplate, phone-camera mast and cradle, cup, ball.
+- ✅ Work cell: baseplate, camera mast (phone cradle; webcam mount to come), cup, ball.
 - ✅ LaTeX guide (13 pages): GR00T explainer, talk script, demo plan, build steps.
 - ✅ Our own arm CAD (now replaced by the open-source arm, files kept).
 
@@ -215,15 +215,21 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
 - Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
-  `09_phone_cradle`, `10_pin`, `11_cup` (black), **`13_block`** (blue)
-  (`12_ball_half` ×2 only if you have no ball).
+  `11_cup` (black), **`13_block`** (blue)
+  (`12_ball_half` ×2 only if you have no ball). The camera is a **USB webcam** (monitor
+  clip, 90° view); its mount for the mast gets designed once the webcam arrives and is
+  measured. `09_phone_cradle` + `10_pin` are only for using a phone as the camera instead.
 - Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
 
 ### ⬜ 4. Wire and flash (You, guide "Wiring")
-- 5 servos to D3/D5/D6/D9/D10, servo power from the bench supply (5.5 V, 3 A
-  limit), and **common ground** between the supply and the Nano.
-- Flash: `firmware\upload.ps1 COM5` (use your port).
+- **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
+  turn and stop. One that keeps spinning is a 360° "continuous" servo and won't work.
+- 5 servo signal wires to D3/D5/D6/D9/D10. Every servo's red to the bench supply +
+  (5.5 V, 3 A limit), brown to supply −, and **one wire from Nano GND to supply −**
+  (common ground). Never power the servos from the Nano.
+- Flash: `firmware\upload.ps1 COM3` (use your port), or open `firmware/arm/arm.ino` in the
+  Arduino IDE (Board: Arduino Nano, Processor: ATmega328P (Old Bootloader)) and Upload.
 
 ### ⬜ 5. Assemble (You)
 - Before fitting each horn, run `calibrate.py` → `center` so every servo sits at 90°.
@@ -243,7 +249,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
-- Test: `uv run autodemo.py --spot B2 --camera 1` (phone as webcam), then the
+- Test: `uv run autodemo.py --spot B2 --camera 1` (webcam), then the
   block: `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1`.
 - **Record 100–200** (about 150 is a good target):
   `uv run autodemo.py --record 150 --camera 1`. Each time it prints e.g.
