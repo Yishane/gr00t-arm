@@ -78,6 +78,9 @@ Newest notes are here; older dated sections below give the history.
   software/test_pipeline.py (real sleeps). Extra: _CALL_LOCK serializes policy calls (one ZMQ socket;
   a call left running by Ctrl+C must not overlap the next instruction). Docs: computer_to_nano.md sec 5,
   guide 'The loop when GR00T drives'. Untested against the real cloud server / real arm.
+- LIMIT: GR00T's chunk is 16 steps (0.53 s). Pipelining hides the call only if call + webcam read
+  <= ~0.27 s. Dry run was 280 ms + ~50 ms read -> expect a short (~60-80 ms) hitch per chunk instead of
+  ~330 ms. A closer region (Arizona) would remove it. Deferred review minors in the 2026-10-27 final message.
 
 ### Schedule (presentation Nov 4)
 - Tue Oct 27: finish HW5, arm (calibrate test, scripted picks --camera -1, send offsets), print +

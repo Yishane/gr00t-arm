@@ -151,6 +151,7 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
     t_end = time.time() + seconds
     fails = 0
     lat = 0.0                # how long the last policy call took, s
+    rd = 0.0                 # how long the last fresh camera read took, s
     pending = t_req = None   # the next chunk, requested while this one plays
     pool = ThreadPoolExecutor(max_workers=1)
     try:
@@ -164,7 +165,10 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
                     skip = round((time.perf_counter() - t_req) / dt)
                     steps = steps[min(skip, max(len(steps) - 1, 0)):]
                 else:
-                    steps, ms = _timed_chunk(policy, cam.read(fresh=True), servo, task)
+                    t0 = time.perf_counter()
+                    frame = cam.read(fresh=True)
+                    rd = time.perf_counter() - t0
+                    steps, ms = _timed_chunk(policy, frame, servo, task)
                 steps = steps[:horizon]
                 if not steps:
                     raise RuntimeError("empty action chunk")
@@ -180,12 +184,6 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
             sent, blocked = [], 0
             t_next = time.perf_counter()
             for i, cmd in enumerate(steps):
-                if pipeline and pending is None and (len(steps) - i) * dt <= lat:
-                    # the call takes about as long as what's left to play: send it now
-                    # with a fresh frame + the last command sent
-                    t_req = time.perf_counter()
-                    pending = pool.submit(_timed_chunk, policy, cam.read(fresh=True),
-                                          servo, task)
                 cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
                 if (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
                         and K.servo_ok(cmd[:4])):
@@ -194,6 +192,15 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
                     sent.append(cmd)
                 else:
                     blocked += 1                          # hold the last safe command
+                if pipeline and pending is None and (len(steps) - i) * dt <= lat + rd:
+                    # read + call take about as long as what's left to play: send it
+                    # now with a fresh frame + the command just sent (the read uses
+                    # this step's wait; the skip counts from when the frame was taken)
+                    t0 = time.perf_counter()
+                    frame = cam.read(fresh=True)
+                    t_req = time.perf_counter()
+                    rd = t_req - t0
+                    pending = pool.submit(_timed_chunk, policy, frame, servo, task)
                 t_next += dt
                 time.sleep(max(0.0, t_next - time.perf_counter()))
             grip = f", grip {sent[0][4]:.0f}" if sent else ""
