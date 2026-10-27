@@ -86,3 +86,72 @@ def test_connecting_resets_the_slew_speed(monkeypatch):
     arm = arm_io.Arm("COM3")
     assert arm.ser.written[-1] == b"S 180\n"
     arm.close()
+
+
+class ResettingSerial(FakeSerial):
+    """A port whose driver resets the Nano anyway. Like the old Nano
+    bootloader, it never starts the firmware if it keeps getting bytes
+    while it boots; otherwise it prints READY and answers "?"."""
+    BOOT = 0.3
+
+    def open(self):
+        import time
+        self.boot_until = time.time() + self.BOOT
+        self.boot_bytes = 0
+        self.ready_sent = False
+
+    def write(self, data):
+        import time
+        self.written.append(data)
+        if time.time() < self.boot_until:
+            self.boot_bytes += 1
+        elif data == b"?\n" and self.boot_bytes <= 1:
+            self.replies.append(b"P 90.0,90.0,90.0,90.0,90.0\n")
+
+    def readline(self):
+        import time
+        if time.time() < self.boot_until:
+            time.sleep(0.01)
+            return b""
+        if not self.ready_sent and self.boot_bytes <= 1:
+            self.ready_sent = True
+            return b"READY\n"
+        return self.replies.pop(0) if self.replies else b""
+
+
+def test_arm_connects_when_the_driver_resets_the_nano_anyway(monkeypatch):
+    import serial
+    monkeypatch.setattr(serial, "Serial", ResettingSerial)
+    monkeypatch.setattr(arm_io.Arm, "BOOT_S", 1.0)
+    arm = arm_io.Arm("COM3")          # SystemExit here = it never got an answer
+    assert arm.ser.boot_bytes <= 1    # stayed quiet while the Nano booted
+    arm.close()
+
+
+class StuckSerial(ResettingSerial):
+    """A Nano whose bootloader is stuck until DTR resets it again."""
+
+    def open(self):
+        self.boot_until, self.boot_bytes, self.ready_sent = 0.0, 99, True
+        self.stuck = True
+
+    @property
+    def dtr(self):
+        return getattr(self, "_dtr", True)
+
+    @dtr.setter
+    def dtr(self, v):
+        import time
+        if getattr(self, "stuck", False) and v:
+            self.stuck = False                 # a DTR pulse resets it
+            self.boot_until, self.boot_bytes, self.ready_sent = time.time() + self.BOOT, 0, False
+        self._dtr = v
+
+
+def test_arm_resets_a_stuck_nano_as_a_last_resort(monkeypatch):
+    import serial
+    monkeypatch.setattr(serial, "Serial", StuckSerial)
+    monkeypatch.setattr(arm_io.Arm, "BOOT_S", 1.0)
+    arm = arm_io.Arm("COM3")
+    assert arm.ser.stuck is False
+    arm.close()

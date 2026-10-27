@@ -16,6 +16,7 @@ FLUSH = 2   # frames dropped by read(fresh=True)
 
 class Arm:
     """5 servo angles in degrees: base, shoulder, elbow, wrist, gripper."""
+    BOOT_S = 3.0          # time the Nano takes to boot after a reset
 
     def __init__(self, port=None):
         import serial
@@ -38,19 +39,41 @@ class Arm:
         self.last = HOME + [C.GRIPPER_OPEN]
         print(f"arm on {port}")
 
-    def _wait_ready(self, seconds=4.0):
-        """Ask "?" until the firmware answers. Instant if the Nano kept
-        running; covers its ~2 s boot if a driver reset it anyway."""
+    def _wait_ready(self):
+        """Ask "?" once; that answers at once if the Nano kept running. If it
+        was reset anyway (some USB drivers do), stay quiet while it boots:
+        the old Nano bootloader never starts the firmware if it keeps
+        getting bytes. Then ask again."""
         self.ser.reset_input_buffer()
-        t_end = time.time() + seconds
-        while time.time() < t_end:
-            self.ser.write(b"?\n")
-            t_ask = time.time() + 0.5
-            while time.time() < t_ask:
-                if self.ser.readline().startswith(b"P "):
-                    return
+        if self._ask(0.5):
+            return
+        if self._after_boot():
+            return
+        # last resort: reset it on purpose (also un-sticks a hung bootloader)
+        self.ser.dtr = True
+        time.sleep(0.1)
+        self.ser.dtr = False
+        self.ser.reset_input_buffer()
+        if self._after_boot():
+            return
         raise SystemExit("The Nano doesn't answer. Is arm.ino uploaded, and is the "
                          "Arduino IDE's Serial Monitor closed?")
+
+    def _after_boot(self):
+        """Stay quiet until the Nano has booted (READY or BOOT_S), then ask."""
+        t_end = time.time() + self.BOOT_S
+        while time.time() < t_end:
+            if self.ser.readline().startswith(b"READY"):
+                break
+        return any(self._ask(0.5) for _ in range(3))
+
+    def _ask(self, seconds):
+        self.ser.write(b"?\n")
+        t_end = time.time() + seconds
+        while time.time() < t_end:
+            if self.ser.readline().startswith(b"P "):
+                return True
+        return False
 
     def send(self, angles):
         angles = [float(a) for a in angles]
