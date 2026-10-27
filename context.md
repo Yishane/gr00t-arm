@@ -83,6 +83,47 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## 2026-10-28 NO RESET ON CONNECT
+- He saw a twitch when autodemo starts (Nano reset by DTR when the port opens). arm_io.Arm now opens the
+  port with dtr=rts=False, then _wait_ready() sends "?" until "P ..." (4 s timeout), then speed(180)
+  (calibrate.py's speed(60) would otherwise persist). No firmware change -> no re-upload. If his CH340
+  driver still pulses DTR it just takes ~2 s. 63 tests pass. Untested on his hardware yet.
+
+## 2026-10-28 HARDWARE BUILT (all but the webcam mount)
+- Arm assembled and wired; firmware on the Nano (READY, "?" works; commands need commas).
+  Earlier he wired the bench supply reversed: told him to damage-test each servo one by one.
+  Uploads fail with 2+ servos attached -> upload with servos unplugged (only needed once).
+- Base: drum notch (cable slot, ~4 mm) faces backwards. Gripper servo: body on top of gripperMount,
+  shaft DOWN through the top plate into the finger gear (from slicing the STEP; tab holes 28 mm apart).
+- Calibration saved (calibration.json on his laptop, not in git). His gripper is REVERSED vs defaults:
+  open ~10 (advised: smallest angle clearing the 40 mm ball), closed ~90 (squeeze the block). Unknown if
+  `test`/flip/trim were all done.
+- NEXT: confirm calibrate.py test passed, then autodemo with --camera -1 (fake camera, real
+  arm) to check pick accuracy; he reports offsets -> tune config.py. Print 14_webcam_mount + 1/4"-20 screw.
+
+## 2026-10-27 STATUS
+- Block printed GREEN. He suggested a white ping-pong ball: advised against (white on light grey plate =
+  low contrast); colour it with marker or get orange. Ball still undecided.
+- upload.ps1: execution policy fixed with -ExecutionPolicy Bypass; then both bootloaders "not in sync"
+  on COM3 although the IDE uploaded with the same cable earlier -> told him: unplug servos/power and
+  D0/D1, close IDE, upload arm.ino from the IDE with the settings that worked. Waiting on result.
+
+## WEBCAM MOUNT DONE 2026-10-27: cad/stl/14_webcam_mount.stl (arm.webcam_mount / webcam_dummy)
+- Webcam measured by Yishane: head 91x28x25, lens centred; clip bar 61 long x 42 wide (tapers); head tilt
+  hinge only ~20 deg; clip leg hinge stays where left; 1/4"-20 hole (~6 mm) on the folding back leg,
+  centred, ~17 mm from hinge end. Estimates: folded clip 14 thick, lens 34 above plate, 13 ahead of hole.
+- Design: clip folded shut, leg screwed to a plate standing square to the mast's 25-deg top face (on the
+  pin) -> camera looks 65 deg down, lens ~(154, 55, 242). Slot +-10 mm for the hole, front lip (gravity
+  pushes the clip onto it), zip-tie slots. Prints face down, no supports. Needs a 1/4"-20 x ~3/8" screw.
+- Framing (FOV assumed 64x48 at 640x480): needs 16 up / 22 down / 22 side -> margins small; head hinge
+  +-20 deg fine-tunes. assembly.py scene now uses mount + webcam (no phone); --cell PASS; figures redone.
+
+## GR00T IS THE MAIN PLAN (Yishane, 2026-10-27); ACT = cheap safety net
+- Dry-run kit: docs/gr00t_dry_run.md + software/gr00t/dryrun/pick_ball_sim (20 sim episodes, 1.4 MB,
+  2 tasks, exported with export_dataset.py). finetune.sh now takes SAVE_STEPS (default 1000) and exits
+  clearly if no checkpoint. Dry run: MAX_STEPS=200 SAVE_STEPS=100; laptop test with run_policy --sim.
+  He does it while assembling the arm; waiting on his results (policy ms, errors, provider/GPU).
+
 ## GUIDE/README UPDATED 2026-10-26 to current plan
 - Camera = USB webcam everywhere (phone + cradle kept as fallback); webcam mount listed as "not in this
   version yet". Servo 180 vs 360 check (guide sec:servotest + troubleshooting row); he hit a 360 servo
@@ -207,7 +248,7 @@ phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing)
   or update autodemo.OBJECTS grip z + cad checks)
   PENDING: he'll measure the foam ball he buys (may not be 40 mm). When he sends the diameter D:
   autodemo.OBJECTS['ball'] = D/2 (grip at centre), cad/arm.py BALL = D, rerun cad/assembly.py --cell
-  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., BLUE block (not red: too close to orange), BLACK cup (fixed in place, Yishane 2026-10-24). Code never uses colour (policy learns
+  (all spot pairs + gripper opening), tests, and check the fingers open wide enough., GREEN block (2026-10-27: out of blue filament; was blue), BLACK cup (fixed in place, Yishane 2026-10-24). Code never uses colour (policy learns
   from images + joint angles). Keep ball/block/plate/lighting the same for recording and the demo.
 
 ## WORKING MODE until 2026-11-04 (Yishane, 2026-10-23)

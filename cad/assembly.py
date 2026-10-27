@@ -148,12 +148,13 @@ def build(base=0.0, shoulder=90.0, elbow=-90.0, wrist=0.0) -> dict:
 
 
 def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
-    """Add the work cell (baseplate, camera mast, phone cradle with a dummy
-    phone, cup, ball, block) to an assembled arm. ball_at is the ball centre,
+    """Add the work cell (baseplate, camera mast, webcam mount with a dummy
+    webcam, cup, ball, block) to an assembled arm. ball_at is the ball centre,
     block_at the centre of the block's bottom face."""
     if not cache:
         cache.update({"plate": arm.baseplate(), "mast": arm.camera_mast(),
-                      "cradle": arm.phone_cradle(), "cup": arm.cup()})
+                      "mount": arm.webcam_mount(), "webcam": arm.webcam_dummy(),
+                      "cup": arm.cup()})
     c = cache
     out = dict(parts)
 
@@ -165,10 +166,8 @@ def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
     place("camera_mast", c["mast"], cq.Location(cq.Vector(mx, my, 0)))
     face = (cq.Location(cq.Vector(mx, my, arm.MAST_H))
             * cq.Location(cq.Vector(0, 0, 0), cq.Vector(0, 1, 0), 90.0 - arm.CAM_DOWN))
-    cradle_at = face * cq.Location(cq.Vector(-19, 0, 0))
-    place("phone_cradle", c["cradle"], cradle_at)
-    phone = cq.Workplane("XY").box(75, 160, 9, centered=False).translate((-75, -80, 3))
-    place("phone", phone, cradle_at)
+    place("webcam_mount", c["mount"], face)
+    place("webcam", c["webcam"], face)
     place("cup", c["cup"], cq.Location(cq.Vector(*arm.CUP_XY, 0)))
     if ball_at is not None:
         place("ball", cq.Workplane("XY").sphere(arm.BALL / 2), cq.Location(cq.Vector(*ball_at)))
@@ -322,7 +321,7 @@ if __name__ == "__main__":
     j = _tool_pose(*spot)
     cell = scene(build(*j) if j else home, ball_at=spot,
                  block_at=(arm.SPOT_X[0], arm.SPOT_Y[2], 0))
-    render(cell, out / "12_work_cell.png", "work cell: arm, baseplate, phone camera mast, cup")
+    render(cell, out / "12_work_cell.png", "work cell: arm, baseplate, webcam on its mast, cup")
     if "--docs" in sys.argv:
         docs = HERE.parent / "docs" / "figures"
         render(home, docs / "arm_home.png", views=((22, -55),))

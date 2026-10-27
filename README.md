@@ -110,6 +110,7 @@ author's STEP file to check them.
   `finetune.sh`, `serve.sh`)
 - `docs/guide.tex` → `docs/guide.pdf` — the build + GR00T guide
 - `docs/learning_guide.md` — what to learn from this project (GR00T, IK, serial, autodemo)
+- `docs/gr00t_dry_run.md` — run the GR00T cloud pipeline once on a fake dataset (`software/gr00t/dryrun/`)
 - `docs/computer_to_nano.md` — how the laptop (and GR00T) talks to the Nano over USB
 - `context.md` — running notes for Claude, where work left off
 
@@ -169,7 +170,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   object to pick, so this shows GR00T using the language input.
 - ✅ Block: `cad/stl/13_block.stl`, a 25 mm cube with chamfered edges. Print it
   in a colour that stands out from the ball and the plate (our scheme: black
-  arm, light grey plate, orange ball, blue block). Set it with a face pointing at the arm's base, since the
+  arm, light grey plate, orange ball, green block). Set it with a face pointing at the arm's base, since the
   fingers close sideways.
 - ✅ `autodemo.py --record N`: each episode puts both objects on random spots,
   picks the ball or the block (about 50/50), and saves the instruction in
@@ -215,10 +216,12 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
 - Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
-  `11_cup` (black), **`13_block`** (blue)
-  (`12_ball_half` ×2 only if you have no ball). The camera is a **USB webcam** (monitor
-  clip, 90° view); its mount for the mast gets designed once the webcam arrives and is
-  measured. `09_phone_cradle` + `10_pin` are only for using a phone as the camera instead.
+  `11_cup` (black), **`13_block`** (green)
+  (`12_ball_half` ×2 only if you have no ball), `10_pin` and **`14_webcam_mount`**
+  (big flat face with the square socket on the bed, no supports). The camera is a **USB
+  webcam** (monitor clip, 90° view): fold its clip shut and screw it to the mount with a
+  **¼"-20 screw about ⅜" (10 mm) long** (hardware or camera store). `09_phone_cradle` is
+  only for using a phone as the camera instead.
 - Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
 
