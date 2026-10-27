@@ -89,7 +89,10 @@ Read this first every session. Update the "Status" and "Next" sections before st
   Uploads fail with 2+ servos attached -> upload with servos unplugged (only needed once).
 - Base: drum notch (cable slot, ~4 mm) faces backwards. Gripper servo: body on top of gripperMount,
   shaft DOWN through the top plate into the finger gear (from slicing the STEP; tab holes 28 mm apart).
-- NEXT: calibrate.py (home/test/flip/trim/grip/save), then autodemo with --camera -1 (fake camera, real
+- Calibration saved (calibration.json on his laptop, not in git). His gripper is REVERSED vs defaults:
+  open ~10 (advised: smallest angle clearing the 40 mm ball), closed ~90 (squeeze the block). Unknown if
+  `test`/flip/trim were all done.
+- NEXT: confirm calibrate.py test passed, then autodemo with --camera -1 (fake camera, real
   arm) to check pick accuracy; he reports offsets -> tune config.py. Print 14_webcam_mount + 1/4"-20 screw.
 
 ## 2026-10-27 STATUS
