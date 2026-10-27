@@ -87,7 +87,14 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He saw a twitch when autodemo starts (Nano reset by DTR when the port opens). arm_io.Arm now opens the
   port with dtr=rts=False, then _wait_ready() sends "?" until "P ..." (4 s timeout), then speed(180)
   (calibrate.py's speed(60) would otherwise persist). No firmware change -> no re-upload. If his CH340
-  driver still pulses DTR it just takes ~2 s. 63 tests pass. Untested on his hardware yet.
+  driver still pulses DTR it just takes ~2 s.
+- FIRST VERSION FAILED on his Nano ("doesn't answer"): likely his CH340 driver still resets it and the
+  "?" sent every 0.5 s during boot kept the OLD bootloader from starting the firmware. Fixed: ask once,
+  then stay silent BOOT_S=3 s (or until READY), ask again; last resort pulse DTR to reset on purpose
+  (un-sticks a hung bootloader) and repeat. 65 tests. If this still fails: revert to the plain
+  reset + 2 s wait.
+- He moved to a new clone at C:\Users\yskao\Projects\gr00t-arm: calibration.json (not in git) must be
+  copied from C:\Users\yskao\gr00t-arm\software\.
 
 ## 2026-10-28 HARDWARE BUILT (all but the webcam mount)
 - Arm assembled and wired; firmware on the Nano (READY, "?" works; commands need commas).
