@@ -382,6 +382,61 @@ def phone_cradle() -> cq.Workplane:
     return cradle
 
 
+# USB webcam (KitGody 1080p, monitor clip folded shut, screwed to the mount
+# through the clip's 1/4"-20 hole). Measured by Yishane: head 91 x 28 x 25,
+# lens centred; clip bar 61 long x 42 wide; hole on the folding leg, centred,
+# ~17 mm from its hinge (back) end. Folded-clip thickness and the head's
+# height above it are estimates; the head's own +-20 deg hinge covers them.
+WEBCAM_TILT = 65.0             # camera looks this far below horizontal
+CLIP_L, CLIP_W, CLIP_T = 61.0, 42.0, 14.0
+HOLE_FROM_BACK = 17.0
+LENS_UP, LENS_FWD = 34.0, 13.0  # lens above the plate / ahead of the hole
+SCREW = 6.8                    # slot width for the 1/4"-20 screw
+
+
+def webcam_mount() -> cq.Workplane:
+    """Plate the folded webcam clip screws onto, on the camera mast's pin.
+    Local frame = the mast's tilted top face (z = its normal, pin at the
+    origin), so print it with that face on the bed (no supports needed).
+    With the mast face at 90 - CAM_DOWN = 25 deg, a plate standing square to
+    it points the webcam 65 deg down at the arm. The plate's camera side faces
+    -x; the camera looks along -z; gravity pulls the clip toward the lip."""
+    t = 5.0
+    face_x = -11.8                                   # camera side of the plate
+    z_front = 11.05                                  # front end of the clip
+    z_top = z_front + CLIP_L + 8
+    # everything starts on the bed (z = 0, the mast face), so no supports
+    plate = (cq.Workplane("XY").box(t, 60, z_top, centered=(False, True, False))
+             .translate((face_x, 0, 0)))
+    lip = (cq.Workplane("XY").box(4, CLIP_W + 4, z_front, centered=(False, True, False))
+           .translate((face_x - 4, 0, 0)))
+    body = (cq.Workplane("XY").box(16 - face_x - t, 32, 40, centered=(False, True, False))
+            .translate((face_x + t, 0, 0)).edges("|Z").fillet(2))
+    m = plate.union(lip).union(body)
+    # pin socket
+    m = m.cut(cq.Workplane("XY").box(PIN + 0.4, PIN + 0.4, PIN_L / 2 + 0.5,
+                                     centered=(True, True, False)))
+    # screw slot: the hole sits HOLE_FROM_BACK from the clip's back end; +-10 mm of play
+    z_hole = z_front + CLIP_L - HOLE_FROM_BACK
+    m = m.cut(cq.Workplane("YZ").workplane(offset=face_x - 1).center(0, z_hole)
+              .slot2D(20 + SCREW, SCREW, angle=90).extrude(t + 2))
+    # zip-tie slots either side of the clip, as a backup
+    for y in (-25.5, 25.5):
+        for z in (22.0, z_top - 12):
+            m = m.cut(cq.Workplane("XY").box(t + 2, 3, 6).translate((face_x + t / 2, y, z)))
+    return m
+
+
+def webcam_dummy() -> cq.Workplane:
+    """Rough webcam (folded clip + head) in webcam_mount's frame, for checks."""
+    face_x, z_front = -11.8, 11.05
+    clip = (cq.Workplane("XY").box(CLIP_T, CLIP_W, CLIP_L, centered=(False, True, False))
+            .translate((face_x - CLIP_T, 0, z_front)))
+    z_lens = z_front + CLIP_L - HOLE_FROM_BACK - LENS_FWD
+    head = cq.Workplane("XY").box(28, 91, 25).translate((face_x - LENS_UP, 0, z_lens))
+    return clip.union(head)
+
+
 def pin() -> cq.Workplane:
     """Square pin joining the mast top and the phone cradle. Print lying flat."""
     return (cq.Workplane("XY").box(PIN_L, PIN, PIN, centered=(True, True, False))
@@ -430,6 +485,7 @@ PARTS = {
     "11_cup": cup,
     "12_ball_half": ball_half,
     "13_block": block,
+    "14_webcam_mount": webcam_mount,
 }
 
 if __name__ == "__main__":

@@ -83,6 +83,16 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## WEBCAM MOUNT DONE 2026-10-27: cad/stl/14_webcam_mount.stl (arm.webcam_mount / webcam_dummy)
+- Webcam measured by Yishane: head 91x28x25, lens centred; clip bar 61 long x 42 wide (tapers); head tilt
+  hinge only ~20 deg; clip leg hinge stays where left; 1/4"-20 hole (~6 mm) on the folding back leg,
+  centred, ~17 mm from hinge end. Estimates: folded clip 14 thick, lens 34 above plate, 13 ahead of hole.
+- Design: clip folded shut, leg screwed to a plate standing square to the mast's 25-deg top face (on the
+  pin) -> camera looks 65 deg down, lens ~(154, 55, 242). Slot +-10 mm for the hole, front lip (gravity
+  pushes the clip onto it), zip-tie slots. Prints face down, no supports. Needs a 1/4"-20 x ~3/8" screw.
+- Framing (FOV assumed 64x48 at 640x480): needs 16 up / 22 down / 22 side -> margins small; head hinge
+  +-20 deg fine-tunes. assembly.py scene now uses mount + webcam (no phone); --cell PASS; figures redone.
+
 ## GR00T IS THE MAIN PLAN (Yishane, 2026-10-27); ACT = cheap safety net
 - Dry-run kit: docs/gr00t_dry_run.md + software/gr00t/dryrun/pick_ball_sim (20 sim episodes, 1.4 MB,
   2 tasks, exported with export_dataset.py). finetune.sh now takes SAVE_STEPS (default 1000) and exits
