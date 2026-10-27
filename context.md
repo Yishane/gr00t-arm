@@ -83,6 +83,15 @@ Read this first every session. Update the "Status" and "Next" sections before st
 - He may use 1x or 0.5x. Guide sec:camsetup has the setup + teleop framing check (fingers, 9 spots, cup in view; z up to ~95).
 - Tell him: check the webcam app actually uses the chosen lens; same lens for recording and running.
 
+## 2026-10-28 HARDWARE BUILT (all but the webcam mount)
+- Arm assembled and wired; firmware on the Nano (READY, "?" works; commands need commas).
+  Earlier he wired the bench supply reversed: told him to damage-test each servo one by one.
+  Uploads fail with 2+ servos attached -> upload with servos unplugged (only needed once).
+- Base: drum notch (cable slot, ~4 mm) faces backwards. Gripper servo: body on top of gripperMount,
+  shaft DOWN through the top plate into the finger gear (from slicing the STEP; tab holes 28 mm apart).
+- NEXT: calibrate.py (home/test/flip/trim/grip/save), then autodemo with --camera -1 (fake camera, real
+  arm) to check pick accuracy; he reports offsets -> tune config.py. Print 14_webcam_mount + 1/4"-20 screw.
+
 ## 2026-10-27 STATUS
 - Block printed GREEN. He suggested a white ping-pong ball: advised against (white on light grey plate =
   low contrast); colour it with marker or get orange. Ball still undecided.
