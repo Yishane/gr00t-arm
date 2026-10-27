@@ -122,3 +122,13 @@ def test_a_call_left_running_by_ctrl_c_never_overlaps_the_next_run():
     run_policy.run(pol, CrashArm(), FakeCamera(), "pick up the ball", 8, 30)   # leaves a prefetch running
     run_policy.run(pol, TimedArm(), FakeCamera(), "pick up the ball", 8, 0.1)  # next instruction right away
     assert not pol.overlapped
+
+
+def test_no_pipeline_flag(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(run_policy, "run", lambda *a, **k: seen.update(k))
+    monkeypatch.setattr(run_policy, "Gr00tBackend", lambda *a: object())
+    monkeypatch.setattr(sys, "argv", ["run_policy.py", "gr00t", "--sim", "--task",
+                                      "pick up the ball", "--no-pipeline"])
+    run_policy.main()
+    assert seen["pipeline"] is False

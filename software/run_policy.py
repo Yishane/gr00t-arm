@@ -14,6 +14,9 @@ ACT (trained locally, run from software/act):
 
 Each step: grab a camera frame + the current servo angles, ask the policy for
 the next chunk of actions, play the first --horizon of them at 30 Hz, repeat.
+The next call goes out while the current chunk is still playing, so the arm
+doesn't stop and wait for it; the steps that played during the call are
+skipped in the new chunk. --no-pipeline waits for each call instead.
 A command that would break a joint limit or put the gripper in the plate is
 not sent (the arm holds still instead). If the policy fails 3 times in a row
 (timeout, server error, empty answer) the run stops and asks again.
@@ -224,6 +227,9 @@ def main():
                     help="actions played per policy call (GR00T predicts 16)")
     ap.add_argument("--seconds", type=float, default=20.0,
                     help="how long each instruction runs")
+    ap.add_argument("--no-pipeline", action="store_true",
+                    help="wait for each policy call instead of asking for the next "
+                         "chunk while the current one plays")
     args = ap.parse_args()
 
     task = None
@@ -237,12 +243,14 @@ def main():
     go_home(arm)
     try:
         if task:
-            run(policy, arm, cam, task, args.horizon, args.seconds)
+            run(policy, arm, cam, task, args.horizon, args.seconds,
+                pipeline=not args.no_pipeline)
             return
         print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
               f"(q to quit)")
         while (task := ask()) is not None:
-            run(policy, arm, cam, task, args.horizon, args.seconds)
+            run(policy, arm, cam, task, args.horizon, args.seconds,
+                pipeline=not args.no_pipeline)
     finally:
         go_home(arm)
         arm.close()
