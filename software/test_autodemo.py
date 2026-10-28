@@ -18,7 +18,15 @@ def test_every_spot_plans_for_both_objects(target, spot):
     steps = list(A.trajectory(wps, 30))
     assert len(steps) > 200
     grip_z = min(wp[2] for wp in wps)
-    assert grip_z == pytest.approx(A.OBJECTS[target])
+    assert grip_z == pytest.approx(A.OBJECTS[target] + A.SPOT_FIX.get(spot, (0, 0, 0))[2])
+
+
+def test_spot_fix_moves_only_the_grip_at_that_spot(monkeypatch):
+    monkeypatch.setattr(A, "SPOT_FIX", {"A2": (-3.0, -2.0, 4.0)})
+    grip = lambda spot: min(A.plan(spot, "ball"), key=lambda wp: wp[2])[:3]
+    assert grip("A2") == pytest.approx((A.SPOTS["A2"][0] - 3, A.SPOTS["A2"][1] - 2,
+                                        A.OBJECTS["ball"] + 4))
+    assert grip("A1") == pytest.approx((*A.SPOTS["A1"], A.OBJECTS["ball"]))
 
 
 def test_pairs_are_far_apart_and_use_every_spot_but_the_middle():
