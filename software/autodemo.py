@@ -22,7 +22,7 @@ import time
 import config as C
 import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
-from recorder import TASKS, Recorder
+from recorder import TASKS, Recorder, ask_keep
 
 # keep in sync with cad/arm.py SPOT_X / SPOT_Y / CUP_XY
 SPOTS = {f"{c}{r + 1}": (x, y) for c, x in zip("ABC", (85.0, 110.0, 135.0))
@@ -152,11 +152,6 @@ def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None):
         raise
     if rec:
         rec.stop(keep=keep() if keep else True)
-
-
-def ask_keep():
-    """y / Enter keeps the episode, n throws it away (missed grip, dropped object)."""
-    return not input("keep it? [Y/n] ").strip().lower().startswith("n")
 
 
 def main():

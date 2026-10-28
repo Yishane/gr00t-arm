@@ -270,6 +270,12 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - Run it on the arm:
   `uv run ..\run_policy.py act --camera 1 --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model`,
   then type `pick up the ball` or `pick up the block` at the `instruction>` prompt.
+- Optional, to improve it on its own runs: add `--record pick_ball`. Each run
+  is saved next to your demos (tagged `"source": "policy"`, numbered after
+  them). Press Ctrl+C once the object is in the cup, then answer
+  `keep it? [Y/n]`: keep only clean picks of the right object, and keep ball
+  and block roughly even. Then export and train again as above. (`--record`
+  alone saves to a separate `pick_ball_policy` set instead, to look at first.)
 
 ### ⬜ 9. GR00T fine-tune in the cloud (You: accounts; Claude: helps)
 > **This is the only milestone that can cost money.** Fine-tuning GR00T needs a

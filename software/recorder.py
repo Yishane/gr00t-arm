@@ -3,7 +3,7 @@
 data/raw/<dataset>/episode_000000/
     frames/000000.jpg ...   camera frames (RGB)
     steps.csv               t, state_0..4, action_0..4 (servo degrees)
-    meta.json               task (the instruction), fps, source (teleop / autodemo)
+    meta.json               task (the instruction), fps, source (teleop / autodemo / policy)
 
 export_dataset.py turns these into a GR00T / LeRobot dataset.
 """
@@ -28,6 +28,11 @@ def target_of(task):
     words = task.lower()
     found = [name for name in TASKS if name in words]
     return found[0] if len(found) == 1 else None
+
+
+def ask_keep():
+    """y / Enter keeps the episode, n throws it away (missed grip, dropped object)."""
+    return not input("keep it? [Y/n] ").strip().lower().startswith("n")
 
 
 class Recorder:

@@ -22,6 +22,12 @@ not sent (the arm holds still instead). If the policy fails 3 times in a row
 (timeout, server error, empty answer) the run stops and asks again.
 GR00T reads the instruction as words. ACT has no language input, so it gets
 the target as one extra state number (see act/export_act.py).
+
+--record saves each run as an episode (source "policy", same format as the
+teleop / autodemo demos) in data/raw/pick_ball_policy, or --record <dataset>.
+Press Ctrl+C once the object is in the cup so the idle rest isn't recorded,
+then answer keep it? [Y/n]: keep only the runs that picked the right object
+cleanly, so retraining on them doesn't teach the policy its own mistakes.
 """
 import argparse
 import math
@@ -34,7 +40,7 @@ import numpy as np
 import config as C
 import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
-from recorder import TASKS, target_of
+from recorder import TASKS, Recorder, ask_keep, target_of
 
 MAX_FAILS = 3   # policy failures in a row before a run gives up
 # one policy call at a time: the GR00T client has one socket, and a call left
@@ -141,12 +147,28 @@ def _result(future):
     return future.result()
 
 
-def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
+def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None):
     """Run one instruction until the time is up or Ctrl+C.
     pipeline: ask for the next chunk while the current one plays, so the arm
-    doesn't stop for the length of each policy call."""
+    doesn't stop for the length of each policy call.
+    rec: a Recorder; every step played is saved (frame, last command, command).
+    keep: asked once the arm is home whether to save the episode (default: save)."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
+    if rec:
+        rec.start(task=task)
+    try:
+        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo)
+        go_home(arm)
+        if rec:
+            rec.stop(keep=keep() if keep else True)
+    finally:
+        if rec:
+            rec.stop(keep=False)        # no-op once saved; drops a half episode on errors
+
+
+def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo):
+    """The policy loop of run(); servo = the command the arm holds now."""
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
     fails = 0
@@ -185,8 +207,11 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
             t_next = time.perf_counter()
             for i, cmd in enumerate(steps):
                 cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
-                if (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
-                        and K.servo_ok(cmd[:4])):
+                ok = (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
+                      and K.servo_ok(cmd[:4]))
+                if rec:                                   # what the camera saw, then what was sent
+                    rec.add(cam.read(), servo, cmd if ok else servo)
+                if ok:
                     arm.send(cmd)
                     servo = cmd
                     sent.append(cmd)
@@ -211,7 +236,6 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True):
         print("stopped")
     finally:
         pool.shutdown(wait=False, cancel_futures=True)   # never wait for a slow call
-    go_home(arm)
 
 
 def positive_int(text):
@@ -237,6 +261,9 @@ def main():
     ap.add_argument("--no-pipeline", action="store_true",
                     help="wait for each policy call instead of asking for the next "
                          "chunk while the current one plays")
+    ap.add_argument("--record", nargs="?", const="pick_ball_policy", metavar="DATASET",
+                    help="save each run as an episode in data/raw/DATASET "
+                         "(default pick_ball_policy), asking keep / discard after it")
     args = ap.parse_args()
 
     task = None
@@ -246,18 +273,18 @@ def main():
             raise SystemExit(f"--task must name the ball or the block: {args.task!r}")
     policy = (Gr00tBackend(args.host, args.server_port) if args.backend == "gr00t"
               else ActBackend(args.checkpoint))
+    rec = Recorder(args.record, fps=C.FPS, source="policy") if args.record else None
+    opts = dict(pipeline=not args.no_pipeline, rec=rec, keep=ask_keep if rec else None)
     arm, cam = open_hardware(args)
     go_home(arm)
     try:
         if task:
-            run(policy, arm, cam, task, args.horizon, args.seconds,
-                pipeline=not args.no_pipeline)
+            run(policy, arm, cam, task, args.horizon, args.seconds, **opts)
             return
         print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
               f"(q to quit)")
         while (task := ask()) is not None:
-            run(policy, arm, cam, task, args.horizon, args.seconds,
-                pipeline=not args.no_pipeline)
+            run(policy, arm, cam, task, args.horizon, args.seconds, **opts)
     finally:
         go_home(arm)
         arm.close()
