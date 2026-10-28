@@ -35,6 +35,17 @@ def home_target():
     return [x, y, z, pitch]
 
 
+STATUS_H = 40   # px under the picture for the status line
+
+
+def fit(window):
+    """Size to draw the 640x480 picture in a window of this size, keeping its
+    shape and leaving room for the status line. Only the display is scaled;
+    recorded frames stay 640x480."""
+    s = min(window[0] / 640, (window[1] - STATUS_H) / 480)
+    return max(1, round(640 * s)), max(1, round(480 * s))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -47,7 +58,7 @@ def main():
     arm, cam = open_hardware(args)
     rec = Recorder(args.dataset, args.task, C.FPS, "teleop")
     pygame.init()
-    screen = pygame.display.set_mode((640, 520))
+    screen = pygame.display.set_mode((640, 480 + STATUS_H), pygame.RESIZABLE)
     pygame.display.set_caption("gr00t-arm teleop")
     font = pygame.font.SysFont("consolas", 16)
     pad = pygame.joystick.Joystick(0) if pygame.joystick.get_count() else None
@@ -118,15 +129,19 @@ def main():
 
         surf = pygame.surfarray.make_surface(np.transpose(frame, (1, 0, 2)))
         screen.fill((20, 20, 20))
-        screen.blit(pygame.transform.scale(surf, (640, 480)), (0, 0))
+        win_w = screen.get_width()
+        pic_w, pic_h = fit(screen.get_size())
+        left = (win_w - pic_w) // 2
+        screen.blit(pygame.transform.scale(surf, (pic_w, pic_h)), (left, 0))
         x, y, z, p = target
         status = (f"x{x:6.0f} y{y:6.0f} z{z:5.0f} pitch{math.degrees(p):5.0f}  "
                   f"grip {'closed' if grip_closed else 'open'}  {msg}")
-        screen.blit(font.render(status, True, (230, 230, 230)), (8, 492))
-        screen.blit(font.render(f'task: "{rec.task}"', True, (230, 230, 230)), (8, 8))
+        screen.blit(font.render(status, True, (230, 230, 230)), (8, pic_h + 12))
+        screen.blit(font.render(f'task: "{rec.task}"', True, (230, 230, 230)), (left + 8, 8))
         if rec.recording:
-            pygame.draw.circle(screen, (230, 40, 40), (620, 20), 10)
-            screen.blit(font.render(f"REC {len(rec.rows)}", True, (230, 40, 40)), (530, 12))
+            pygame.draw.circle(screen, (230, 40, 40), (left + pic_w - 20, 20), 10)
+            screen.blit(font.render(f"REC {len(rec.rows)}", True, (230, 40, 40)),
+                        (left + pic_w - 110, 12))
         pygame.display.flip()
         clock.tick(C.FPS)
 
