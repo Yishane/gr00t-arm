@@ -28,6 +28,12 @@ teleop / autodemo demos) in data/raw/pick_ball_policy, or --record <dataset>.
 Press Ctrl+C once the object is in the cup so the idle rest isn't recorded,
 then answer keep it? [Y/n]: keep only the runs that picked the right object
 cleanly, so retraining on them doesn't teach the policy its own mistakes.
+
+--mujoco runs it in the simulation (sim.py) instead: each run puts the ball
+and the block on a random layout (--offset MM moves them off the spots), stops
+as soon as an object lands in the cup, and prints ok / knocked / wrong object
+/ missed. --trials N runs N of them on their own and prints the score; with
+--record, only the "ok" runs are kept (data/raw/pick_ball_mujoco).
 """
 import argparse
 import math
@@ -123,7 +129,7 @@ def ask():
 def go_home(arm):
     servo = HOME + [C.GRIPPER_OPEN]
     arm.send(servo)
-    time.sleep(1.0)
+    getattr(arm, "wait", time.sleep)(1.0)     # the simulator's arm has its own clock
     return servo
 
 
@@ -147,18 +153,20 @@ def _result(future):
     return future.result()
 
 
-def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None):
+def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None,
+        done=None):
     """Run one instruction until the time is up or Ctrl+C.
     pipeline: ask for the next chunk while the current one plays, so the arm
     doesn't stop for the length of each policy call.
     rec: a Recorder; every step played is saved (frame, last command, command).
-    keep: asked once the arm is home whether to save the episode (default: save)."""
+    keep: asked once the arm is home whether to save the episode (default: save).
+    done: checked after every step; the run ends when it returns True."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
     if rec:
         rec.start(task=task)
     try:
-        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo)
+        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done)
         go_home(arm)
         if rec:
             rec.stop(keep=keep() if keep else True)
@@ -167,7 +175,7 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
             rec.stop(keep=False)        # no-op once saved; drops a half episode on errors
 
 
-def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo):
+def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=None):
     """The policy loop of run(); servo = the command the arm holds now."""
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
@@ -228,6 +236,9 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo):
                     pending = pool.submit(_timed_chunk, policy, frame, servo, task)
                 t_next += dt
                 time.sleep(max(0.0, t_next - time.perf_counter()))
+                if done and done():
+                    print("an object is in the cup")
+                    return
             grip = f", grip {sent[0][4]:.0f}" if sent else ""
             print(f"policy call {ms:.0f} ms, {len(steps)} steps{grip}"
                   + (f", {blocked} blocked" if blocked else "")
@@ -261,10 +272,17 @@ def main():
     ap.add_argument("--no-pipeline", action="store_true",
                     help="wait for each policy call instead of asking for the next "
                          "chunk while the current one plays")
-    ap.add_argument("--record", nargs="?", const="pick_ball_policy", metavar="DATASET",
-                    help="save each run as an episode in data/raw/DATASET "
-                         "(default pick_ball_policy), asking keep / discard after it")
+    ap.add_argument("--record", nargs="?", const="", metavar="DATASET",
+                    help="save each run as an episode in data/raw/DATASET (default "
+                         "pick_ball_policy, or pick_ball_mujoco with --mujoco)")
+    ap.add_argument("--trials", type=positive_int, metavar="N",
+                    help="with --mujoco: N runs on random layouts, ball and block "
+                         "taking turns, then the score")
+    ap.add_argument("--offset", type=float, default=0.0, metavar="MM",
+                    help="with --mujoco: put each object up to MM away from its spot")
     args = ap.parse_args()
+    if (args.trials or args.offset) and not args.mujoco:
+        raise SystemExit("--trials and --offset are for the simulator (--mujoco)")
 
     task = None
     if args.task:
@@ -273,23 +291,55 @@ def main():
             raise SystemExit(f"--task must name the ball or the block: {args.task!r}")
     policy = (Gr00tBackend(args.host, args.server_port) if args.backend == "gr00t"
               else ActBackend(args.checkpoint))
-    rec = Recorder(args.record, fps=C.FPS, source="policy") if args.record else None
-    opts = dict(pipeline=not args.no_pipeline, rec=rec, keep=ask_keep if rec else None)
+    rec = None
+    if args.record is not None:
+        dataset = args.record or ("pick_ball_mujoco" if args.mujoco else "pick_ball_policy")
+        rec = Recorder(dataset, fps=C.FPS, source="policy", sim=args.mujoco)
     arm, cam = open_hardware(args)
+    world = getattr(arm, "world", None)
+
+    def one(task):
+        """One instruction. In the simulator: lay the objects out, keep only
+        clean picks, and return the result."""
+        opts = dict(pipeline=not args.no_pipeline, rec=rec)
+        if not world:
+            run(policy, arm, cam, task, args.horizon, args.seconds,
+                keep=ask_keep if rec else None, **opts)
+            return None
+        target = target_of(task)
+        _, xy, other_xy = world.random_layout(args.offset, target=target)
+        world.place_for(target, xy, other_xy)
+        run(policy, arm, cam, task, args.horizon, args.seconds,
+            keep=lambda: world.success(target),
+            done=lambda: world.in_cup("ball") or world.in_cup("block"), **opts)
+        result = world.result(target)
+        print(f"{target} at ({xy[0]:.0f}, {xy[1]:.0f}): {result}")
+        return result
+
     go_home(arm)
     try:
+        if args.trials:
+            score = {name: [] for name in sorted(TASKS)}
+            for i in range(args.trials):
+                target = sorted(TASKS)[i % len(TASKS)]
+                print(f"\ntrial {i + 1}/{args.trials}")
+                score[target].append(one(TASKS[target]))
+            for target, results in score.items():
+                others = ", ".join(f"{results.count(r)} {r}" for r in sorted(set(results)) if r != "ok")
+                print(f"{target}: {results.count('ok')}/{len(results)} ok"
+                      + (f" ({others})" if others else ""))
+            return
         if task:
-            run(policy, arm, cam, task, args.horizon, args.seconds, **opts)
+            one(task)
             return
         print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
               f"(q to quit)")
         while (task := ask()) is not None:
-            run(policy, arm, cam, task, args.horizon, args.seconds, **opts)
+            one(task)
     finally:
         go_home(arm)
         arm.close()
         cam.close()
-
 
 if __name__ == "__main__":
     main()

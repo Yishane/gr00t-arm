@@ -100,25 +100,31 @@ def _to_cell(shape):
             .translate(cq.Vector(STEP_YAW_XY[1], -STEP_YAW_XY[0], -STEP_DESK_Z)))
 
 
-def home_parts(cache={}) -> dict:
-    """{group: Compound} in the home pose: upper arm up, forearm forward,
-    gripper level."""
+def home_pieces(cache=[]) -> list:
+    """[(group, STEP name, solid index, Shape)] in the home pose: upper arm
+    up, forearm forward, gripper level."""
     if cache:
         return cache
     solids = _read_step()
-    groups = {g: [] for g in GROUPS}
     drop = STEP_ELBOW_Z - (STEP_SHOULDER_Z + L_UPPER)    # Arm90 -> Arm60
     for name, k, g in PIECES:
         s = _to_cell(solids[name][k])
         if g in ("forearm", "gripper"):
             s = s.translate(cq.Vector(0, 0, -drop))
-        groups[g].append(s)
+        cache.append((g, name, k, s))
     # upper arm = the forearm link turned upright about the elbow, then put
     # on the shoulder
-    fore = groups["forearm"][0]
+    fore = next(s for g, _, _, s in cache if g == "forearm")
     up = fore.rotate(cq.Vector(0, 0, ELBOW[1]), cq.Vector(0, 0, ELBOW[1]) + cq.Vector(0, 1, 0), -90)
-    groups["upper_arm"].append(up.translate(cq.Vector(0, 0, -L_UPPER)))
-    cache.update({g: cq.Compound.makeCompound(v) for g, v in groups.items()})
+    cache.append(("upper_arm", "Arm60mm", 0, up.translate(cq.Vector(0, 0, -L_UPPER))))
+    return cache
+
+
+def home_parts(cache={}) -> dict:
+    """{group: Compound} in the home pose (see home_pieces)."""
+    if not cache:
+        cache.update({g: cq.Compound.makeCompound([s for gg, _, _, s in home_pieces() if gg == g])
+                      for g in GROUPS})
     return cache
 
 

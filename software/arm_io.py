@@ -1,7 +1,9 @@
 """Talking to the hardware: the arm (over USB serial) and the camera.
 
-Both have a simulated stand-in (--sim) so every script can run without the
-arm plugged in.
+Both have stand-ins so every script can run without the arm plugged in:
+--sim (no physics: the arm only remembers what it was told, the camera draws
+a moving square) and --mujoco (a physics simulation of the arm, the objects
+and the webcam's view, see sim.py).
 """
 import sys
 import time
@@ -158,8 +160,14 @@ class FakeCamera:
         pass
 
 
-def open_hardware(args):
-    """Arm + camera from the common command-line flags."""
+def open_hardware(args, realtime=True):
+    """Arm + camera from the common command-line flags. realtime=False lets
+    the MuJoCo simulation run as fast as commands come (autodemo) instead of
+    keeping pace with the clock."""
+    if getattr(args, "mujoco", False):
+        import sim
+        world = sim.World(realtime=realtime, randomize=True)
+        return world.arm, world.camera
     arm = SimArm() if args.sim else Arm(args.port)
     cam = FakeCamera() if (args.sim or args.camera < 0) else Camera(args.camera)
     return arm, cam
@@ -171,3 +179,6 @@ def add_hw_args(parser):
                         help="camera index: 0 = laptop webcam, 1 = phone usually")
     parser.add_argument("--sim", action="store_true",
                         help="no hardware: simulated arm and fake camera")
+    parser.add_argument("--mujoco", action="store_true",
+                        help="no hardware: the MuJoCo simulation of the arm, objects "
+                             "and webcam (sim.py)")

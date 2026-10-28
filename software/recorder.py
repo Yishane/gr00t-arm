@@ -3,7 +3,8 @@
 data/raw/<dataset>/episode_000000/
     frames/000000.jpg ...   camera frames (RGB)
     steps.csv               t, state_0..4, action_0..4 (servo degrees)
-    meta.json               task (the instruction), fps, source (teleop / autodemo / policy)
+    meta.json               task (the instruction), fps, source (teleop / autodemo / policy),
+                            and "sim": true for episodes recorded in the simulator (sim.py)
 
 export_dataset.py turns these into a GR00T / LeRobot dataset.
 """
@@ -35,11 +36,21 @@ def ask_keep():
     return not input("keep it? [Y/n] ").strip().lower().startswith("n")
 
 
+def episodes_in(raws):
+    """Saved episodes of one or more raw dataset folders, in order."""
+    raws = [raws] if isinstance(raws, Path) else raws
+    episodes = [p for raw in raws for p in sorted(raw.glob("episode_*"))
+                if (p / "steps.csv").exists()]
+    if not episodes:
+        raise SystemExit(f"no recorded episodes in {', '.join(map(str, raws))}")
+    return episodes
+
+
 class Recorder:
-    def __init__(self, dataset="pick_ball", task=TASK, fps=30, source="teleop"):
+    def __init__(self, dataset="pick_ball", task=TASK, fps=30, source="teleop", sim=False):
         self.dir = DATA / dataset
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.task, self.fps, self.source = task, fps, source
+        self.task, self.fps, self.source, self.sim = task, fps, source, sim
         self.ep = None
         self.last_kept = False   # whether the last stop() saved its episode
 
@@ -77,8 +88,10 @@ class Recorder:
                 w.writerow(["t"] + [f"state_{i}" for i in range(5)]
                            + [f"action_{i}" for i in range(5)])
                 w.writerows(self.rows)
-            (self.ep / "meta.json").write_text(json.dumps(
-                {"task": self.ep_task, "fps": self.fps, "source": self.source}, indent=2))
+            meta = {"task": self.ep_task, "fps": self.fps, "source": self.source}
+            if self.sim:
+                meta["sim"] = True
+            (self.ep / "meta.json").write_text(json.dumps(meta, indent=2))
             print(f'saved {self.ep.name}: {len(self.rows)} frames, "{self.ep_task}"')
         else:
             shutil.rmtree(self.ep)
