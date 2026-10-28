@@ -2,7 +2,25 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
-## >>> LATEST STATE (2026-10-27 night) â€” READ THIS FIRST <<<
+## >>> LATEST STATE (2026-10-28) â€” READ THIS FIRST <<<
+- Milestones 3-6 (print, wire + flash, assemble, calibrate) are DONE (Yishane, 2026-10-28).
+  Next: 7 record demos, 8 ACT, 9 GR00T, 10 simulation (new), 11 present.
+- Branch claude/autodemo-keep-prompt (cloud session, NOT yet merged into main):
+  - autodemo --record N asks `keep it? [Y/n]` after each pick (recorder.ask_keep); n deletes the
+    episode; N counts KEPT episodes (Recorder.last_kept). --yes keeps everything (tests).
+  - run_policy --record [DATASET] (default pick_ball_policy; `--record pick_ball` = next to the demos):
+    every played step saved (frame read each step, state = last command, action = command; blocked
+    step -> held command), source "policy"; Ctrl+C when the object is in the cup, then keep? prompt
+    after go_home. run() wraps the old loop (now _drive) and drops a half episode on any error.
+  - GOTCHA: train_act.py fails if outputs/act/<name> exists (LeRobot 0.6.1 TrainPipelineConfig raises
+    FileExistsError unless resume). Docs say to rename the old folder (pick_ball_round1) first.
+    Offered to automate (rename / warm-start from the previous model); not built.
+  - Explained: filtered self-imitation only helps on kept SUCCESSES; corrections via keyboard
+    takeover (DAgger) would help more on failures (not built). autodemo only shows the 9 spots
+    (jitter = heights/timing, NOT position) -> unseen positions likely fail; sim fixes that.
+- context.md had 4 stray Windows-1252 dashes; converted to UTF-8.
+
+## >>> LATEST STATE (2026-10-27 night) â€” previous <<<
 Newest notes are here; older dated sections below give the history.
 
 ### Where everything is
@@ -325,7 +343,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - [x] GR00T client VERIFIED: policy_client.py talks to NVIDIA's real PolicyServer (ReplayPolicy
       test harness in %TEMP%); server replies msgpack_numpy {nd,type,shape,data} arrays.
       run_policy.py gr00t --host --server-port. Cloud scripts: software/gr00t/{setup_cloud,
-      finetune,serve}.sh (NOT run — needs cloud GPU + HF access).
+      finetune,serve}.sh (NOT run â€” needs cloud GPU + HF access).
 - [x] Firmware compiles for Nano (arduino-cli via winget); firmware/upload.ps1 <COMx>
 - [x] LaTeX guide: docs/guide.tex -> docs/guide.pdf (13 pp, compiles clean with MiKTeX latexmk).
       Part I = GR00T explainer + 3-min talk script + demo plan + Q&A; Part II = BOM, printing,
@@ -333,7 +351,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
       Figures from `cad/assembly.py --docs`.
 
 ## Next (all build deliverables done 2026-10-22; waiting on Yishane)
-1. He prints (Easy Robot Arm parts + work cell incl. 13_block, no BaseLeg), wires, assembles, calibrates — guide sections 7–11.
+1. He prints (Easy Robot Arm parts + work cell incl. 13_block, no BaseLeg), wires, assembles, calibrates â€” guide sections 7â€“11.
 2. Record 100-200 demos, two objects (autodemo --record 150), export, train ACT locally to
    validate data (check it picks the RIGHT object for each instruction).
 3. He makes HF account + requests nvidia/Cosmos-Reason2-2B access; gets cloud GPU credit.
@@ -342,7 +360,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
    scripts work as-is), Modal ~$30/mo free (needs a Modal wrapper Claude would write - not built).
    Colab/Kaggle 16 GB too small. Fallback: stop at ACT, demo with ACT. Recommended: do 3-8 first.
    He has a breadboard + jumpers.
-4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet —
+4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet â€”
    first real run may need fixes; check open_loop_eval plot).
 Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,
 phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing).

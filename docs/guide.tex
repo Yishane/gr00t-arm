@@ -681,8 +681,11 @@ uv run autodemo.py --record 150 --camera 1
   Each time it tells you where to put the ball and the block and which one it will pick, e.g.\
   \texttt{block on C1, ball on A3 -> "pick up the block"}. Place both, press Enter, and it
   picks and places while recording, saving the instruction with the demo. It picks the ball or
-  the block about half the time each. Aim for 100--200 demos (about 20 seconds each, so 150
-  take under an hour; split it into sessions, it keeps numbering where it left off).
+  the block about half the time each. After each pick it asks \texttt{keep it? [Y/n]}: press
+  Enter to keep the demo, or type \texttt{n} if it missed the grip, dropped the object or
+  knocked the other one, and that demo is thrown away. \texttt{--record 150} keeps going until
+  150 demos are kept. Aim for 100--200 (about 20 seconds each, so 150 take under an hour;
+  split it into sessions, it keeps numbering where it left off).
 \item \textbf{By hand (optional, adds variety):} in \file{teleop.py}, \key{T} switches the
   instruction between ``pick up the ball'' and ``pick up the block'' (shown at the top of the
   window), \key{Enter} starts a recording, \key{Enter} again saves it, \key{Backspace} throws
@@ -692,7 +695,9 @@ uv run autodemo.py --record 150 --camera 1
 Keep the camera, lighting and cup exactly where they will be during the demo. Both objects
 are on the plate in every demo; the middle spot B2 isn't used because it's too close to the
 others. Place the objects a little off-center sometimes, with a block face towards the base.
-Delete any failed demo folder from \file{data/raw/pick_ball}.
+Answer \texttt{n} to every demo that went wrong: the model copies whatever it is shown,
+mistakes included. (A bad demo you only notice later: delete its folder from
+\file{data/raw/pick_ball}.)
 \end{note}
 Then export for GR00T:
 \begin{cmd}
@@ -716,6 +721,39 @@ It asks for an instruction; type \texttt{pick up the ball} or \texttt{pick up th
 \texttt{ball} / \texttt{block}). Each runs for 20 seconds (\texttt{--seconds}), then the arm goes
 home and it asks again; \texttt{q} quits. If ACT picks up the right object, the data is good
 and GR00T will learn from it too.
+
+\subsection{Learning from its own runs}
+\label{sec:selfrecord}
+The trained policy can record its own runs, and the good ones become extra training data:
+\begin{cmd}
+uv run ..\run_policy.py act --camera 1 --record pick_ball ^
+    --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model
+\end{cmd}
+\begin{enumerate}
+\item Type an instruction as usual. Every step the arm plays is saved: the camera frame, the
+  five angles last sent (the state) and the five angles sent now (the action), exactly like a
+  demo, tagged \texttt{"source": "policy"} in its \file{meta.json}. If the safety check
+  blocked a step, the arm held still, and ``hold still'' is what gets saved.
+\item Press Ctrl+C as soon as the object is in the cup, so the seconds after it aren't saved.
+  The arm goes home and asks \texttt{keep it? [Y/n]}.
+\item Keep a run \emph{only} if it picked the right object cleanly. Training on its successes
+  makes it better (it sees more object positions it handled well); training on its failures
+  would teach it its own mistakes. Keep ball and block runs roughly even.
+\end{enumerate}
+\texttt{--record pick\_ball} puts the runs next to your demos, numbered after them, so the
+next export uses both; \texttt{--record} alone saves them to a separate
+\file{pick_ball_policy} set to look at first. Collect a batch (30--50 kept runs in one
+sitting), then export and train once, overnight. \file{train_act.py} won't overwrite an
+earlier model, so rename the old one first (and keep it to compare):
+\begin{cmd}
+ren ..\..\outputs\act\pick_ball pick_ball_round1
+uv run export_act.py
+uv run train_act.py --steps 20000
+\end{cmd}
+The same works with GR00T (\texttt{run\_policy.py gr00t --record pick\_ball}): export with
+\file{export_dataset.py} and fine-tune again. This only adds runs where the policy
+\emph{already} succeeds, so it fills in positions near what it can do; for positions it fails
+at, it needs new demos (or the simulator, \cref{sec:sim}).
 
 \section{Fine-tuning and running GR00T in the cloud}
 \label{sec:cloud}
@@ -809,6 +847,7 @@ GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reas
 \texttt{run\_policy}: ``N blocked'' & The model asked for a pose past a joint limit or into the plate, so those steps weren't sent and the arm held still. A few now and then is fine; many means more or better demos. \\
 Policy runs but misses & More demos, more varied object positions, same camera position as in training. \\
 Picks the wrong object & More demos (both objects about equally), and check the instructions saved in \file{meta.json} match what was picked. \\
+\file{train_act.py}: ``Output directory \dots already exists'' & An earlier model is there. Rename \file{outputs/act/pick_ball} (e.g.\ to \file{pick_ball_round1}) and run it again (\cref{sec:selfrecord}). \\
 \bottomrule
 \end{tabularx}
 \end{table}

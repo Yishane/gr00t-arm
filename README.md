@@ -8,12 +8,15 @@ keyboard), export them as a GR00T/LeRobot dataset with the instruction saved
 per episode, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU,
 and run the learned policy back on the arm.
 
-> **Status (2026-10-22):** the arm is now an **open-source arm** (mobiobi's
-> *Easy Robot Arm*). The software, firmware and GR00T pipeline are done and
-> verified, and they're matched to the new arm's measurements and checked against
-> its 3D model. **New demo (2026-10-23):** ball + block on the plate, and the
-> typed instruction picks which one goes in the cup (milestone 2b). What's left
-> is building, recording and training. See [Milestones](#milestones).
+> **Status (2026-10-28):** the arm (mobiobi's open-source *Easy Robot Arm*) is
+> **printed, wired, assembled and calibrated** (milestones 3–6). The software,
+> firmware and GR00T pipeline are done and verified. The demo: ball + block on
+> the plate, and the typed instruction picks which one goes in the cup.
+> **New (2026-10-28):** every recording asks *keep it?*, the trained policy can
+> record its own runs to learn from (milestone 2d), and a MuJoCo simulation of
+> the arm makes extra training data and tests models automatically
+> (milestone 10). What's left: record demos, train ACT and GR00T, present.
+> See [Milestones](#milestones).
 
 ---
 
@@ -212,9 +215,21 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   *compile* failed (not run here: Windows-only).
 - ✅ 61 tests pass. Plan: `docs/superpowers/plans/2026-10-23-code-review-fixes.md`.
 
-### ⬜ 3. Print (You)
-- Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
-- Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
+### ✅ 2d. Keep or throw away each recording; the policy records its own runs (Claude, 2026-10-28)
+- ✅ `autodemo.py --record N` asks `keep it? [Y/n]` after every pick. **n** throws
+  that episode away (missed grip, dropped or knocked object), and it keeps going
+  until N episodes are kept. `teleop.py` already had this (**Backspace**).
+- ✅ `run_policy.py --record [DATASET]` saves every run the trained policy (ACT or
+  GR00T) makes, in the same format as the demos, tagged `"source": "policy"`.
+  Press Ctrl+C once the object is in the cup (so the idle rest isn't saved),
+  then answer `keep it?`. Keep only clean picks of the right object: retraining
+  on those makes the policy better; retraining on its failures would teach it
+  its own mistakes. Steps the safety check blocked are saved as "hold still".
+- ✅ 80 tests pass.
+
+### ✅ 3. Print (You)
+- ✅ Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
+- ✅ Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
   `11_cup` (black), **`13_block`** (green)
   (`12_ball_half` ×2 only if you have no ball), `10_pin` and **`14_webcam_mount`**
@@ -222,33 +237,33 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   webcam** (monitor clip, 90° view): fold its clip shut and screw it to the mount with a
   **¼"-20 screw about ⅜" (10 mm) long** (hardware or camera store). `09_phone_cradle` is
   only for using a phone as the camera instead.
-- Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
+- ✅ Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
 
-### ⬜ 4. Wire and flash (You, guide "Wiring")
-- **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
+### ✅ 4. Wire and flash (You, guide "Wiring")
+- ✅ **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
   turn and stop. One that keeps spinning is a 360° "continuous" servo and won't work.
-- 5 servo signal wires to D3/D5/D6/D9/D10. Every servo's red to the bench supply +
+- ✅ 5 servo signal wires to D3/D5/D6/D9/D10. Every servo's red to the bench supply +
   (5.5 V, 3 A limit), brown to supply −, and **one wire from Nano GND to supply −**
   (common ground). Never power the servos from the Nano.
-- Flash: `firmware\upload.ps1 COM3` (use your port), or open `firmware/arm/arm.ino` in the
+- ✅ Flash: `firmware\upload.ps1 COM3` (use your port), or open `firmware/arm/arm.ino` in the
   Arduino IDE (Board: Arduino Nano, Processor: ATmega328P (Old Bootloader)) and Upload.
 
-### ⬜ 5. Assemble (You)
-- Before fitting each horn, run `calibrate.py` → `center` so every servo sits at 90°.
+### ✅ 5. Assemble (You)
+- ✅ Before fitting each horn, run `calibrate.py` → `center` so every servo sits at 90°.
   Then put each part on with the arm in the home pose: upper arm straight up,
   forearm pointing forward, gripper level and in line with the forearm.
-- Leave the roll servo out. Clamp `gripperMount` to the trunk with
+- ✅ Leave the roll servo out. Clamp `gripperMount` to the trunk with
   `gripperCap` (glue if it slips).
-- Stand the drum in the baseplate ring and tape or hot-glue it.
-- The guide's "Assembly" section has the step-by-step.
+- ✅ Stand the drum in the baseplate ring and tape or hot-glue it.
+- ✅ The guide's "Assembly" section has the step-by-step.
 
-### ⬜ 6. Calibrate (You + `calibrate.py`)
-- `cd software; uv run calibrate.py`. Check each joint's direction, then set
+### ✅ 6. Calibrate (You + `calibrate.py`)
+- ✅ `cd software; uv run calibrate.py`. Check each joint's direction, then set
   the gripper open/closed angles. Set "closed" so it squeezes the **block**
   (the smaller object), then check it still holds the ball without the servo
   buzzing hard. This saves `calibration.json`.
-- Check the real tool point: command a spot and see if the ball lands under
+- ✅ Check the real tool point: command a spot and see if the ball lands under
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
@@ -274,8 +289,14 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   is saved next to your demos (tagged `"source": "policy"`, numbered after
   them). Press Ctrl+C once the object is in the cup, then answer
   `keep it? [Y/n]`: keep only clean picks of the right object, and keep ball
-  and block roughly even. Then export and train again as above. (`--record`
-  alone saves to a separate `pick_ball_policy` set instead, to look at first.)
+  and block roughly even. (`--record` alone saves to a separate
+  `pick_ball_policy` set instead, to look at first.)
+- Retraining: collect a batch first (30–50 kept runs, one sitting), then export
+  and train once, overnight. `train_act.py` won't overwrite an earlier model
+  (LeRobot stops if `outputs/act/pick_ball` exists), so rename the old one
+  first and keep it to compare:
+  `ren ..\..\outputs\act\pick_ball pick_ball_round1`, then
+  `uv run export_act.py; uv run train_act.py`.
 
 ### ⬜ 9. GR00T fine-tune in the cloud (You: accounts; Claude: helps)
 > **This is the only milestone that can cost money.** Fine-tuning GR00T needs a

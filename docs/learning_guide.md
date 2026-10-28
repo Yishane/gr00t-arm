@@ -55,6 +55,8 @@ to pick is the sentence, so it shows the language input really being used.
 1. **Collect demos.** `autodemo.py` (or `teleop.py`) moves the arm while `recorder.py` saves,
    30 times a second: the camera frame, the angles last sent (the *state*), the angles sent
    now (the *action*), plus the sentence for that episode. These go in `data/raw/pick_ball/`.
+   Later, the trained model's own good runs can be added the same way
+   (`run_policy.py --record`, guide section "Learning from its own runs").
 2. **Convert to GR00T's format.** `export_dataset.py` writes the LeRobot v2.1 format GR00T
    reads: tables of numbers (parquet), the video (mp4), and `meta/modality.json`, which says
    which numbers are the arm and which is the gripper.
@@ -125,8 +127,10 @@ From `software/` on the laptop:
 When recording, each episode prints something like
 `block on C1, ball on A3 -> "pick up the block". Place them, then press Enter`.
 You place the two objects on those marked spots, press Enter, and the arm does the rest
-(about 9 s per pick). Stop any time with Ctrl+C: the half-finished episode is thrown away,
-and the next run carries on numbering from where you stopped.
+(about 9 s per pick). Then it asks `keep it? [Y/n]`: Enter keeps the episode, `n` throws it
+away (missed grip, dropped or knocked object), and `--record 150` keeps going until 150 are
+kept. Stop any time with Ctrl+C: the half-finished episode is thrown away, and the next run
+carries on numbering from where you stopped.
 
 Its automatic tests run with `uv run pytest -q` (61 tests, including every spot × both
 objects, and checks that the arm never jumps more than 6° between frames).
@@ -147,8 +151,9 @@ objects, and checks that the arm never jumps more than 6° between frames).
 5. **Run** (`run()`). The whole trajectory is worked out *before* the arm moves, so a bad
    plan fails safely. Then each command is sent to the Nano, and if recording, the camera
    frame + angles are saved at the same moment.
-6. **Save.** `recorder.py` writes the frames, a `steps.csv` of angles and a `meta.json` with
-   the sentence ("pick up the block"). That's one training example for GR00T or ACT.
+6. **Save.** After you answer `keep it?`, `recorder.py` writes the frames, a `steps.csv` of
+   angles and a `meta.json` with the sentence ("pick up the block"). That's one training
+   example for GR00T or ACT. (`n` deletes the folder instead.)
 
 The key idea: **the script is the teacher**. It knows where things are because you told
 it; it does the pick perfectly 150 times while the camera watches; then GR00T learns to do
