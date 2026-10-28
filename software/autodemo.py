@@ -33,6 +33,13 @@ CUP = (20.0, 110.0)
 # centre: lower down the fingertips hit the plate at most spots and the
 # gripper tilts so far that it hits the base drum (A1) or the other object.
 OBJECTS = {"ball": 20.0, "block": 18.0}
+# Per-spot corrections (mm) for spots the real arm misses while the rest are
+# fine: (toward column C, toward row 3, up). Tune these by watching picks.
+#   gripper lands too far toward C3 at A2 -> make the first two negative
+#   grips too low at C3                    -> make the third positive
+SPOT_FIX = {
+    "C3": (0.0, 0.0, 4.0),
+}
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
 # a pair in TOO_CLOSE, so the gripper can't touch the object it isn't picking
 # (cad/assembly.py --cell checks every pair). That leaves B2 (the middle) out.
@@ -67,8 +74,9 @@ def layout():
 
 def plan(spot, target="ball", jitter=0.0):
     """Waypoints (x, y, z, pitch, gripper_closed, seconds) for one pick."""
-    sx, sy = SPOTS[spot]
-    grip_z = OBJECTS[target]
+    dx, dy, dz = SPOT_FIX.get(spot, (0.0, 0.0, 0.0))
+    sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
+    grip_z = OBJECTS[target] + dz
     j = lambda: random.uniform(-jitter, jitter)
     home = K.fk(*K.from_servo(HOME))
     pts = [
