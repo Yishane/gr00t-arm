@@ -134,7 +134,7 @@ away (missed grip, dropped or knocked object), and `--record 150` keeps going un
 kept. Stop any time with Ctrl+C: the half-finished episode is thrown away, and the next run
 carries on numbering from where you stopped.
 
-Its automatic tests run with `uv run pytest -q` (100 tests in the whole project,
+Its automatic tests run with `uv run pytest -q` (103 tests in the whole project,
 including every spot × both objects, checks that the arm never jumps more than 6° between
 frames, and scripted picks inside the simulation).
 
@@ -211,10 +211,15 @@ like.
    holds the webcam, the same kind of picture `arm_io.Camera.read()` returns.
 7. **Variety.** With `randomize`, every new layout changes the light, the colours and the
    camera pose a little (`_randomize()`), so a model can't depend on one exact look.
-8. **Results.** `result()` looks at where the objects ended up: `ok`, `knocked`,
+8. **Layouts.** `random_layout()` places the objects round the spots (`--offset`) or
+   anywhere (`--anywhere`), then keeps a layout only if both objects are clear of the drum,
+   cup and mast (`clear_of_fixed_parts()`), inside the camera's picture (`in_view()`), and
+   autodemo's scripted pick works there, tried first in a hidden second world
+   (`_pick_works()`). So every layout is one the real arm could do.
+9. **Results.** `result()` looks at where the objects ended up: `ok`, `knocked`,
    `wrong object` or `missed`. That replaces the `keep it? [Y/n]` question you answer on the
    real arm.
-9. **Two clocks.** In *real time* a background thread steps the physics to keep up with the
+10. **Two clocks.** In *real time* a background thread steps the physics to keep up with the
    wall clock (teleop, run_policy: a slow model call delays the arm, as on the real arm).
    In *lockstep* every `send()` moves the world 1/30 s (autodemo: as fast as the computer
    can draw).
@@ -229,12 +234,12 @@ From `software/`:
 | Look around in 3D | `uv run sim.py --viewer` |
 | Drive it with the keyboard | `uv run teleop.py --mujoco` |
 | One scripted pick | `uv run autodemo.py --mujoco --target block --spot C1 --other-spot A3` |
-| Record 300 simulated demos | `uv run autodemo.py --mujoco --record 300 --offset 15` |
-| Score a trained ACT (from `software/act`) | `uv run ../run_policy.py act --mujoco --trials 20 --checkpoint ...` |
+| Record 300 simulated demos, objects anywhere | `uv run autodemo.py --mujoco --record 300 --anywhere` |
+| Score a trained ACT (from `software/act`) | `uv run ../run_policy.py act --mujoco --trials 20 --anywhere --checkpoint ...` |
 | Train on real + simulated demos (from `software/act`) | `uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix` |
 
 ### What it gets wrong
-Drawn pictures aren't photos (no blue servo bodies, no cables, simpler light); SG90 dead band
+Drawn pictures aren't photos (no shadows, no blue servo bodies, no cables, simpler light); SG90 dead band
 and gear slop aren't modelled; the foam ball is a firm sphere. So a simulator score compares
 models, and the real arm has the final say.
 

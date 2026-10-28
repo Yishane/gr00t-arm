@@ -167,6 +167,7 @@ def open_hardware(args, realtime=True):
     if getattr(args, "mujoco", False):
         import sim
         world = sim.World(realtime=realtime, randomize=True)
+        print("MuJoCo simulation" + ("" if realtime else " (runs as fast as it can)"))
         return world.arm, world.camera
     arm = SimArm() if args.sim else Arm(args.port)
     cam = FakeCamera() if (args.sim or args.camera < 0) else Camera(args.camera)

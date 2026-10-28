@@ -30,7 +30,8 @@ then answer keep it? [Y/n]: keep only the runs that picked the right object
 cleanly, so retraining on them doesn't teach the policy its own mistakes.
 
 --mujoco runs it in the simulation (sim.py) instead: each run puts the ball
-and the block on a random layout (--offset MM moves them off the spots), stops
+and the block on a random layout (--offset MM moves them off the spots,
+--anywhere puts them anywhere the arm can pick and the camera can see), stops
 as soon as an object lands in the cup, and prints ok / knocked / wrong object
 / missed. --trials N runs N of them on their own and prints the score; with
 --record, only the "ok" runs are kept (data/raw/pick_ball_mujoco).
@@ -280,9 +281,14 @@ def main():
                          "taking turns, then the score")
     ap.add_argument("--offset", type=float, default=0.0, metavar="MM",
                     help="with --mujoco: put each object up to MM away from its spot")
+    ap.add_argument("--anywhere", action="store_true",
+                    help="with --mujoco: put the objects anywhere the arm can pick "
+                         "and the camera can see")
     args = ap.parse_args()
-    if (args.trials or args.offset) and not args.mujoco:
-        raise SystemExit("--trials and --offset are for the simulator (--mujoco)")
+    if (args.trials or args.offset or args.anywhere) and not args.mujoco:
+        raise SystemExit("--trials, --offset and --anywhere are for the simulator (--mujoco)")
+    if args.offset and args.anywhere:
+        raise SystemExit("use --offset or --anywhere, not both")
 
     task = None
     if args.task:
@@ -307,7 +313,7 @@ def main():
                 keep=ask_keep if rec else None, **opts)
             return None
         target = target_of(task)
-        _, xy, other_xy = world.random_layout(args.offset, target=target)
+        _, xy, other_xy = world.random_layout(args.offset, target=target, anywhere=args.anywhere)
         world.place_for(target, xy, other_xy)
         run(policy, arm, cam, task, args.horizon, args.seconds,
             keep=lambda: world.success(target),

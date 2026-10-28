@@ -55,8 +55,8 @@ FINGER_Z = 89.25
 FINGER_OPEN_DEG = 30.0      # each finger, at C.GRIPPER_OPEN
 FINGER_CLOSED_DEG = 6.0     # at C.GRIPPER_CLOSED: a little narrower than the block
 
-# webcam: centre of the camera head on cad/arm.py's mount, on the mast on
-# its 80 mm riser, looking 65 deg down toward the arm. FOVY (vertical): a
+# webcam: centre of the camera head on cad/arm.py's mount, on the mast and
+# its 80 mm extension, looking 65 deg down toward the arm. FOVY (vertical): a
 # 90 deg (diagonal) 16:9 camera cropped to 640x480 sees about 66 x 52 deg.
 CAMERA_POS = (154.0, 55.0, 322.0)
 CAMERA_DOWN = 65.0
@@ -67,12 +67,22 @@ WIDTH, HEIGHT = 640, 480
 PLATE_X, PLATE_Y, PLATE_T = (-58.0, 192.0), (-45.0, 155.0), 4.0
 CUP_R, CUP_H, CUP_WALL = 30.0, 35.0, 1.6
 BALL_R, BLOCK = 20.0, 25.0
-MAST_XY, MAST_W, MAST_H = (178.0, 55.0), 16.0, 265.0     # riser + mast, to the top face
+MAST_XY, MAST_W, MAST_H = (178.0, 55.0), 16.0, 185.0
+MAST_HEAD = (145.0, 272.0)  # the mast's 30 mm head + 15_mast_extension, z range (mm)
+MAST_SOCKET = 28.0          # the baseplate's square boss round the mast's foot (z 0-16)
+# --anywhere: objects go anywhere in this box (mm) that is clear of the fixed
+# parts and that autodemo can plan a pick for
+ANYWHERE_X, ANYWHERE_Y = (50.0, 180.0), (-30.0, 130.0)
+CLEAR = 22.0        # object footprint radius (ball 20, block's half diagonal 17.7) + margin
 
 # SG90: about 0.18 N m stall torque
 SERVO_KP, SERVO_TORQUE, ARMATURE = 3.0, 0.18, 5e-4
 TIMESTEP, TICK = 0.002, 0.010          # physics step; firmware servo update
 KNOCK_MM = 15.0      # the other object moved further than this: knocked
+# Shadows: off, because MuJoCo's shadow map left speckle patterns on the desk
+# and plate (seen with software rendering), which a model could learn from.
+# Try True on the laptop (uv run sim.py --view): keep it if the picture is clean.
+SHADOWS = False
 
 BLACK = "0.06 0.06 0.06 1"
 COLOURS = {"plate": (0.78, 0.78, 0.76), "ball": (1.0, 0.42, 0.08),
@@ -84,7 +94,13 @@ def _m(*v):
     return " ".join(f"{a / 1000:.6g}" for a in v)
 
 
-def _arm_mesh(name, contype=1):
+# collision groups: arm parts collide with the plate, cup, mast and objects but
+# not with each other; the gripper (bit 4) also hits the base drum, which the
+# upper arm's convex shape would wrongly rub against
+ARM, GRIPPER = 1, 5
+
+
+def _arm_mesh(name, contype=ARM):
     return (f'<geom type="mesh" mesh="{name}" material="pla_black" contype="{contype}" '
             f'conaffinity="0" condim="4" friction="1 0.01 0.001"/>')
 
@@ -131,7 +147,8 @@ def model_xml():
     <material name="desk" rgba="{' '.join(map(str, COLOURS['desk']))} 1"/>
   </asset>
   <worldbody>
-    <light name="sun" pos="0.05 0.05 0.6" dir="0.1 0 -1" diffuse="0.7 0.7 0.7" castshadow="true"/>
+    <light name="sun" pos="0.05 0.05 0.6" dir="0.1 0 -1" diffuse="0.7 0.7 0.7"
+           castshadow="{str(SHADOWS).lower()}"/>
     <camera name="front" pos="{_m(*CAMERA_POS)}" xyaxes="{cam_x} {cam_y}" fovy="{CAMERA_FOVY}"/>
     <geom name="desk" type="plane" size="1 1 0.01" pos="{_m(0, 0, -PLATE_T)}" material="desk"
           contype="2" conaffinity="1"/>
@@ -144,11 +161,15 @@ def model_xml():
     <geom name="cup_floor" type="cylinder" size="{_m(CUP_R, 0.8)}" pos="{_m(*A.CUP, 0.8)}" group="3"
           contype="2" conaffinity="1"/>
     <geom name="mast" type="box" size="{_m(MAST_W / 2, MAST_W / 2, MAST_H / 2)}" pos="{_m(*MAST_XY, MAST_H / 2)}"
-          material="pla_black" contype="0" conaffinity="0"/>
+          material="pla_black" contype="2" conaffinity="1"/>
+    <geom name="mast_head" type="box" size="{_m(15, 15, (MAST_HEAD[1] - MAST_HEAD[0]) / 2)}"
+          pos="{_m(*MAST_XY, sum(MAST_HEAD) / 2)}" material="pla_black" contype="2" conaffinity="1"/>
+    <geom name="mast_socket" type="box" size="{_m(MAST_SOCKET / 2, MAST_SOCKET / 2, 8)}"
+          pos="{_m(*MAST_XY, 8)}" group="3" contype="2" conaffinity="1"/>
     <geom type="mesh" mesh="drum" material="pla_black" contype="0" conaffinity="0"/>
     <geom type="mesh" mesh="base_cap" material="pla_black" contype="0" conaffinity="0"/>
     <geom name="drum" type="cylinder" size="{_m(39, 20.4)}" pos="{_m(0, 0, 20.4)}" group="3"
-          contype="2" conaffinity="2"/>
+          contype="2" conaffinity="6"/>
     <body name="turntable">
       <inertial pos="0 0 0.045" mass="0.025" diaginertia="1e-5 1e-5 1e-5"/>
       <joint name="base" type="hinge" axis="0 0 1" armature="{ARMATURE}" damping="0.002"/>
@@ -164,21 +185,21 @@ def model_xml():
           <body name="gripper" pos="{_m(C.L_FORE, 0, 0)}">
             <inertial pos="{_m(35, 0, -15)}" mass="0.025" diaginertia="3e-6 9e-6 9e-6"/>
             <joint name="wrist" type="hinge" axis="0 -1 0" armature="{ARMATURE}" damping="0.002"/>
-            {_arm_mesh("gripper_trunk")}
-            {_arm_mesh("gripper_mount")}
-            {_arm_mesh("gripper_cap")}
+            {_arm_mesh("gripper_trunk", GRIPPER)}
+            {_arm_mesh("gripper_mount", GRIPPER)}
+            {_arm_mesh("gripper_cap", GRIPPER)}
             {_arm_mesh("finger_pin_l", 0)}
             {_arm_mesh("finger_pin_r", 0)}
             <site name="tool" pos="{_m(C.L_TOOL, C.LATERAL, C.TOOL_UP)}" size="0.002" group="5"/>
             <body name="finger_l" pos="{_m(wl[0] - gx, wl[1], FINGER_Z - gz)}">
               <inertial pos="0.02 -0.003 0" mass="0.003" diaginertia="2e-7 1e-6 1e-6"/>
               <joint name="finger_l" type="hinge" axis="0 0 1" range="0 0.7" armature="2e-4" damping="0.001"/>
-              {_arm_mesh("finger_l")}
+              {_arm_mesh("finger_l", GRIPPER)}
             </body>
             <body name="finger_r" pos="{_m(wr[0] - gx, wr[1], FINGER_Z - gz)}">
               <inertial pos="0.02 0.003 0" mass="0.003" diaginertia="2e-7 1e-6 1e-6"/>
               <joint name="finger_r" type="hinge" axis="0 0 -1" range="0 0.7" armature="2e-4" damping="0.001"/>
-              {_arm_mesh("finger_r")}
+              {_arm_mesh("finger_r", GRIPPER)}
             </body>
           </body>
         </body>
@@ -209,6 +230,20 @@ def model_xml():
   </actuator>
 </mujoco>
 """
+
+
+def clear_of_fixed_parts(xy):
+    """True if an object at xy (mm) is on the plate and doesn't touch the base
+    drum, the cup or the mast's socket."""
+    x, y = xy
+    mx, my = MAST_XY
+    dx = max(abs(x - mx) - MAST_SOCKET / 2, 0.0)
+    dy = max(abs(y - my) - MAST_SOCKET / 2, 0.0)
+    return (PLATE_X[0] + CLEAR <= x <= PLATE_X[1] - CLEAR
+            and PLATE_Y[0] + CLEAR <= y <= PLATE_Y[1] - CLEAR
+            and math.hypot(x, y) >= 39 + CLEAR
+            and math.dist(xy, A.CUP) >= CUP_R + CLEAR
+            and math.hypot(dx, dy) >= CLEAR)
 
 
 def finger_angle(servo_deg):
@@ -252,6 +287,7 @@ class World:
         self.camera = MujocoCamera(self)
         self._stop = threading.Event()
         self._thread = None
+        self._checker = None                     # hidden world for trying layouts
         if realtime:
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
@@ -289,6 +325,8 @@ class World:
         if self._thread:
             self._thread.join(timeout=1)
         self.camera.close()
+        if self._checker:
+            self._checker.close()
 
     # ------------------------------------------------------------ layout
     def place(self, ball_xy, block_xy, block_yaw=None):
@@ -320,23 +358,54 @@ class World:
             self.start = {k: self.pos(k) for k in ("ball", "block")}
             self._sim0, self._wall0 = self.data.time, time.perf_counter()
 
-    def random_layout(self, offset=0.0, target=None):
-        """(target, target xy, other xy): spots as autodemo.layout() picks them,
-        each moved by up to `offset` mm in a random direction, still at least
-        MIN_GAP apart and still a pick autodemo can plan."""
-        for _ in range(200):
+    def random_layout(self, offset=0.0, target=None, anywhere=False):
+        """(target, target xy, other xy) for one episode. Default: spots as
+        autodemo.layout() picks them, each moved up to `offset` mm in a random
+        direction. anywhere: both objects anywhere in ANYWHERE_X/Y. Always: at
+        least MIN_GAP apart, clear of the drum, cup, mast and plate edge, in
+        the camera's picture, and the scripted pick works there (tried first
+        in a hidden copy of the world), so every layout is one the arm can
+        really do and the camera can see."""
+        for _ in range(400):
             t, spot, other_spot = A.layout()
             t = target or t
-            for _ in range(50):
+            if anywhere:
+                xy = [(self.rng.uniform(*ANYWHERE_X), self.rng.uniform(*ANYWHERE_Y))
+                      for _ in range(2)]
+            else:
                 xy = [self._nudge(A.SPOTS[s], offset) for s in (spot, other_spot)]
-                if math.dist(*xy) < A.MIN_GAP:
-                    continue
-                try:
-                    A.plan(xy[0], t)
-                except ValueError:
-                    continue
+            if (math.dist(*xy) >= A.MIN_GAP and all(map(clear_of_fixed_parts, xy))
+                    and all(self.in_view((*q, 15.0)) for q in xy)
+                    and self._pick_works(t, *xy)):
                 return t, xy[0], xy[1]
         raise SystemExit(f"no reachable layout with --offset {offset:g}: try a smaller one")
+
+    def in_view(self, p, margin=20):
+        """Is the point p (x, y, z in mm) inside the camera's picture, at
+        least `margin` pixels in from the edge? (The camera without the
+        random changes.)"""
+        rot = np.zeros(9)
+        self.mj.mju_quat2Mat(rot, self._nominal["cam_quat"])
+        x, y, z = rot.reshape(3, 3).T @ (np.array(p) / 1000 - self._nominal["cam_pos"])
+        if z >= 0:                                   # behind the camera (it looks along -z)
+            return False
+        f = (HEIGHT / 2) / math.tan(math.radians(CAMERA_FOVY) / 2)
+        u, v = WIDTH / 2 + f * x / -z, HEIGHT / 2 - f * y / -z
+        return margin <= u <= WIDTH - margin and margin <= v <= HEIGHT - margin
+
+    def _pick_works(self, target, xy, other_xy):
+        """Does autodemo's pick work for this layout? Tried in a second,
+        hidden world (physics only, ~0.1 s), so this one isn't disturbed."""
+        try:
+            A.plan(xy, target)
+        except ValueError:
+            return False
+        if self._checker is None:
+            self._checker = World(realtime=False)
+        c = self._checker
+        c.place_for(target, xy, other_xy)
+        A.run(c.arm, _NoCamera(), xy, target)
+        return c.success(target)
 
     def place_for(self, target, target_xy, other_xy):
         other = next(n for n in A.OBJECTS if n != target)
@@ -392,6 +461,13 @@ class World:
         return self.result(target) == "ok"
 
 
+class _NoCamera:
+    """For trying layouts: autodemo.run reads a frame each step; nothing looks."""
+
+    def read(self, fresh=False):
+        return None
+
+
 class MujocoArm:
     """Same interface as arm_io.Arm, driving the simulated servos."""
 
@@ -399,7 +475,6 @@ class MujocoArm:
         self.world = world
         self.lockstep = lockstep
         self.last = list(world.target)
-        print("MuJoCo arm" + (" (steps with each command)" if lockstep else ""))
 
     def send(self, angles):
         angles = [float(a) for a in angles]

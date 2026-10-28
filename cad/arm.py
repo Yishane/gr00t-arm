@@ -283,9 +283,9 @@ CUP_R = 30.0
 MAST_XY = (178.0, 55.0)
 MAST_W = 16.0                  # square mast section
 SOCKET_D = 18.0                # mast depth in the baseplate socket
-MAST_H = 185.0                 # baseplate top -> centre of the mast's top face (no riser)
-MAST_RISER = 80.0              # 15_mast_riser lifts the mast (and camera) by this much
-MAST_TOP = MAST_H + MAST_RISER  # centre of the mast's top face as built
+MAST_H = 185.0                 # baseplate top -> centre of the mast's top face
+MAST_EXT = 80.0                # 15_mast_extension lifts the camera by this much
+MAST_TOP = MAST_H + MAST_EXT   # centre of the face the webcam mount sits on, as built
 CAM_DOWN = 65.0                # phone camera looks this far below horizontal
 PIN = 12.0                     # square pin joining mast and phone cradle
 PIN_L = 26.0
@@ -362,24 +362,27 @@ def camera_mast() -> cq.Workplane:
     return mast.edges("|Z").fillet(1.0)
 
 
-def mast_riser() -> cq.Workplane:
-    """Raises the camera mast by MAST_RISER (so the camera sees the whole arm):
-    its foot drops into the baseplate socket like the mast's, and the mast
-    drops into the socket on top. Same 0.4 mm clearance as the baseplate.
-    Print upside down (the wide socket end on the bed, no supports: the
-    socket's ceiling is a short bridge). Modelled in place: foot at
-    z = 2 - BP_T, like camera_mast()."""
-    z0 = 2.0 - BP_T                               # socket floor in the baseplate
-    floor = z0 + MAST_RISER                       # where the mast's foot now sits
-    top = floor + SOCKET_D
-    w = MAST_W + 12                               # same boss as the baseplate's
-    bar = cq.Workplane("XY").workplane(offset=z0).rect(MAST_W, MAST_W).extrude(floor - 8 - z0)
-    flare = (cq.Workplane("XY").workplane(offset=floor - 8).rect(MAST_W, MAST_W)
-             .workplane(offset=8).rect(w, w).loft())
-    boss = cq.Workplane("XY").workplane(offset=floor).rect(w, w).extrude(SOCKET_D)
-    riser = bar.union(flare).union(boss).edges("|Z").fillet(1.0)
-    return riser.cut(cq.Workplane("XY").workplane(offset=floor)
-                     .rect(MAST_W + 0.4, MAST_W + 0.4).extrude(SOCKET_D + 1))
+def mast_extension() -> cq.Workplane:
+    """Lifts the camera by MAST_EXT: sits on the mast's slanted top face and
+    gives the webcam mount the same slanted face MAST_EXT higher. Joined with
+    a 10_pin at each end (print two pins). It goes on top so nothing new is
+    near the arm (the arm stays below z = 175). Same 30 x 30 section as the
+    mast's head. Print lying on one of its slanted faces (no supports).
+    Modelled in place, relative to the mast's centre line."""
+    beta = 90.0 - CAM_DOWN
+    lo, hi = MAST_H, MAST_H + MAST_EXT
+    col = cq.Workplane("XY").workplane(offset=lo - 30).rect(30, 30).extrude(MAST_EXT + 60)
+
+    def slab(z, up):
+        box = cq.Workplane("XY").box(300, 300, 300).translate((0, 0, 150 if up else -150))
+        return cq.Workplane().add(box.val().moved(cq.Location(cq.Vector(0, 0, z)) * _rot_y(beta)))
+
+    col = col.cut(slab(hi, True)).cut(slab(lo, False)).edges("|Z").fillet(1.0)
+    for z in (lo, hi):                            # pin sockets, square to each face
+        hole = (cq.Workplane("XY").box(PIN + 0.4, PIN + 0.4, PIN_L)
+                .val().moved(cq.Location(cq.Vector(0, 0, z)) * _rot_y(beta)))
+        col = col.cut(cq.Workplane().add(hole))
+    return col
 
 
 def phone_cradle() -> cq.Workplane:
@@ -508,7 +511,7 @@ PARTS = {
     "12_ball_half": ball_half,
     "13_block": block,
     "14_webcam_mount": webcam_mount,
-    "15_mast_riser": mast_riser,
+    "15_mast_extension": mast_extension,
 }
 
 if __name__ == "__main__":
