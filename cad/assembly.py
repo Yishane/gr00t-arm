@@ -154,11 +154,12 @@ def build(base=0.0, shoulder=90.0, elbow=-90.0, wrist=0.0) -> dict:
 
 
 def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
-    """Add the work cell (baseplate, camera mast, webcam mount with a dummy
+    """Add the work cell (baseplate, mast riser, camera mast, webcam mount with a dummy
     webcam, cup, ball, block) to an assembled arm. ball_at is the ball centre,
     block_at the centre of the block's bottom face."""
     if not cache:
         cache.update({"plate": arm.baseplate(), "mast": arm.camera_mast(),
+                      "riser": arm.mast_riser(),
                       "mount": arm.webcam_mount(), "webcam": arm.webcam_dummy(),
                       "cup": arm.cup()})
     c = cache
@@ -169,8 +170,9 @@ def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
 
     place("baseplate", c["plate"], cq.Location(cq.Vector(0, 0, -arm.BP_T)))
     mx, my = arm.MAST_XY
-    place("camera_mast", c["mast"], cq.Location(cq.Vector(mx, my, 0)))
-    face = (cq.Location(cq.Vector(mx, my, arm.MAST_H))
+    place("mast_riser", c["riser"], cq.Location(cq.Vector(mx, my, 0)))
+    place("camera_mast", c["mast"], cq.Location(cq.Vector(mx, my, arm.MAST_RISER)))
+    face = (cq.Location(cq.Vector(mx, my, arm.MAST_TOP))
             * cq.Location(cq.Vector(0, 0, 0), cq.Vector(0, 1, 0), 90.0 - arm.CAM_DOWN))
     place("webcam_mount", c["mount"], face)
     place("webcam", c["webcam"], face)

@@ -99,7 +99,8 @@ author's STEP file to check them.
 - `cad/stl/` — our original self-designed parts. Arm parts `00`–`06` are now
   replaced by the open-source arm. The work-cell parts are still used: `07` baseplate,
   `08` camera mast, `09` phone cradle, `10` pin, `11` cup, `12` ball half,
-  `13` block (the second object).
+  `13` block (the second object), `14` webcam mount, `15` mast riser (lifts the
+  mast and camera 80 mm).
 - `cad/arm.py` — CadQuery source for the work-cell parts (and the old arm parts)
 - `cad/assembly.py` — builds the Easy Robot Arm from the author's STEP file;
   collision sweep (`--check`), reach check of every ball/block spot and the cup,
@@ -269,6 +270,15 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
+- ⬜ **First: raise the camera 80 mm** (new, 2026-10-28). Print **`15_mast_riser`**
+  (28 × 28 × 98 mm, upside down: the wide end with the socket on the bed, no
+  supports). Pull the mast out of the baseplate, push the riser into the
+  baseplate's socket and the mast into the riser's socket (tape if it wobbles).
+  Why: from 80 mm higher the camera sees the elbow and wrist in every frame of
+  every scripted pick (now 77 % / 64 %), and still sees all 9 spots, the cup and
+  the fingers. The plate sits in the lower half of the picture: tilt the
+  webcam's head about 5–10° further down on its hinge to centre it. Then redo
+  the guide's framing check, and tape the hinge.
 - Test: `uv run autodemo.py --spot B2 --camera 1` (webcam), then the
   block: `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1`.
 - **Record 100–200** (about 150 is a good target):

@@ -51,6 +51,13 @@ Read this first every session. Update the "Status" and "Next" sections before st
     (download.pytorch.org blocked from the cloud container) -> uv updates it on the first sync on the laptop.
   - 100 tests pass (test_sim.py 20). Guide section "Simulation (MuJoCo)" + figure sim_views.jpg;
     guide also got \DisableLigatures for tt (-- showed as one dash) and the troubleshooting table [H].
+  - MAST +80 mm (Yishane asked "make the mast 80mm taller", mast already printed): new part
+    cad/stl/15_mast_riser.stl (arm.mast_riser(), MAST_RISER = 80, MAST_TOP = 265): 28x28x98 mm,
+    foot into the baseplate socket, mast into its socket; print upside down. One 274 mm mast
+    would not fit the Bambu's 256 mm height standing up. assembly.scene places riser + mast;
+    sim CAMERA_POS z 242 -> 322. Projection check over all scripted picks (fovy 52, 65 deg):
+    spots/cup/tool path stay in frame (rows 199-450 vs 112-441 before), elbow/wrist in view 100%
+    (was 77%/64%); ball ~64 px across (was ~86). Suggested tilting the head 5-10 deg more down.
   - FLAKY (pre-existing timing test): test_pipeline.py::test_a_slow_frame_read_does_not_stall_the_chunk
     failed 2x in ~15 full-suite runs on this branch under heavy CPU load (gap 0.116 s > 0.07); main
     passed 5/5 under load; branch passes it alone. Not changed (run loop only gained per-step checks).

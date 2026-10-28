@@ -309,6 +309,7 @@ File & Qty & What it is / how to print \\
 \multicolumn{3}{@{}l}{\emph{The work cell} (\file{cad/stl})} \\
 \file{07_baseplate} & 1 & flat; 250$\times$200\,mm, the longest print (15\% infill is fine) \\
 \file{08_camera_mast} & 1 & standing up, 4 walls \\
+\file{15_mast_riser} & 1 & goes under the mast and lifts the camera 80\,mm; upside down (the wide end with the socket on the bed), no supports \\
 \file{09_phone_cradle} & 1 & only if you use a phone as the camera; back face down \\
 \file{14_webcam_mount} & 1 & the big flat face (with the square socket) on the bed; no supports \\
 \file{10_pin} & 1 & lying flat \\
@@ -329,7 +330,8 @@ in \file{cad/stl} are an older arm design and aren't used.
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{arm_home}\hfill
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{work_cell}
 \caption{Left: the Easy Robot Arm in its home pose, built from the author's 3D model with two
-60\,mm links. Right: the work cell with the baseplate, cup and the webcam on its mast, the arm
+60\,mm links. Right: the work cell with the baseplate, cup and the webcam on its mast (standing
+on the 80\,mm riser), the arm
 gripping the ball on C1 with the block on A3. \file{cad/assembly.py} checks the arm against
 itself and the work cell: every marked spot (ball and block), the lift above it and the drop
 over the cup are clear, and the gripper never touches the other object in any layout the demos
@@ -588,7 +590,8 @@ shaft by hand.
   wrist piece, put a drop of superglue between the two discs.
 \item \textbf{Work cell.} Stand the drum in the ring on the baseplate (spots A1--C3 in front,
   the cup ring to the left) and fix it with double-sided tape or a few dots of hot glue, so
-  the base servo turns the arm and not the drum. Push the mast into its socket, the pin into the mast top, and
+  the base servo turns the arm and not the drum. Push the riser (\file{15_mast_riser}) into the
+  baseplate's socket and the mast into the riser's socket, the pin into the mast top, and
   \file{14_webcam_mount} onto the pin, its plate on the far side from the arm (or, with a phone, the
   phone cradle onto the pin). Clamp or tape the baseplate's back edge to
   the desk.
@@ -603,13 +606,15 @@ shaft by hand.
 \subsection{Camera setup and framing check}
 \label{sec:camsetup}
 \begin{enumerate}
-\item \textbf{Webcam:} plug it in; nothing to set up. \file{14_webcam_mount} holds it about
-  245\,mm above the plate, looking 65\textdegree{} down; on the 3D model that keeps the fingers,
-  all nine spots and the cup in view during every scripted pick (the clip's exact thickness was
-  estimated, so use the head's $\pm$20\textdegree{} hinge to fine-tune). Once the check below passes,
-  put a strip of tape across the hinge so it can't move.
+\item \textbf{Webcam:} plug it in; nothing to set up. \file{14_webcam_mount} on the mast and
+  its riser holds it about 325\,mm above the plate, looking 65\textdegree{} down. On the 3D model
+  that keeps the fingers, all nine spots and the cup in view during every scripted pick, and the
+  elbow and wrist too (from 80\,mm lower, without the riser, they left the top of the picture in a
+  quarter to a third of the frames). The plate sits in the lower half of the picture: tilt the
+  head about 5--10\textdegree{} further down on its own $\pm$20\textdegree{} hinge to centre it.
+  Once the check below passes, put a strip of tape across the hinge so it can't move.
   \textbf{Phone:} in the webcam app pick the \textbf{rear} camera and, if it lets you choose,
-  the \textbf{0.5$\times$ (ultra-wide)} lens. 1$\times$ is tight from the phone cradle (the
+  the \textbf{0.5$\times$ (ultra-wide)} lens. 1$\times$ was tight from the phone cradle before the riser (the
   fingers would leave the top of the picture in roughly a quarter of the frames).
   Any resolution of 640$\times$480 or more is fine; the code scales it to 640$\times$480.
 \item Find the camera index and see the live picture:
