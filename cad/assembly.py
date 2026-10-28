@@ -100,25 +100,31 @@ def _to_cell(shape):
             .translate(cq.Vector(STEP_YAW_XY[1], -STEP_YAW_XY[0], -STEP_DESK_Z)))
 
 
-def home_parts(cache={}) -> dict:
-    """{group: Compound} in the home pose: upper arm up, forearm forward,
-    gripper level."""
+def home_pieces(cache=[]) -> list:
+    """[(group, STEP name, solid index, Shape)] in the home pose: upper arm
+    up, forearm forward, gripper level."""
     if cache:
         return cache
     solids = _read_step()
-    groups = {g: [] for g in GROUPS}
     drop = STEP_ELBOW_Z - (STEP_SHOULDER_Z + L_UPPER)    # Arm90 -> Arm60
     for name, k, g in PIECES:
         s = _to_cell(solids[name][k])
         if g in ("forearm", "gripper"):
             s = s.translate(cq.Vector(0, 0, -drop))
-        groups[g].append(s)
+        cache.append((g, name, k, s))
     # upper arm = the forearm link turned upright about the elbow, then put
     # on the shoulder
-    fore = groups["forearm"][0]
+    fore = next(s for g, _, _, s in cache if g == "forearm")
     up = fore.rotate(cq.Vector(0, 0, ELBOW[1]), cq.Vector(0, 0, ELBOW[1]) + cq.Vector(0, 1, 0), -90)
-    groups["upper_arm"].append(up.translate(cq.Vector(0, 0, -L_UPPER)))
-    cache.update({g: cq.Compound.makeCompound(v) for g, v in groups.items()})
+    cache.append(("upper_arm", "Arm60mm", 0, up.translate(cq.Vector(0, 0, -L_UPPER))))
+    return cache
+
+
+def home_parts(cache={}) -> dict:
+    """{group: Compound} in the home pose (see home_pieces)."""
+    if not cache:
+        cache.update({g: cq.Compound.makeCompound([s for gg, _, _, s in home_pieces() if gg == g])
+                      for g in GROUPS})
     return cache
 
 
@@ -148,11 +154,12 @@ def build(base=0.0, shoulder=90.0, elbow=-90.0, wrist=0.0) -> dict:
 
 
 def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
-    """Add the work cell (baseplate, camera mast, webcam mount with a dummy
+    """Add the work cell (baseplate, mast riser, camera mast, webcam mount with a dummy
     webcam, cup, ball, block) to an assembled arm. ball_at is the ball centre,
     block_at the centre of the block's bottom face."""
     if not cache:
         cache.update({"plate": arm.baseplate(), "mast": arm.camera_mast(),
+                      "riser": arm.mast_riser(),
                       "mount": arm.webcam_mount(), "webcam": arm.webcam_dummy(),
                       "cup": arm.cup()})
     c = cache
@@ -163,8 +170,9 @@ def scene(parts: dict, ball_at=None, block_at=None, cache={}) -> dict:
 
     place("baseplate", c["plate"], cq.Location(cq.Vector(0, 0, -arm.BP_T)))
     mx, my = arm.MAST_XY
-    place("camera_mast", c["mast"], cq.Location(cq.Vector(mx, my, 0)))
-    face = (cq.Location(cq.Vector(mx, my, arm.MAST_H))
+    place("mast_riser", c["riser"], cq.Location(cq.Vector(mx, my, 0)))
+    place("camera_mast", c["mast"], cq.Location(cq.Vector(mx, my, arm.MAST_RISER)))
+    face = (cq.Location(cq.Vector(mx, my, arm.MAST_TOP))
             * cq.Location(cq.Vector(0, 0, 0), cq.Vector(0, 1, 0), 90.0 - arm.CAM_DOWN))
     place("webcam_mount", c["mount"], face)
     place("webcam", c["webcam"], face)

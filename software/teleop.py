@@ -3,6 +3,7 @@
     uv run teleop.py                 # phone camera (index 1), arm auto-detected
     uv run teleop.py --camera 0      # laptop webcam
     uv run teleop.py --sim           # no hardware
+    uv run teleop.py --mujoco        # drive the simulated arm (sim.py)
 
 Keys (click the window first):
     W / S      forward / back            A / D   left / right
@@ -50,13 +51,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     add_hw_args(ap)
-    ap.add_argument("--dataset", default="pick_ball")
+    ap.add_argument("--dataset", help="where recordings go: data/raw/DATASET "
+                    "(default pick_ball, or pick_ball_mujoco with --mujoco)")
     ap.add_argument("--task", default=TASKS["ball"],
                     help="instruction stored with demos at the start (T switches it)")
     args = ap.parse_args()
 
     arm, cam = open_hardware(args)
-    rec = Recorder(args.dataset, args.task, C.FPS, "teleop")
+    dataset = args.dataset or ("pick_ball_mujoco" if args.mujoco else "pick_ball")
+    rec = Recorder(dataset, args.task, C.FPS, "teleop", sim=args.mujoco)
     pygame.init()
     screen = pygame.display.set_mode((640, 480 + STATUS_H), pygame.RESIZABLE)
     pygame.display.set_caption("gr00t-arm teleop")

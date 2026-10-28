@@ -13,6 +13,7 @@ dependencies = [
     "pyarrow",
     "pyzmq",
     "msgpack",
+    "mujoco",
 ]
 
 [tool.uv]

@@ -2,6 +2,8 @@
 \usepackage[margin=0.9in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern,microtype}
+\DisableLigatures[-]{family=tt*}   % keep "--" as two hyphens in command-line options
+\usepackage{float}
 \usepackage{amsmath}
 \usepackage{graphicx,booktabs,tabularx,array}
 \usepackage{enumitem}
@@ -146,6 +148,7 @@ Relative vs absolute actions & Arm joints are predicted as \emph{changes} from t
 Post-training & Fine-tune on 100--200 demos on a rented cloud GPU, $\approx$3000 steps & \file{gr00t/finetune.sh} \\
 Inference & Model runs on the cloud GPU as a server; the laptop sends image + state, gets actions back over ZeroMQ & \file{gr00t/serve.sh}, \file{policy_client.py} \\
 Demonstrations & Scripted pick-and-place (auto-collected; random layout, ball or block about half each) or keyboard teleop & \file{autodemo.py}, \file{teleop.py} \\
+Simulation data & A MuJoCo copy of the arm records extra demos at varied positions and scores models automatically; GR00T's pretraining also mixes in simulated robots & \file{sim.py} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -164,8 +167,10 @@ Demonstrations & Scripted pick-and-place (auto-collected; random layout, ball or
   \node[box,below=7mm of d,fill=gray!8] (act) {\textbf{4b. ACT on the laptop}\\ \footnotesize small model, free, $\approx$2.5\,h\\ \footnotesize same data, a good first check};
   \draw[arr,gray] (c.south) |- (act.west);
   \draw[arr,gray] (act.east) -| (e.south);
+  \node[box,below=7mm of a,fill=green!8] (sim) {\textbf{1b. Simulate}\\ \footnotesize MuJoCo copy of the arm\\ \footnotesize extra demos + scores};
+  \draw[arr,gray,dashed] (sim.east) -| (c.south west);
 \end{tikzpicture}
-\caption{From demonstrations to a running policy. ACT \cite{act} is a much smaller imitation-learning model that trains on the laptop; it checks the data before paying for a GPU.}
+\caption{From demonstrations to a running policy. ACT \cite{act} is a much smaller imitation-learning model that trains on the laptop; it checks the data before paying for a GPU. The simulation (\cref{sec:sim}) adds demos and scores models once the real demos exist.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -232,6 +237,9 @@ data'' concrete.
   plan. Re-planning every 8 steps still lets it correct mistakes.
 \item[Does it generalise?] Within reason: other spots on the plate, small lighting changes.
   Not to a new task it was never shown.
+\item[Did you train it in simulation?] The demos came from the real arm; a simulated copy
+  (MuJoCo) added demos with the objects at more positions and scored each model automatically.
+  The training is the same either way: copying demonstrations.
 \item[Why the cloud?] Fine-tuning GR00T needs a GPU with about 40\,GB of memory and running it
   about 16\,GB; the laptop has 8\,GB. The cloud machine is only switched on while it's used.
 \end{description}
@@ -301,6 +309,7 @@ File & Qty & What it is / how to print \\
 \multicolumn{3}{@{}l}{\emph{The work cell} (\file{cad/stl})} \\
 \file{07_baseplate} & 1 & flat; 250$\times$200\,mm, the longest print (15\% infill is fine) \\
 \file{08_camera_mast} & 1 & standing up, 4 walls \\
+\file{15_mast_riser} & 1 & goes under the mast and lifts the camera 80\,mm; upside down (the wide end with the socket on the bed), no supports \\
 \file{09_phone_cradle} & 1 & only if you use a phone as the camera; back face down \\
 \file{14_webcam_mount} & 1 & the big flat face (with the square socket) on the bed; no supports \\
 \file{10_pin} & 1 & lying flat \\
@@ -321,7 +330,8 @@ in \file{cad/stl} are an older arm design and aren't used.
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{arm_home}\hfill
 \includegraphics[width=0.47\linewidth,trim=60 60 60 60,clip]{work_cell}
 \caption{Left: the Easy Robot Arm in its home pose, built from the author's 3D model with two
-60\,mm links. Right: the work cell with the baseplate, cup and the webcam on its mast, the arm
+60\,mm links. Right: the work cell with the baseplate, cup and the webcam on its mast (standing
+on the 80\,mm riser), the arm
 gripping the ball on C1 with the block on A3. \file{cad/assembly.py} checks the arm against
 itself and the work cell: every marked spot (ball and block), the lift above it and the drop
 over the cup are clear, and the gripper never touches the other object in any layout the demos
@@ -580,7 +590,8 @@ shaft by hand.
   wrist piece, put a drop of superglue between the two discs.
 \item \textbf{Work cell.} Stand the drum in the ring on the baseplate (spots A1--C3 in front,
   the cup ring to the left) and fix it with double-sided tape or a few dots of hot glue, so
-  the base servo turns the arm and not the drum. Push the mast into its socket, the pin into the mast top, and
+  the base servo turns the arm and not the drum. Push the riser (\file{15_mast_riser}) into the
+  baseplate's socket and the mast into the riser's socket, the pin into the mast top, and
   \file{14_webcam_mount} onto the pin, its plate on the far side from the arm (or, with a phone, the
   phone cradle onto the pin). Clamp or tape the baseplate's back edge to
   the desk.
@@ -595,13 +606,15 @@ shaft by hand.
 \subsection{Camera setup and framing check}
 \label{sec:camsetup}
 \begin{enumerate}
-\item \textbf{Webcam:} plug it in; nothing to set up. \file{14_webcam_mount} holds it about
-  245\,mm above the plate, looking 65\textdegree{} down; on the 3D model that keeps the fingers,
-  all nine spots and the cup in view during every scripted pick (the clip's exact thickness was
-  estimated, so use the head's $\pm$20\textdegree{} hinge to fine-tune). Once the check below passes,
-  put a strip of tape across the hinge so it can't move.
+\item \textbf{Webcam:} plug it in; nothing to set up. \file{14_webcam_mount} on the mast and
+  its riser holds it about 325\,mm above the plate, looking 65\textdegree{} down. On the 3D model
+  that keeps the fingers, all nine spots and the cup in view during every scripted pick, and the
+  elbow and wrist too (from 80\,mm lower, without the riser, they left the top of the picture in a
+  quarter to a third of the frames). The plate sits in the lower half of the picture: tilt the
+  head about 5--10\textdegree{} further down on its own $\pm$20\textdegree{} hinge to centre it.
+  Once the check below passes, put a strip of tape across the hinge so it can't move.
   \textbf{Phone:} in the webcam app pick the \textbf{rear} camera and, if it lets you choose,
-  the \textbf{0.5$\times$ (ultra-wide)} lens. 1$\times$ is tight from the phone cradle (the
+  the \textbf{0.5$\times$ (ultra-wide)} lens. 1$\times$ was tight from the phone cradle before the riser (the
   fingers would leave the top of the picture in roughly a quarter of the frames).
   Any resolution of 640$\times$480 or more is fine; the code scales it to 640$\times$480.
 \item Find the camera index and see the live picture:
@@ -681,8 +694,11 @@ uv run autodemo.py --record 150 --camera 1
   Each time it tells you where to put the ball and the block and which one it will pick, e.g.\
   \texttt{block on C1, ball on A3 -> "pick up the block"}. Place both, press Enter, and it
   picks and places while recording, saving the instruction with the demo. It picks the ball or
-  the block about half the time each. Aim for 100--200 demos (about 20 seconds each, so 150
-  take under an hour; split it into sessions, it keeps numbering where it left off).
+  the block about half the time each. After each pick it asks \texttt{keep it? [Y/n]}: press
+  Enter to keep the demo, or type \texttt{n} if it missed the grip, dropped the object or
+  knocked the other one, and that demo is thrown away. \texttt{--record 150} keeps going until
+  150 demos are kept. Aim for 100--200 (about 20 seconds each, so 150 take under an hour;
+  split it into sessions, it keeps numbering where it left off).
 \item \textbf{By hand (optional, adds variety):} in \file{teleop.py}, \key{T} switches the
   instruction between ``pick up the ball'' and ``pick up the block'' (shown at the top of the
   window), \key{Enter} starts a recording, \key{Enter} again saves it, \key{Backspace} throws
@@ -692,7 +708,9 @@ uv run autodemo.py --record 150 --camera 1
 Keep the camera, lighting and cup exactly where they will be during the demo. Both objects
 are on the plate in every demo; the middle spot B2 isn't used because it's too close to the
 others. Place the objects a little off-center sometimes, with a block face towards the base.
-Delete any failed demo folder from \file{data/raw/pick_ball}.
+Answer \texttt{n} to every demo that went wrong: the model copies whatever it is shown,
+mistakes included. (A bad demo you only notice later: delete its folder from
+\file{data/raw/pick_ball}.)
 \end{note}
 Then export for GR00T:
 \begin{cmd}
@@ -716,6 +734,39 @@ It asks for an instruction; type \texttt{pick up the ball} or \texttt{pick up th
 \texttt{ball} / \texttt{block}). Each runs for 20 seconds (\texttt{--seconds}), then the arm goes
 home and it asks again; \texttt{q} quits. If ACT picks up the right object, the data is good
 and GR00T will learn from it too.
+
+\subsection{Learning from its own runs}
+\label{sec:selfrecord}
+The trained policy can record its own runs, and the good ones become extra training data:
+\begin{cmd}
+uv run ..\run_policy.py act --camera 1 --record pick_ball ^
+    --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model
+\end{cmd}
+\begin{enumerate}
+\item Type an instruction as usual. Every step the arm plays is saved: the camera frame, the
+  five angles last sent (the state) and the five angles sent now (the action), exactly like a
+  demo, tagged \texttt{"source": "policy"} in its \file{meta.json}. If the safety check
+  blocked a step, the arm held still, and ``hold still'' is what gets saved.
+\item Press Ctrl+C as soon as the object is in the cup, so the seconds after it aren't saved.
+  The arm goes home and asks \texttt{keep it? [Y/n]}.
+\item Keep a run \emph{only} if it picked the right object cleanly. Training on its successes
+  makes it better (it sees more object positions it handled well); training on its failures
+  would teach it its own mistakes. Keep ball and block runs roughly even.
+\end{enumerate}
+\texttt{--record pick\_ball} puts the runs next to your demos, numbered after them, so the
+next export uses both; \texttt{--record} alone saves them to a separate
+\file{pick_ball_policy} set to look at first. Collect a batch (30--50 kept runs in one
+sitting), then export and train once, overnight. \file{train_act.py} won't overwrite an
+earlier model, so rename the old one first (and keep it to compare):
+\begin{cmd}
+ren ..\..\outputs\act\pick_ball pick_ball_round1
+uv run export_act.py
+uv run train_act.py --steps 20000
+\end{cmd}
+The same works with GR00T: add \texttt{--record pick\_ball} to \texttt{run\_policy.py gr00t},
+then export with \file{export_dataset.py} and fine-tune again. This only adds runs where the policy
+\emph{already} succeeds, so it fills in positions near what it can do; for positions it fails
+at, it needs new demos (or the simulator, \cref{sec:sim}).
 
 \section{Fine-tuning and running GR00T in the cloud}
 \label{sec:cloud}
@@ -785,9 +836,171 @@ few hours, so budget \$10--20 for the first run, or use free credits if they cov
 (\file{~/gr00t_arm_ckpt}) if you want to reuse it later without retraining.
 \end{note}
 
+\section{Simulation (MuJoCo): more demos and automatic testing}
+\label{sec:sim}
+
+Once the real demos are recorded and ACT (and GR00T) have been trained on them, a simulated
+copy of the arm can add two things the real arm can't do quickly: hundreds of extra demos with
+the objects \emph{anywhere} on the plate, and an automatic score for every trained model. It
+runs on the laptop, costs nothing, and the real arm can stay switched off.
+
+\begin{note}[What ``training in simulation'' means here]
+Training itself doesn't happen \emph{inside} the simulator: ACT and GR00T still learn by copying
+recorded demos, on the laptop GPU or the cloud GPU, exactly as before. The simulator
+\emph{makes} demos (the same kind of recording as on the real arm) and \emph{tests} models
+(it knows where the ball ended up). This is also how GR00T itself was built: its pretraining mixes
+real robot data with simulated robots. Your real demos stay in the mix: the simulator never
+looks or behaves exactly like the real arm, and the real demos are what teach the model the
+real thing.
+\end{note}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{sim_views}
+\caption{The simulation, rendered by \file{software/sim.py}. Left: what the simulated webcam
+sees as the arm reaches for the ball on C1 (this is the image the model gets). Right: the same
+moment from another angle. The arm's parts are the author's 3D model; the plate, cup, ball and
+block are ours.}
+\label{fig:sim}
+\end{figure}
+
+\subsection{How the simulation works}
+\begin{description}[leftmargin=0pt]
+\item[MuJoCo.] A free physics engine (\texttt{pip install mujoco}, installed by \texttt{uv sync}).
+  \file{sim.py} describes the work cell to it: the arm's moving parts, the plate, the cup, the
+  ball and the block. MuJoCo works out how they move and collide 500 times a simulated second
+  and draws what a camera would see.
+\item[The arm.] Each part is the author's 3D model, on joints placed with the numbers in
+  \file{config.py}: shoulder 54\,mm above the plate, two 60\,mm links, tool point 86.5\,mm
+  along the gripper and 24.75\,mm below the wrist. So the simulated gripper is where
+  \file{kinematics.py} says it is. (The parts were converted once, by
+  \file{cad/sim_meshes.py}, into the files in \file{software/sim_assets}.)
+\item[Same commands as the real arm.] Scripts send the simulated arm the same five servo angles
+  they send the Nano. \file{sim.py} turns them into joint angles with \emph{your}
+  \file{calibration.json} (each servo's direction and zero), the same way \file{kinematics.py}
+  does. So a recording made in the simulator has the same numbers as one made on the real arm,
+  and the two can be trained on together. (Run the simulator on the laptop that has the
+  calibration file.)
+\item[The servos.] Like the firmware, each servo's target moves at most 180\textdegree/s, in
+  10\,ms steps (\cref{sec:serial}). A simulated SG90 then follows it with limited strength
+  (0.18\,N\,m, an SG90's stall torque), so the arm sags a few millimetres under its own weight,
+  as the real one does (about 4\,mm at the tool in the home pose).
+\item[The gripper.] The two geared fingers turn on their pins, mirrored, as the gears make
+  them. Your calibrated ``open'' angle opens each finger 30\textdegree; your ``closed'' angle
+  aims for 6\textdegree, a little narrower than the block, so the fingers stop on the object
+  and squeeze it with the servo's limited force (on the block at about 12\textdegree, on the
+  ball at 13--16\textdegree), like the real calibration.
+\item[The objects.] A 40\,mm ball and a 25\,mm block (6\,g each), with grip and some rolling
+  resistance like the foam ball. The block is turned with a face toward the base, as you place
+  it. The arm collides with the plate, the cup and the objects; its parts don't collide with each
+  other (the joint limits already stop that on the real arm).
+\item[The camera.] A 640$\times$480 picture from where \file{14_webcam_mount} holds the webcam,
+  65\textdegree{} down, seeing about 66$\times$52\textdegree. The camera's exact place and view
+  are estimates until you check them against a real photo (below).
+\item[A little different every time.] For each new layout the light (direction, brightness),
+  the colours (plate, ball, block, desk) and the camera (a few mm, 1--2\textdegree) change a
+  little. A model trained on that can't rely on one exact look, which helps it cope with the
+  real camera too.
+\item[It knows the result.] After a pick it checks where the objects are: \texttt{ok} (the
+  named object in the cup, the other one where it was), \texttt{knocked} (right object, but the
+  other moved more than 15\,mm), \texttt{wrong object}, or \texttt{missed}. Only \texttt{ok}
+  counts as a success; no one has to answer \texttt{keep it?}.
+\item[Two clocks.] For \file{teleop.py} and \file{run_policy.py} the physics keeps pace with the
+  real clock, so a slow model call delays the arm exactly as on the real arm. For
+  \file{autodemo.py} nothing has to wait, so the simulation moves 1/30\,s per command and runs as
+  fast as the laptop can draw the pictures.
+\end{description}
+Every script that takes \texttt{--sim} also takes \texttt{--mujoco}. They are different:
+\texttt{--sim} is the old no-physics stand-in (the arm only remembers what it was told and the
+``camera'' is a moving square; the tests and the GR00T dry run use it), \texttt{--mujoco} is the
+simulation described here.
+
+\subsection{Step 1: check the simulated camera against the real one}
+The simulated pictures should look like the webcam's, or a model can't carry what it learns in
+one over to the other. Take one real photo with the arm at home, the ball on C1 and the block
+on A3 (a one-second teleop recording, kept out of your demos by its own dataset name):
+\begin{cmd}
+uv run teleop.py --camera 1 --dataset camcheck
+\end{cmd}
+Press \key{H}, then \key{Enter}, wait a second, \key{Enter} again, \key{Esc}. Then:
+\begin{cmd}
+uv run sim.py --compare ..\data\raw\camcheck\episode_000000\frames\000000.jpg
+\end{cmd}
+This writes \file{data/sim_compare.png}: the real photo and the simulated view side by side,
+and the two blended on top of each other below. If the plate, spots and cup don't line up,
+send the picture to Claude: the camera's position, tilt and field of view are three numbers at
+the top of \file{sim.py} (\texttt{CAMERA\_POS}, \texttt{CAMERA\_DOWN}, \texttt{CAMERA\_FOVY}).
+\texttt{uv run sim.py --viewer} opens MuJoCo's own 3D window to look around (drag to rotate,
+double-click a part to select it), and \texttt{uv run teleop.py --mujoco} drives the simulated
+arm with the keyboard.
+
+\subsection{Step 2: record simulated demos}
+\begin{cmd}
+uv run autodemo.py --mujoco --record 300 --offset 15
+\end{cmd}
+The same scripted pick as on the real arm, but the simulator places the objects itself: on the
+marked spots like your demos, each moved up to 15\,mm (\texttt{--offset}) in a random direction,
+so the model sees positions \emph{between} the spots too. It keeps only the \texttt{ok} picks
+(it prints the result of each) and goes on until 300 are kept. They go in
+\file{data/raw/pick_ball_mujoco}, never mixed with your real demos by accident, and each one's
+\file{meta.json} says \texttt{"sim": true}. In a check of 30 random layouts, every scripted pick
+worked with \texttt{--offset 15}; at 25\,mm about one in ten missed (and is thrown away). If 20 in a row fail, it stops: the calibration or
+the gripper angles are wrong.
+
+\subsection{Step 3: train on real and simulated demos together}
+Export both sets into one dataset with \texttt{--with}, and give it its own name so the
+real-only model stays for comparison:
+\begin{cmd}
+cd software\act
+uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix
+uv run train_act.py --name pick_ball_mix --steps 20000
+\end{cmd}
+For GR00T, the same with \file{export_dataset.py}, then copy \file{data/lerobot/pick_ball_mix}
+up and fine-tune it as in \cref{sec:cloud}:
+\begin{cmd}
+uv run export_dataset.py --with pick_ball_mujoco --out ..\data\lerobot\pick_ball_mix
+\end{cmd}
+Start with about as many simulated demos as real ones (e.g.\ 150 real + 150--300 simulated). Too
+many simulated ones can make the model better at the simulator than at the real arm.
+
+\subsection{Step 4: score models in the simulator}
+\begin{cmd}
+uv run ..\run_policy.py act --mujoco --trials 20 ^
+    --checkpoint ..\..\outputs\act\pick_ball_mix\checkpoints\020000\pretrained_model
+\end{cmd}
+Twenty runs, ball and block taking turns, each on a new random layout, each stopping as soon as
+an object lands in the cup. At the end it prints e.g.\ \texttt{ball: 9/10 ok (1 missed)}. Add
+\texttt{--offset 15} to test positions off the spots. Run the same command with the real-only
+model's checkpoint to compare the two; GR00T works too (\texttt{run\_policy.py gr00t --mujoco
+--trials 20}, with the server and SSH tunnel running). Without \texttt{--trials} it asks for
+instructions like on the real arm and sets up a new layout for each.
+
+Add \texttt{--record} and the \texttt{ok} runs are saved to \file{data/raw/pick_ball_mujoco}:
+this is the ``learn from its own runs'' loop of \cref{sec:selfrecord}, with the simulator
+answering \texttt{keep it?}, so it can run unattended (e.g.\ \texttt{--trials 200 --record}).
+
+\subsection{Step 5: the real test}
+A simulator score is a quick way to compare models, not a promise. The model that counts is the
+one that works on the real arm: run the best one there (\cref{sec:selfrecord} commands, without
+\texttt{--mujoco}), with the same instructions and a few layouts on and off the spots, and
+compare it with the real-only model.
+
+\begin{note}[What the simulator gets wrong]
+\begin{itemize}[leftmargin=*]
+\item \textbf{Looks.} The pictures are drawn, not photographed: simpler light and surfaces, no
+  blue servo bodies or cables (only the printed parts are in the model), no camera noise or
+  blur. That's why the real demos stay in the training mix, and why step 1 matters.
+\item \textbf{Servos.} SG90 dead band, gear slop and jitter aren't modelled, so the simulated
+  arm moves more cleanly than the real one.
+\item \textbf{Geometry.} The simulated arm is exactly where \file{config.py} says. Corrections
+  for the real arm's small errors (\texttt{SPOT\_FIX} in \file{autodemo.py}) aren't used there.
+\item \textbf{Objects.} The foam ball is a firm sphere with soft contacts, not real foam.
+\end{itemize}
+\end{note}
+
 \section{Troubleshooting}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering\small
 \begin{tabularx}{\linewidth}{@{}p{4.6cm}X@{}}
 \toprule
@@ -809,6 +1022,11 @@ GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reas
 \texttt{run\_policy}: ``N blocked'' & The model asked for a pose past a joint limit or into the plate, so those steps weren't sent and the arm held still. A few now and then is fine; many means more or better demos. \\
 Policy runs but misses & More demos, more varied object positions, same camera position as in training. \\
 Picks the wrong object & More demos (both objects about equally), and check the instructions saved in \file{meta.json} match what was picked. \\
+\texttt{--mujoco}: ``gladLoadGL error'' or a black picture & The simulator couldn't draw: update the graphics driver. On a Linux machine without a screen it uses \texttt{MUJOCO\_GL=egl} (needs \texttt{libegl1}). \\
+``20 simulated picks in a row failed'' & The simulator uses your \file{calibration.json}: check it with \file{calibrate.py} \texttt{test}, and that the gripper's open/closed angles are right. \\
+``no reachable layout with \texttt{--offset}'' & The offset puts the objects out of reach; use a smaller one (15 works). \\
+Good score in the simulator, poor on the real arm & The pictures differ too much: redo the camera check (\cref{sec:sim}), and keep more real demos in the mix. \\
+\file{train_act.py}: ``Output directory \dots already exists'' & An earlier model is there. Rename \file{outputs/act/pick_ball} (e.g.\ to \file{pick_ball_round1}) and run it again (\cref{sec:selfrecord}). \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -817,12 +1035,13 @@ Picks the wrong object & More demos (both objects about equally), and check the 
 
 \begin{description}[leftmargin=0pt,font=\ttfamily\normalsize]
 \item[cad/] \file{arm.py} (work-cell parts), \file{assembly.py} (collision and reach checks
-  on the author's model), \file{stl/}, \file{renders/}, and the arm itself (mobiobi's files,
+  on the author's model), \file{sim_meshes.py} (the simulation's meshes), \file{stl/}, \file{renders/}, and the arm itself (mobiobi's files,
   CC BY-NC-SA, with \file{ATTRIBUTION.md}) in \path{stl_opensource/easy_robot_arm/}
 \item[firmware/] \file{arm/arm.ino}, \file{upload.ps1}
 \item[software/] \file{config.py} (geometry, calibration), \file{kinematics.py} (+ tests),
   \file{calibrate.py}, \file{teleop.py}, \file{autodemo.py}, \file{recorder.py},
-  \file{export_dataset.py}, \file{policy_client.py}, \file{run_policy.py}
+  \file{export_dataset.py}, \file{policy_client.py}, \file{run_policy.py}, \file{sim.py}
+  (the MuJoCo simulation) with its meshes in \file{sim_assets/}
 \item[software/gr00t/] \file{gr00t_arm_config.py}, \file{setup_cloud.sh}, \file{finetune.sh}, \file{serve.sh}
 \item[software/act/] \file{export_act.py}, \file{train_act.py}
 \item[context.md] running notes on the project's state

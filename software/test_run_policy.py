@@ -73,3 +73,43 @@ def test_nan_or_short_commands_are_never_sent():
     pol = ScriptedPolicy([bad] + [TimeoutError()] * 3)
     run_policy.run(pol, arm, FakeCamera(), "pick up the ball", 8, 60)
     assert all(len(c) == 5 and all(a == a for a in c) for c in arm.sent)   # a != a only for NaN
+
+
+def _policy_run(tmp_path, monkeypatch, keep):
+    """Two safe steps, one unsafe one, then the run gives up."""
+    import recorder
+    monkeypatch.setattr(recorder, "DATA", tmp_path)
+    rec = recorder.Recorder("p", fps=30, source="policy")
+    turn = [HOME5[0] + 5] + HOME5[1:]
+    fold = [90, 90, 120, 150, 125]
+    steps = [turn] * 6 + [fold] + [HOME5] * 6
+    pol = ScriptedPolicy([steps] + [TimeoutError()] * 3)
+    run_policy.run(pol, SimArm(), FakeCamera(), "pick up the block", 16, 60,
+                   pipeline=False, rec=rec, keep=keep)
+    return sorted((tmp_path / "p").glob("episode_*")), turn
+
+
+def test_recorded_run_saves_every_played_step(tmp_path, monkeypatch):
+    import json
+    import pandas as pd
+    eps, turn = _policy_run(tmp_path, monkeypatch, keep=lambda: True)
+    assert len(eps) == 1
+    meta = json.loads((eps[0] / "meta.json").read_text())
+    assert meta["task"] == "pick up the block" and meta["source"] == "policy"
+    df = pd.read_csv(eps[0] / "steps.csv")
+    state = df[[f"state_{i}" for i in range(5)]].to_numpy().tolist()
+    action = df[[f"action_{i}" for i in range(5)]].to_numpy().tolist()
+    assert len(df) == 13 == len(list((eps[0] / "frames").glob("*.jpg")))
+    assert state[0] == HOME5                          # starts from home
+    assert state[1:] == action[:-1]                   # state = the last command sent
+    assert action[6] == turn                          # the unsafe step holds still
+
+
+def test_answering_no_or_ctrl_c_leaves_no_episode(tmp_path, monkeypatch):
+    assert _policy_run(tmp_path, monkeypatch, keep=lambda: False)[0] == []
+
+    def ctrl_c():
+        raise KeyboardInterrupt
+    with pytest.raises(KeyboardInterrupt):
+        _policy_run(tmp_path, monkeypatch, keep=ctrl_c)
+    assert list((tmp_path / "p").glob("episode_*")) == []

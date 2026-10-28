@@ -7,6 +7,11 @@ the baseplate) and drops it in the cup. Two uses:
   2. Collect training demos automatically (the camera records while the
      script moves the arm; you only place the two objects where it tells you):
          uv run autodemo.py --record 150
+  3. The same in the MuJoCo simulation (sim.py): it places the objects
+     itself (--offset 15 moves them up to 15 mm off the spots), keeps only
+     the picks that land the right object in the cup, and saves them in
+     data/raw/pick_ball_mujoco:
+         uv run autodemo.py --mujoco --record 300 --offset 15
 
 Each recorded episode puts both objects on random spots, picks the ball or
 the block (about 50/50) and saves the matching instruction with the episode
@@ -22,7 +27,7 @@ import time
 import config as C
 import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
-from recorder import TASKS, Recorder
+from recorder import TASKS, Recorder, ask_keep
 
 # keep in sync with cad/arm.py SPOT_X / SPOT_Y / CUP_XY
 SPOTS = {f"{c}{r + 1}": (x, y) for c, x in zip("ABC", (85.0, 110.0, 135.0))
@@ -73,9 +78,14 @@ def layout():
 
 
 def plan(spot, target="ball", jitter=0.0):
-    """Waypoints (x, y, z, pitch, gripper_closed, seconds) for one pick."""
-    dx, dy, dz = SPOT_FIX.get(spot, (0.0, 0.0, 0.0))
-    sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
+    """Waypoints (x, y, z, pitch, gripper_closed, seconds) for one pick.
+    spot: a marked spot ("C1"), or an (x, y) position in mm (the simulator
+    puts objects anywhere; SPOT_FIX is only for the real arm's spots)."""
+    if isinstance(spot, str):
+        dx, dy, dz = SPOT_FIX.get(spot, (0.0, 0.0, 0.0))
+        sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
+    else:
+        (sx, sy), dz = spot, 0.0
     grip_z = OBJECTS[target] + dz
     j = lambda: random.uniform(-jitter, jitter)
     home = K.fk(*K.from_servo(HOME))
@@ -129,7 +139,8 @@ def trajectory(waypoints, fps):
         cur = wp
 
 
-def run(arm, cam, spot, target="ball", rec=None, jitter=0.0):
+def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None):
+    """keep: asked after the moves whether to save the episode (default: save)."""
     dt = 1.0 / C.FPS
     last = arm.last
     cmds = list(trajectory(plan(spot, target, jitter), C.FPS))   # fails here, before moving
@@ -143,14 +154,15 @@ def run(arm, cam, spot, target="ball", rec=None, jitter=0.0):
                 rec.add(frame, last, cmd)
             arm.send(cmd)
             last = cmd
-            t_next += dt
-            time.sleep(max(0.0, t_next - time.perf_counter()))
+            if not getattr(arm, "lockstep", False):     # the simulator steps in send()
+                t_next += dt
+                time.sleep(max(0.0, t_next - time.perf_counter()))
     except BaseException:
         if rec:
             rec.stop(keep=False)                          # don't leave half an episode
         raise
     if rec:
-        rec.stop()
+        rec.stop(keep=keep() if keep else True)
 
 
 def main():
@@ -164,31 +176,63 @@ def main():
     ap.add_argument("--other-spot", choices=sorted(SPOTS),
                     help="where the other object is (only checked, it isn't moved)")
     ap.add_argument("--record", type=int, default=0, metavar="N",
-                    help="record N demos, random layout and target each time")
-    ap.add_argument("--dataset", default="pick_ball")
+                    help="record N demos (that you keep), random layout and target each time")
+    ap.add_argument("--dataset", help="where to save: data/raw/DATASET "
+                    "(default pick_ball, or pick_ball_mujoco with --mujoco)")
+    ap.add_argument("--offset", type=float, default=0.0, metavar="MM",
+                    help="with --mujoco: put each object up to MM away from its spot")
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter (testing)")
     args = ap.parse_args()
+    if args.offset and not args.mujoco:
+        raise SystemExit("--offset is for the simulator (--mujoco): on the real arm "
+                         "the objects go on the marked spots")
+    dataset = args.dataset or ("pick_ball_mujoco" if args.mujoco else "pick_ball")
 
-    arm, cam = open_hardware(args)
+    # the simulator only moves when commands arrive (no waiting for the clock)
+    arm, cam = open_hardware(args, realtime=False)
+    world = getattr(arm, "world", None)
     arm.send(HOME + [C.GRIPPER_OPEN])
-    time.sleep(1.0)
+    getattr(arm, "wait", time.sleep)(1.0)
     try:
         if not args.record:
             if args.other_spot and (args.spot, args.other_spot) not in pairs():
                 raise SystemExit(f"{args.spot} and {args.other_spot} are too close: "
                                  "the gripper could hit the other object")
+            if world:
+                # both objects are always in the simulator: without --other-spot
+                # the other one waits at the back of the plate, out of the way
+                other_xy = SPOTS[args.other_spot] if args.other_spot else (165.0, 135.0)
+                world.place_for(args.target, SPOTS[args.spot], other_xy)
             run(arm, cam, args.spot, args.target)
+            if world:
+                print(f"{args.target}: {world.result(args.target)}")
             return
-        rec = Recorder(args.dataset, fps=C.FPS, source="autodemo")
+        rec = Recorder(dataset, fps=C.FPS, source="autodemo", sim=world is not None)
         counts = {name: 0 for name in OBJECTS}
-        for i in range(args.record):
-            target, spot, other_spot = layout()
-            other = next(name for name in OBJECTS if name != target)
-            if not args.yes:
-                input(f"[{i + 1}/{args.record}] {target} on {spot}, {other} on {other_spot}"
-                      f' -> "{TASKS[target]}". Place them, then press Enter ')
-            run(arm, cam, spot, target, rec, jitter=8.0)
-            counts[target] += 1
+        fails = 0
+        while sum(counts.values()) < args.record:           # N kept demos, not N tries
+            done = sum(counts.values())
+            if world:
+                # the simulator places the objects itself and checks the result
+                target, xy, other_xy = world.random_layout(args.offset)
+                world.place_for(target, xy, other_xy)
+                run(arm, cam, xy, target, rec, jitter=8.0, keep=lambda: world.success(target))
+                print(f"[{done + 1}/{args.record}] {target} at ({xy[0]:.0f}, {xy[1]:.0f}): "
+                      f"{world.result(target)}")
+                fails = 0 if rec.last_kept else fails + 1
+                if fails >= 20:
+                    raise SystemExit("20 simulated picks in a row failed: check the "
+                                     "calibration and the gripper angles in sim.py")
+            else:
+                target, spot, other_spot = layout()
+                other = next(name for name in OBJECTS if name != target)
+                if not args.yes:
+                    input(f"[{done + 1}/{args.record}] {target} on {spot}, {other} on {other_spot}"
+                          f' -> "{TASKS[target]}". Place them, then press Enter ')
+                run(arm, cam, spot, target, rec, jitter=8.0,
+                    keep=None if args.yes else ask_keep)
+            if rec.last_kept:
+                counts[target] += 1
         print("recorded:", ", ".join(f"{n} {name}" for name, n in counts.items()))
     finally:
         arm.close()

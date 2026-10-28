@@ -8,12 +8,15 @@ keyboard), export them as a GR00T/LeRobot dataset with the instruction saved
 per episode, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU,
 and run the learned policy back on the arm.
 
-> **Status (2026-10-22):** the arm is now an **open-source arm** (mobiobi's
-> *Easy Robot Arm*). The software, firmware and GR00T pipeline are done and
-> verified, and they're matched to the new arm's measurements and checked against
-> its 3D model. **New demo (2026-10-23):** ball + block on the plate, and the
-> typed instruction picks which one goes in the cup (milestone 2b). What's left
-> is building, recording and training. See [Milestones](#milestones).
+> **Status (2026-10-28):** the arm (mobiobi's open-source *Easy Robot Arm*) is
+> **printed, wired, assembled and calibrated** (milestones 3–6). The software,
+> firmware and GR00T pipeline are done and verified. The demo: ball + block on
+> the plate, and the typed instruction picks which one goes in the cup.
+> **New (2026-10-28):** every recording asks *keep it?*, the trained policy can
+> record its own runs to learn from (milestone 2d), and a MuJoCo simulation of
+> the arm makes extra training data and tests models automatically
+> (milestone 10). What's left: record demos, train ACT and GR00T, present.
+> See [Milestones](#milestones).
 
 ---
 
@@ -96,7 +99,8 @@ author's STEP file to check them.
 - `cad/stl/` — our original self-designed parts. Arm parts `00`–`06` are now
   replaced by the open-source arm. The work-cell parts are still used: `07` baseplate,
   `08` camera mast, `09` phone cradle, `10` pin, `11` cup, `12` ball half,
-  `13` block (the second object).
+  `13` block (the second object), `14` webcam mount, `15` mast riser (lifts the
+  mast and camera 80 mm).
 - `cad/arm.py` — CadQuery source for the work-cell parts (and the old arm parts)
 - `cad/assembly.py` — builds the Easy Robot Arm from the author's STEP file;
   collision sweep (`--check`), reach check of every ball/block spot and the cup,
@@ -104,7 +108,9 @@ author's STEP file to check them.
 - `firmware/arm/arm.ino` — serial servo firmware; `firmware/upload.ps1 COMx` uploads it
 - `software/` — Python: `config.py` (geometry + calibration), `kinematics.py`
   (+ tests), `calibrate.py`, `teleop.py`, `autodemo.py`, `recorder.py`,
-  `export_dataset.py` (GR00T format), `run_policy.py`, `policy_client.py`
+  `export_dataset.py` (GR00T format), `run_policy.py`, `policy_client.py`,
+  `sim.py` (the MuJoCo simulation, any script with `--mujoco`; its meshes are in
+  `sim_assets/`, made by `cad/sim_meshes.py` from the author's model)
 - `software/act/` — ACT export/train (own Python env, runs on the RTX 5050)
 - `software/gr00t/` — GR00T modality config + cloud scripts (`setup_cloud.sh`,
   `finetune.sh`, `serve.sh`)
@@ -212,9 +218,21 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   *compile* failed (not run here: Windows-only).
 - ✅ 61 tests pass. Plan: `docs/superpowers/plans/2026-10-23-code-review-fixes.md`.
 
-### ⬜ 3. Print (You)
-- Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
-- Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
+### ✅ 2d. Keep or throw away each recording; the policy records its own runs (Claude, 2026-10-28)
+- ✅ `autodemo.py --record N` asks `keep it? [Y/n]` after every pick. **n** throws
+  that episode away (missed grip, dropped or knocked object), and it keeps going
+  until N episodes are kept. `teleop.py` already had this (**Backspace**).
+- ✅ `run_policy.py --record [DATASET]` saves every run the trained policy (ACT or
+  GR00T) makes, in the same format as the demos, tagged `"source": "policy"`.
+  Press Ctrl+C once the object is in the cup (so the idle rest isn't saved),
+  then answer `keep it?`. Keep only clean picks of the right object: retraining
+  on those makes the policy better; retraining on its failures would teach it
+  its own mistakes. Steps the safety check blocked are saved as "hold still".
+- ✅ 80 tests pass.
+
+### ✅ 3. Print (You)
+- ✅ Print the parts in the table above on the Bambu (PLA, supports on). No `BaseLeg`.
+- ✅ Print the work cell from `cad/stl/`: `07_baseplate` in light grey (reprint it if you printed
   the old one: it now has the ring for the drum), `08_camera_mast`,
   `11_cup` (black), **`13_block`** (green)
   (`12_ball_half` ×2 only if you have no ball), `10_pin` and **`14_webcam_mount`**
@@ -222,42 +240,53 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   webcam** (monitor clip, 90° view): fold its clip shut and screw it to the mount with a
   **¼"-20 screw about ⅜" (10 mm) long** (hardware or camera store). `09_phone_cradle` is
   only for using a phone as the camera instead.
-- Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
+- ✅ Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
 
-### ⬜ 4. Wire and flash (You, guide "Wiring")
-- **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
+### ✅ 4. Wire and flash (You, guide "Wiring")
+- ✅ **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
   turn and stop. One that keeps spinning is a 360° "continuous" servo and won't work.
-- 5 servo signal wires to D3/D5/D6/D9/D10. Every servo's red to the bench supply +
+- ✅ 5 servo signal wires to D3/D5/D6/D9/D10. Every servo's red to the bench supply +
   (5.5 V, 3 A limit), brown to supply −, and **one wire from Nano GND to supply −**
   (common ground). Never power the servos from the Nano.
-- Flash: `firmware\upload.ps1 COM3` (use your port), or open `firmware/arm/arm.ino` in the
+- ✅ Flash: `firmware\upload.ps1 COM3` (use your port), or open `firmware/arm/arm.ino` in the
   Arduino IDE (Board: Arduino Nano, Processor: ATmega328P (Old Bootloader)) and Upload.
 
-### ⬜ 5. Assemble (You)
-- Before fitting each horn, run `calibrate.py` → `center` so every servo sits at 90°.
+### ✅ 5. Assemble (You)
+- ✅ Before fitting each horn, run `calibrate.py` → `center` so every servo sits at 90°.
   Then put each part on with the arm in the home pose: upper arm straight up,
   forearm pointing forward, gripper level and in line with the forearm.
-- Leave the roll servo out. Clamp `gripperMount` to the trunk with
+- ✅ Leave the roll servo out. Clamp `gripperMount` to the trunk with
   `gripperCap` (glue if it slips).
-- Stand the drum in the baseplate ring and tape or hot-glue it.
-- The guide's "Assembly" section has the step-by-step.
+- ✅ Stand the drum in the baseplate ring and tape or hot-glue it.
+- ✅ The guide's "Assembly" section has the step-by-step.
 
-### ⬜ 6. Calibrate (You + `calibrate.py`)
-- `cd software; uv run calibrate.py`. Check each joint's direction, then set
+### ✅ 6. Calibrate (You + `calibrate.py`)
+- ✅ `cd software; uv run calibrate.py`. Check each joint's direction, then set
   the gripper open/closed angles. Set "closed" so it squeezes the **block**
   (the smaller object), then check it still holds the ball without the servo
   buzzing hard. This saves `calibration.json`.
-- Check the real tool point: command a spot and see if the ball lands under
+- ✅ Check the real tool point: command a spot and see if the ball lands under
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
+- ⬜ **First: raise the camera 80 mm** (new, 2026-10-28). Print **`15_mast_riser`**
+  (28 × 28 × 98 mm, upside down: the wide end with the socket on the bed, no
+  supports). Pull the mast out of the baseplate, push the riser into the
+  baseplate's socket and the mast into the riser's socket (tape if it wobbles).
+  Why: from 80 mm higher the camera sees the elbow and wrist in every frame of
+  every scripted pick (now 77 % / 64 %), and still sees all 9 spots, the cup and
+  the fingers. The plate sits in the lower half of the picture: tilt the
+  webcam's head about 5–10° further down on its hinge to centre it. Then redo
+  the guide's framing check, and tape the hinge.
 - Test: `uv run autodemo.py --spot B2 --camera 1` (webcam), then the
   block: `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1`.
 - **Record 100–200** (about 150 is a good target):
   `uv run autodemo.py --record 150 --camera 1`. Each time it prints e.g.
   `block on C1, ball on A3 -> "pick up the block"`; place both, press Enter.
-  About 20 s each, so 150 take under an hour. You can split it into sessions:
+  After the move it asks `keep it? [Y/n]`: answer **n** if it missed the grip,
+  dropped the object or knocked the other one, and that episode is thrown away
+  (it keeps going until 150 are kept). About 20 s each, so 150 take under an hour. You can split it into sessions:
   it keeps numbering where it left off.
 - Optional keyboard demos: `uv run teleop.py --camera 1`, press **T** to pick
   the instruction, then pick that object.
@@ -268,12 +297,24 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - Run it on the arm:
   `uv run ..\run_policy.py act --camera 1 --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model`,
   then type `pick up the ball` or `pick up the block` at the `instruction>` prompt.
+- Optional, to improve it on its own runs: add `--record pick_ball`. Each run
+  is saved next to your demos (tagged `"source": "policy"`, numbered after
+  them). Press Ctrl+C once the object is in the cup, then answer
+  `keep it? [Y/n]`: keep only clean picks of the right object, and keep ball
+  and block roughly even. (`--record` alone saves to a separate
+  `pick_ball_policy` set instead, to look at first.)
+- Retraining: collect a batch first (30–50 kept runs, one sitting), then export
+  and train once, overnight. `train_act.py` won't overwrite an earlier model
+  (LeRobot stops if `outputs/act/pick_ball` exists), so rename the old one
+  first and keep it to compare:
+  `ren ..\..\outputs\act\pick_ball pick_ball_round1`, then
+  `uv run export_act.py; uv run train_act.py`.
 
 ### ⬜ 9. GR00T fine-tune in the cloud (You: accounts; Claude: helps)
 > **This is the only milestone that can cost money.** Fine-tuning GR00T needs a
 > GPU with ≥ 40 GB of memory (the laptop has 8 GB), so it has to be rented.
-> Paid, that's about $10–20 for the first run. Milestones 3–8 are all free, so
-> do those first and decide on this one once ACT works.
+> Paid, that's about $10–20 for the first run. Every other milestone is free, so
+> do 3–8 first and decide on this one once ACT works.
 >
 > **Free options to check first** (terms change, so check their pricing pages):
 > - **Lightning AI** free plan: monthly credits and a Studio you can SSH into,
@@ -298,7 +339,53 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   The guide's "Fine-tuning and running GR00T in the cloud" section has every step.
 - This has never been run for real, so expect the first run to need small fixes.
 
-### ⬜ 10. Present
+### 🔄 10. Train in simulation: more demos and automatic testing (MuJoCo)
+After the real demos exist and ACT/GR00T have been trained on them. Free, runs on the
+laptop, the real arm can stay off. Guide section "Simulation (MuJoCo)" explains how
+it all works. Training itself is the same as before (copying demos); the simulator
+**makes** demos with the objects anywhere on the plate, and **scores** models.
+
+Built (Claude, 2026-10-28):
+- ✅ `sim.py`: the arm (the author's 3D model on `config.py`'s joints), plate, cup,
+  40 mm ball, 25 mm block and the webcam's view, in MuJoCo. Commands are the same
+  5 servo angles, turned into joint angles with **your `calibration.json`**, so
+  sim episodes have the same numbers as real ones. Servos: the firmware's
+  180°/s slew + SG90-strength position servos (the arm sags ~4 mm like the real
+  one). Geared fingers squeeze with limited force. Light, colours and camera
+  change a little with every layout.
+- ✅ `--mujoco` on every script: `teleop.py` drives the simulated arm,
+  `autodemo.py --mujoco --record N --offset 15` records demos with the objects
+  up to 15 mm off the spots and keeps only clean picks (it checks the cup
+  itself), `run_policy.py ... --mujoco --trials 20` scores a model
+  (`ball: 9/10 ok (1 missed)`), `--record` there keeps its successful runs.
+- ✅ `export_act.py` / `export_dataset.py --with pick_ball_mujoco --out pick_ball_mix`
+  train on real + simulated demos together.
+- ✅ `sim.py --compare <photo>`: real webcam frame next to (and over) the
+  simulated view, to line the camera up. `sim.py --viewer`: 3D viewer.
+- ✅ 100 tests pass (20 for the simulator, incl. scripted picks on and off the
+  spots). In a 30-layout check, scripted picks went 30/30 with `--offset 15`, 27/30 at 25.
+
+You (after milestones 7–9):
+- ⬜ First `uv sync` in `software/` and `software/act/` (adds `mujoco`; needs internet once).
+- ⬜ Camera check: `uv run teleop.py --camera 1 --dataset camcheck`, ball on C1,
+  block on A3, **H**, **Enter**, wait 1 s, **Enter**, **Esc**; then
+  `uv run sim.py --compare ..\data\raw\camcheck\episode_000000\frames\000000.jpg`
+  and send `data/sim_compare.png` to Claude to tune the simulated camera.
+- ⬜ `uv run autodemo.py --mujoco --record 300 --offset 15` (`data/raw/pick_ball_mujoco`).
+- ⬜ `cd act; uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix;
+  uv run train_act.py --name pick_ball_mix --steps 20000` (overnight).
+- ⬜ Score both models in the simulator: `uv run ..\run_policy.py act --mujoco
+  --trials 20 --checkpoint ..\..\outputs\act\<name>\checkpoints\020000\pretrained_model`
+  (add `--offset 15` for positions off the spots).
+- ⬜ The real test: run the better one on the real arm. A simulator score
+  compares models; only the real arm says whether the simulated demos helped.
+- Optional: GR00T on the mix (`uv run export_dataset.py --with pick_ball_mujoco
+  --out ..\data\lerobot\pick_ball_mix`, fine-tune as in milestone 9), and
+  unattended self-improvement (`run_policy.py ... --mujoco --trials 200 --record`).
+- Timing: only before the talk if 7–9 are done by Oct 31 (nothing new after Nov 1);
+  the live demo doesn't need it.
+
+### ⬜ 11. Present
 - Guide Part I has the 3-minute GR00T talk script, the live demo plan and
   likely questions. The arm is the live demo: put both objects down, ask the
   audience "ball or block?", type it, then swap them and do the other one.

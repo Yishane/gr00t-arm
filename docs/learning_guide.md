@@ -1,8 +1,9 @@
 # Learning guide: what this project teaches
 
-Four topics, each tied to the files in this repo where you can see it working.
-Suggested order: **2 → 3 → 1**. Start with the simplest layer (the board), then the
-script that runs the arm on its own, and finish with GR00T, which sits on top of both.
+Five topics, each tied to the files in this repo where you can see it working.
+Suggested order: **2 → 3 → 1 → 4**. Start with the simplest layer (the board), then the
+script that runs the arm on its own, then GR00T, which sits on top of both, and finish
+with the simulation, which copies all of it into a virtual world.
 IK is at the end as an optional bonus: you don't need it to understand the rest.
 
 | # | Topic | Main files |
@@ -10,6 +11,7 @@ IK is at the end as an optional bonus: you don't need it to understand the rest.
 | 1 | GR00T | `software/gr00t/`, `software/export_dataset.py`, `software/policy_client.py`, `software/run_policy.py` |
 | 2 | How the computer talks to the board | `firmware/arm/arm.ino`, `software/arm_io.py`, `docs/computer_to_nano.md` |
 | 3 | The automatic pick demo | `software/autodemo.py`, `software/recorder.py`, `software/test_autodemo.py` |
+| 4 | Simulation (MuJoCo) | `software/sim.py`, `software/test_sim.py`, `cad/sim_meshes.py` |
 | Bonus | Inverse kinematics (IK) | `software/kinematics.py`, `software/config.py`, `software/test_kinematics.py` |
 
 ---
@@ -55,6 +57,8 @@ to pick is the sentence, so it shows the language input really being used.
 1. **Collect demos.** `autodemo.py` (or `teleop.py`) moves the arm while `recorder.py` saves,
    30 times a second: the camera frame, the angles last sent (the *state*), the angles sent
    now (the *action*), plus the sentence for that episode. These go in `data/raw/pick_ball/`.
+   Later, the trained model's own good runs can be added the same way
+   (`run_policy.py --record`, guide section "Learning from its own runs").
 2. **Convert to GR00T's format.** `export_dataset.py` writes the LeRobot v2.1 format GR00T
    reads: tables of numbers (parquet), the video (mp4), and `meta/modality.json`, which says
    which numbers are the arm and which is the gripper.
@@ -125,11 +129,14 @@ From `software/` on the laptop:
 When recording, each episode prints something like
 `block on C1, ball on A3 -> "pick up the block". Place them, then press Enter`.
 You place the two objects on those marked spots, press Enter, and the arm does the rest
-(about 9 s per pick). Stop any time with Ctrl+C: the half-finished episode is thrown away,
-and the next run carries on numbering from where you stopped.
+(about 9 s per pick). Then it asks `keep it? [Y/n]`: Enter keeps the episode, `n` throws it
+away (missed grip, dropped or knocked object), and `--record 150` keeps going until 150 are
+kept. Stop any time with Ctrl+C: the half-finished episode is thrown away, and the next run
+carries on numbering from where you stopped.
 
-Its automatic tests run with `uv run pytest -q` (61 tests, including every spot × both
-objects, and checks that the arm never jumps more than 6° between frames).
+Its automatic tests run with `uv run pytest -q` (100 tests in the whole project,
+including every spot × both objects, checks that the arm never jumps more than 6° between
+frames, and scripted picks inside the simulation).
 
 ### How it works
 1. **Spots.** The baseplate has a 3×3 grid of marked spots, A1–C3 (`SPOTS`), plus the
@@ -147,8 +154,9 @@ objects, and checks that the arm never jumps more than 6° between frames).
 5. **Run** (`run()`). The whole trajectory is worked out *before* the arm moves, so a bad
    plan fails safely. Then each command is sent to the Nano, and if recording, the camera
    frame + angles are saved at the same moment.
-6. **Save.** `recorder.py` writes the frames, a `steps.csv` of angles and a `meta.json` with
-   the sentence ("pick up the block"). That's one training example for GR00T or ACT.
+6. **Save.** After you answer `keep it?`, `recorder.py` writes the frames, a `steps.csv` of
+   angles and a `meta.json` with the sentence ("pick up the block"). That's one training
+   example for GR00T or ACT. (`n` deletes the folder instead.)
 
 The key idea: **the script is the teacher**. It knows where things are because you told
 it; it does the pick perfectly 150 times while the camera watches; then GR00T learns to do
@@ -158,6 +166,83 @@ the same from the *image and the sentence alone*.
 - Run the sim command above and read the printed output next to `plan()`.
 - What happens if you set `SAFE_Z` too low? (Run the tests.)
 - Why does the recorder save both "state" (last command) and "action" (this command)?
+
+---
+
+## 4. Simulation (`sim.py`)
+
+A virtual copy of the arm, the plate, the cup, the ball, the block and the webcam, in the
+free physics engine **MuJoCo**. Every script that takes `--mujoco` runs in it instead of on
+the real arm. It's for after the real demos exist: it makes extra demos with the objects
+anywhere on the plate, and it tests trained models automatically.
+
+### What "training in simulation" means
+Training doesn't change: ACT and GR00T still learn by **copying recorded demos** (imitation
+learning), on the laptop or the cloud GPU. The simulator *produces* recordings (the same
+format as the real arm's) and *checks* results (it knows where the ball ended up). GR00T's
+own pretraining used simulated robots the same way, mixed with real robot data. Your real
+demos stay in the mix: they're what teaches the model what the real camera and servos are
+like.
+
+### How it works
+1. **The world.** `model_xml()` writes a description MuJoCo reads: bodies (the arm's parts,
+   the ball, the block), joints (base, shoulder, elbow, wrist, two fingers), shapes for
+   collisions, a light and a camera. MuJoCo then steps the physics 500 times per simulated
+   second: gravity, joint motors, contacts and friction.
+2. **The arm's shape** is the author's 3D model. `cad/sim_meshes.py` cut it into the moving
+   pieces once and saved them in `software/sim_assets/`. The joints sit where `config.py`
+   says (54 mm shoulder height, two 60 mm links, tool point 86.5 mm along the gripper and
+   24.75 mm below the wrist), so the simulated gripper ends up where `kinematics.fk` says.
+   `test_sim.py` checks this to within a few mm.
+3. **Same commands as the real arm.** Scripts call `arm.send([5 servo angles])` exactly as
+   for the Nano. `controls()` turns them into joint angles with `kinematics.from_servo`, which
+   uses *your* `calibration.json`. That's why a simulated recording has the same numbers as a
+   real one, and why both can be trained on together.
+4. **The servos.** `_servo_tick()` does what the firmware does every 10 ms: moves each
+   servo's output toward its target by at most 180°/s × 10 ms. Then a MuJoCo *position
+   actuator* (a motor that pushes toward a target angle) follows it, with at most 0.18 N·m,
+   an SG90's stall torque. Limited strength means the arm sags a few mm under gravity, as the
+   real one does.
+5. **The gripper.** Two hinged fingers on their pins; an *equality constraint* keeps them
+   mirrored, like the meshed gears. `finger_angle()` maps your calibrated open/closed servo
+   angles to 30°/6° per finger; 6° is narrower than the block, so the fingers stop on the
+   object and squeeze with limited force.
+6. **The camera.** `MujocoCamera.read()` renders 640×480 RGB from where the webcam mount
+   holds the webcam, the same kind of picture `arm_io.Camera.read()` returns.
+7. **Variety.** With `randomize`, every new layout changes the light, the colours and the
+   camera pose a little (`_randomize()`), so a model can't depend on one exact look.
+8. **Results.** `result()` looks at where the objects ended up: `ok`, `knocked`,
+   `wrong object` or `missed`. That replaces the `keep it? [Y/n]` question you answer on the
+   real arm.
+9. **Two clocks.** In *real time* a background thread steps the physics to keep up with the
+   wall clock (teleop, run_policy: a slow model call delays the arm, as on the real arm).
+   In *lockstep* every `send()` moves the world 1/30 s (autodemo: as fast as the computer
+   can draw).
+
+### How to run it
+From `software/`:
+
+| What | Command |
+|---|---|
+| See what the simulated webcam sees | `uv run sim.py --view` (writes `data/sim_view.png`) |
+| Compare with a real webcam frame | `uv run sim.py --compare <photo.jpg>` |
+| Look around in 3D | `uv run sim.py --viewer` |
+| Drive it with the keyboard | `uv run teleop.py --mujoco` |
+| One scripted pick | `uv run autodemo.py --mujoco --target block --spot C1 --other-spot A3` |
+| Record 300 simulated demos | `uv run autodemo.py --mujoco --record 300 --offset 15` |
+| Score a trained ACT (from `software/act`) | `uv run ../run_policy.py act --mujoco --trials 20 --checkpoint ...` |
+| Train on real + simulated demos (from `software/act`) | `uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix` |
+
+### What it gets wrong
+Drawn pictures aren't photos (no blue servo bodies, no cables, simpler light); SG90 dead band
+and gear slop aren't modelled; the foam ball is a firm sphere. So a simulator score compares
+models, and the real arm has the final say.
+
+### Try it / questions
+- Run `sim.py --viewer`, then read `model_xml()`: find the shoulder joint and its axis.
+- Why does the simulator use your `calibration.json` instead of the default angles?
+- What would happen to a model trained only on simulated demos when it sees the real camera?
+- Why are only `ok` runs kept, never `knocked` ones?
 
 ---
 

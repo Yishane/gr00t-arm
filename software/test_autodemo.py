@@ -73,6 +73,17 @@ def test_recorded_episode_saves_its_instruction(tmp_path, monkeypatch):
     assert tasks == [TASKS["block"], TASKS["ball"]]
 
 
+
+def test_answering_no_discards_the_episode(tmp_path, monkeypatch, no_sleep):
+    import recorder
+    monkeypatch.setattr(recorder, "DATA", tmp_path)
+    rec = Recorder("t", fps=30, source="autodemo")
+    arm, cam = SimArm(), FakeCamera()
+    for answer in (False, True):
+        A.run(arm, cam, "B2", "ball", rec, keep=lambda: answer)
+        assert rec.last_kept is answer
+    assert len(list((tmp_path / "t").glob("episode_*"))) == 1
+
 MAX_STEP = 6.0   # deg per 1/30 s step on any arm servo (the firmware's slew is 180 deg/s)
 
 

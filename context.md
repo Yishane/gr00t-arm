@@ -2,7 +2,69 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
-## >>> LATEST STATE (2026-10-27 night) â€” READ THIS FIRST <<<
+## >>> LATEST STATE (2026-10-28) â€” READ THIS FIRST <<<
+- Milestones 3-6 (print, wire + flash, assemble, calibrate) are DONE (Yishane, 2026-10-28).
+  Next: 7 record demos, 8 ACT, 9 GR00T, 10 simulation (new), 11 present.
+- Branch claude/autodemo-keep-prompt (cloud session, NOT yet merged into main):
+  - autodemo --record N asks `keep it? [Y/n]` after each pick (recorder.ask_keep); n deletes the
+    episode; N counts KEPT episodes (Recorder.last_kept). --yes keeps everything (tests).
+  - run_policy --record [DATASET] (default pick_ball_policy; `--record pick_ball` = next to the demos):
+    every played step saved (frame read each step, state = last command, action = command; blocked
+    step -> held command), source "policy"; Ctrl+C when the object is in the cup, then keep? prompt
+    after go_home. run() wraps the old loop (now _drive) and drops a half episode on any error.
+  - GOTCHA: train_act.py fails if outputs/act/<name> exists (LeRobot 0.6.1 TrainPipelineConfig raises
+    FileExistsError unless resume). Docs say to rename the old folder (pick_ball_round1) first.
+    Offered to automate (rename / warm-start from the previous model); not built.
+  - Explained: filtered self-imitation only helps on kept SUCCESSES; corrections via keyboard
+    takeover (DAgger) would help more on failures (not built). autodemo only shows the 9 spots
+    (jitter = heights/timing, NOT position) -> unseen positions likely fail; sim fixes that.
+- context.md had 4 stray Windows-1252 dashes; converted to UTF-8.
+- MUJOCO SIMULATION BUILT (milestone 10; Yishane asked to train GR00T + ACT "in simulation" after
+  the real recordings): software/sim.py (World / MujocoArm / MujocoCamera), --mujoco on every script
+  via arm_io.open_hardware(args, realtime). Facts:
+  - Meshes: cad/sim_meshes.py (needs cadquery env like assembly.py) -> software/sim_assets/*.stl
+    (arm parts from the STEP via assembly.home_pieces(), in each joint's frame at joint zero, metres;
+    baseplate + cup from cad/arm.py). CC BY-NC-SA derived -> sim_assets/ATTRIBUTION.md.
+  - Joints: base z; shoulder/elbow/wrist axis 0 -1 0, qpos = software joint angle (config
+    conventions). Finger pivots (home pose) (103.5, 6.04) / (103.5, -9.64), z 89.25; fingers mirrored
+    by an equality; finger angle 30 deg at GRIPPER_OPEN, 6 at GRIPPER_CLOSED (linear, uses calibration).
+    Holds block at ~12.5 deg, ball 13-16.
+  - Servos: firmware slew 180 deg/s in 10 ms ticks, position actuators kp 3, 0.18 N m, armature 5e-4
+    -> ~4 mm tool sag at home. Commands go through kinematics.from_servo = calibration.json.
+  - Collisions: arm contype 1/conaff 0 (no self-collision); plate/cup/desk contype 2/conaff 1; drum
+    contype 2/conaff 2 (objects only: the upper-arm hull rubbed it); objects 3/3; maxhullvert 32.
+    Ball condim 6 (rolling friction), block condim 4, elliptic cone, impratio 10, dt 2 ms.
+  - Camera "front" at (154, 55, 242) mm, 65 deg down, fovy 52 (estimate; sim.py --compare to tune).
+    Randomize per layout: cam +-4 mm, tilt +-1.5, fovy +-1.5, light, colours.
+  - result(): ok / knocked (other moved > 15 mm) / wrong object / missed. random_layout(offset):
+    autodemo.layout() spots + offset, >= MIN_GAP, autodemo.plan must succeed.
+  - realtime=True: thread keeps sim time = wall time (teleop, run_policy). realtime=False
+    (autodemo): MujocoArm.lockstep, send() advances 1/30 s; arm.wait() used by go_home/autodemo.
+  - autodemo --mujoco --record N --offset MM -> data/raw/pick_ball_mujoco, meta "sim": true, auto-keep,
+    stops after 20 fails in a row. Scripted picks: 30/30 ok at offset 0 and 15, 27/30 at 25.
+  - run_policy --mujoco [--trials N] [--offset] [--record]: random layout per instruction, done =
+    any object in cup, prints "ball: 9/10 ok (1 missed)"; --record keeps ok runs (pick_ball_mujoco).
+  - export_act.py / export_dataset.py --with NAME (merge raw sets; recorder.episodes_in), export_act --out.
+  - Rendering: ~55 ms/frame on this CPU-only cloud box (EGL, set automatically when no DISPLAY);
+    ~14 s per recorded demo here. Laptop GPU should be much faster (not measured).
+  - mujoco added to software/ and software/act/ pyproject. software/act/uv.lock NOT regenerated
+    (download.pytorch.org blocked from the cloud container) -> uv updates it on the first sync on the laptop.
+  - 100 tests pass (test_sim.py 20). Guide section "Simulation (MuJoCo)" + figure sim_views.jpg;
+    guide also got \DisableLigatures for tt (-- showed as one dash) and the troubleshooting table [H].
+  - MAST +80 mm (Yishane asked "make the mast 80mm taller", mast already printed): new part
+    cad/stl/15_mast_riser.stl (arm.mast_riser(), MAST_RISER = 80, MAST_TOP = 265): 28x28x98 mm,
+    foot into the baseplate socket, mast into its socket; print upside down. One 274 mm mast
+    would not fit the Bambu's 256 mm height standing up. assembly.scene places riser + mast;
+    sim CAMERA_POS z 242 -> 322. Projection check over all scripted picks (fovy 52, 65 deg):
+    spots/cup/tool path stay in frame (rows 199-450 vs 112-441 before), elbow/wrist in view 100%
+    (was 77%/64%); ball ~64 px across (was ~86). Suggested tilting the head 5-10 deg more down.
+  - FLAKY (pre-existing timing test): test_pipeline.py::test_a_slow_frame_read_does_not_stall_the_chunk
+    failed 2x in ~15 full-suite runs on this branch under heavy CPU load (gap 0.116 s > 0.07); main
+    passed 5/5 under load; branch passes it alone. Not changed (run loop only gained per-step checks).
+  - NOT done / ideas: servo bodies (blue SG90s) not in the model; camera never compared with a real
+    frame yet; ACT/GR00T never trained on sim data yet; DAgger-style keyboard takeover not built.
+
+## >>> LATEST STATE (2026-10-27 night) â€” previous <<<
 Newest notes are here; older dated sections below give the history.
 
 ### Where everything is
@@ -325,7 +387,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
 - [x] GR00T client VERIFIED: policy_client.py talks to NVIDIA's real PolicyServer (ReplayPolicy
       test harness in %TEMP%); server replies msgpack_numpy {nd,type,shape,data} arrays.
       run_policy.py gr00t --host --server-port. Cloud scripts: software/gr00t/{setup_cloud,
-      finetune,serve}.sh (NOT run — needs cloud GPU + HF access).
+      finetune,serve}.sh (NOT run â€” needs cloud GPU + HF access).
 - [x] Firmware compiles for Nano (arduino-cli via winget); firmware/upload.ps1 <COMx>
 - [x] LaTeX guide: docs/guide.tex -> docs/guide.pdf (13 pp, compiles clean with MiKTeX latexmk).
       Part I = GR00T explainer + 3-min talk script + demo plan + Q&A; Part II = BOM, printing,
@@ -333,7 +395,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
       Figures from `cad/assembly.py --docs`.
 
 ## Next (all build deliverables done 2026-10-22; waiting on Yishane)
-1. He prints (Easy Robot Arm parts + work cell incl. 13_block, no BaseLeg), wires, assembles, calibrates — guide sections 7–11.
+1. He prints (Easy Robot Arm parts + work cell incl. 13_block, no BaseLeg), wires, assembles, calibrates â€” guide sections 7â€“11.
 2. Record 100-200 demos, two objects (autodemo --record 150), export, train ACT locally to
    validate data (check it picks the RIGHT object for each instruction).
 3. He makes HF account + requests nvidia/Cosmos-Reason2-2B access; gets cloud GPU credit.
@@ -342,7 +404,7 @@ NVIDIA GR00T (N1.7) on a rented cloud GPU. No leader arm.
    scripts work as-is), Modal ~$30/mo free (needs a Modal wrapper Claude would write - not built).
    Colab/Kaggle 16 GB too small. Fallback: stop at ACT, demo with ACT. Recommended: do 3-8 first.
    He has a breadboard + jumpers.
-4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet —
+4. Then: setup_cloud.sh, finetune.sh, serve.sh, run_policy.py gr00t (never run for real yet â€”
    first real run may need fixes; check open_loop_eval plot).
 Untested on real hardware: firmware on a physical Nano, servo SIGN defaults, gripper angles,
 phone-camera view framing (CAM_DOWN=65 in cad/arm.py if the view needs changing).

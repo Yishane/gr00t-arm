@@ -3,6 +3,8 @@ LeRobot v2.1 layout + meta/modality.json, the format Isaac-GR00T fine-tunes on.
 
     uv run export_dataset.py                 # data/raw/pick_ball -> data/lerobot/pick_ball
     uv run export_dataset.py --name pick_ball --out ../data/lerobot/pick_ball
+    uv run export_dataset.py --with pick_ball_mujoco --out ../data/lerobot/pick_ball_mix
+                                             # real demos + simulated ones in one dataset
 
 Layout written:
     meta/info.json  meta/episodes.jsonl  meta/tasks.jsonl  meta/modality.json
@@ -21,6 +23,8 @@ from pathlib import Path
 import imageio_ffmpeg
 import numpy as np
 import pandas as pd
+
+from recorder import episodes_in
 
 ROOT = Path(__file__).resolve().parent.parent
 JOINT_NAMES = ["base.pos", "shoulder.pos", "elbow.pos", "wrist.pos", "gripper.pos"]
@@ -49,10 +53,9 @@ def frame_size(frames_dir: Path):
     return h, w
 
 
-def export(raw: Path, out: Path):
-    episodes = sorted(p for p in raw.glob("episode_*") if (p / "steps.csv").exists())
-    if not episodes:
-        raise SystemExit(f"no recorded episodes in {raw}")
+def export(raw, out: Path):
+    """raw: a data/raw/<name> folder, or a list of them to merge."""
+    episodes = episodes_in(raw)
     if out.exists():
         shutil.rmtree(out)
     (out / "meta").mkdir(parents=True)
@@ -134,9 +137,12 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", default="pick_ball")
     ap.add_argument("--raw", type=Path)
+    ap.add_argument("--with", dest="also", action="append", default=[], metavar="NAME",
+                    help="also take the episodes of data/raw/NAME (repeatable)")
     ap.add_argument("--out", type=Path)
     a = ap.parse_args()
-    export(a.raw or ROOT / "data" / "raw" / a.name, a.out or ROOT / "data" / "lerobot" / a.name)
+    raws = [a.raw or ROOT / "data" / "raw" / a.name] + [ROOT / "data" / "raw" / n for n in a.also]
+    export(raws, a.out or ROOT / "data" / "lerobot" / a.name)
 
 
 if __name__ == "__main__":

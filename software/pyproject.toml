@@ -13,6 +13,7 @@ dependencies = [
     "imageio-ffmpeg",
     "pyzmq",
     "msgpack",
+    "mujoco>=3.17.0",
 ]
 
 [dependency-groups]

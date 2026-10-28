@@ -118,6 +118,11 @@ same way, so the model learned with the same kind of state it gets now.
 
 Recording (`recorder.py`) uses this same link: every 1/30 s it saves the photo
 and the 5 angles it just sent. Those pairs are what GR00T and ACT learn from.
+(`run_policy.py --record` saves the policy's own runs the same way.)
+
+In the simulation (`--mujoco`, `software/sim.py`) there is no Nano and no USB:
+`sim.py` takes the same 5 angles, does the Nano's job itself (each servo's
+target moves at most 180°/s, in 10 ms steps), and drives simulated servos.
 
 ## 6. Power is a separate path
 
