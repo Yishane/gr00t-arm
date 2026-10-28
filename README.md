@@ -107,7 +107,9 @@ author's STEP file to check them.
 - `firmware/arm/arm.ino` — serial servo firmware; `firmware/upload.ps1 COMx` uploads it
 - `software/` — Python: `config.py` (geometry + calibration), `kinematics.py`
   (+ tests), `calibrate.py`, `teleop.py`, `autodemo.py`, `recorder.py`,
-  `export_dataset.py` (GR00T format), `run_policy.py`, `policy_client.py`
+  `export_dataset.py` (GR00T format), `run_policy.py`, `policy_client.py`,
+  `sim.py` (the MuJoCo simulation, any script with `--mujoco`; its meshes are in
+  `sim_assets/`, made by `cad/sim_meshes.py` from the author's model)
 - `software/act/` — ACT export/train (own Python env, runs on the RTX 5050)
 - `software/gr00t/` — GR00T modality config + cloud scripts (`setup_cloud.sh`,
   `finetune.sh`, `serve.sh`)
@@ -301,8 +303,8 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 ### ⬜ 9. GR00T fine-tune in the cloud (You: accounts; Claude: helps)
 > **This is the only milestone that can cost money.** Fine-tuning GR00T needs a
 > GPU with ≥ 40 GB of memory (the laptop has 8 GB), so it has to be rented.
-> Paid, that's about $10–20 for the first run. Milestones 3–8 are all free, so
-> do those first and decide on this one once ACT works.
+> Paid, that's about $10–20 for the first run. Every other milestone is free, so
+> do 3–8 first and decide on this one once ACT works.
 >
 > **Free options to check first** (terms change, so check their pricing pages):
 > - **Lightning AI** free plan: monthly credits and a Studio you can SSH into,
@@ -327,7 +329,53 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   The guide's "Fine-tuning and running GR00T in the cloud" section has every step.
 - This has never been run for real, so expect the first run to need small fixes.
 
-### ⬜ 10. Present
+### 🔄 10. Train in simulation: more demos and automatic testing (MuJoCo)
+After the real demos exist and ACT/GR00T have been trained on them. Free, runs on the
+laptop, the real arm can stay off. Guide section "Simulation (MuJoCo)" explains how
+it all works. Training itself is the same as before (copying demos); the simulator
+**makes** demos with the objects anywhere on the plate, and **scores** models.
+
+Built (Claude, 2026-10-28):
+- ✅ `sim.py`: the arm (the author's 3D model on `config.py`'s joints), plate, cup,
+  40 mm ball, 25 mm block and the webcam's view, in MuJoCo. Commands are the same
+  5 servo angles, turned into joint angles with **your `calibration.json`**, so
+  sim episodes have the same numbers as real ones. Servos: the firmware's
+  180°/s slew + SG90-strength position servos (the arm sags ~4 mm like the real
+  one). Geared fingers squeeze with limited force. Light, colours and camera
+  change a little with every layout.
+- ✅ `--mujoco` on every script: `teleop.py` drives the simulated arm,
+  `autodemo.py --mujoco --record N --offset 15` records demos with the objects
+  up to 15 mm off the spots and keeps only clean picks (it checks the cup
+  itself), `run_policy.py ... --mujoco --trials 20` scores a model
+  (`ball: 9/10 ok (1 missed)`), `--record` there keeps its successful runs.
+- ✅ `export_act.py` / `export_dataset.py --with pick_ball_mujoco --out pick_ball_mix`
+  train on real + simulated demos together.
+- ✅ `sim.py --compare <photo>`: real webcam frame next to (and over) the
+  simulated view, to line the camera up. `sim.py --viewer`: 3D viewer.
+- ✅ 100 tests pass (20 for the simulator, incl. scripted picks on and off the
+  spots). In a 30-layout check, scripted picks went 30/30 with `--offset 15`, 27/30 at 25.
+
+You (after milestones 7–9):
+- ⬜ First `uv sync` in `software/` and `software/act/` (adds `mujoco`; needs internet once).
+- ⬜ Camera check: `uv run teleop.py --camera 1 --dataset camcheck`, ball on C1,
+  block on A3, **H**, **Enter**, wait 1 s, **Enter**, **Esc**; then
+  `uv run sim.py --compare ..\data\raw\camcheck\episode_000000\frames\000000.jpg`
+  and send `data/sim_compare.png` to Claude to tune the simulated camera.
+- ⬜ `uv run autodemo.py --mujoco --record 300 --offset 15` (`data/raw/pick_ball_mujoco`).
+- ⬜ `cd act; uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix;
+  uv run train_act.py --name pick_ball_mix --steps 20000` (overnight).
+- ⬜ Score both models in the simulator: `uv run ..\run_policy.py act --mujoco
+  --trials 20 --checkpoint ..\..\outputs\act\<name>\checkpoints\020000\pretrained_model`
+  (add `--offset 15` for positions off the spots).
+- ⬜ The real test: run the better one on the real arm. A simulator score
+  compares models; only the real arm says whether the simulated demos helped.
+- Optional: GR00T on the mix (`uv run export_dataset.py --with pick_ball_mujoco
+  --out ..\data\lerobot\pick_ball_mix`, fine-tune as in milestone 9), and
+  unattended self-improvement (`run_policy.py ... --mujoco --trials 200 --record`).
+- Timing: only before the talk if 7–9 are done by Oct 31 (nothing new after Nov 1);
+  the live demo doesn't need it.
+
+### ⬜ 11. Present
 - Guide Part I has the 3-minute GR00T talk script, the live demo plan and
   likely questions. The arm is the live demo: put both objects down, ask the
   audience "ball or block?", type it, then swap them and do the other one.

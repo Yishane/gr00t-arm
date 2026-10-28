@@ -3,9 +3,11 @@
 **Goal:** run the whole GR00T cloud pipeline once on a small **fake dataset**, so any
 setup problems get fixed now instead of on the real run. The arm isn't needed.
 
-The fake dataset is `software/gr00t/dryrun/pick_ball_sim`: 20 simulated demos (11 ball,
+The fake dataset is `software/gr00t/dryrun/pick_ball_sim`: 20 fake demos (11 ball,
 9 block) made with `autodemo.py --sim`. Its camera frames are just a moving orange square,
-so the model **learns nothing useful** from it. We're only checking that every step
+so the model **learns nothing useful** from it. (`--sim` is the no-physics stand-in; the
+MuJoCo simulation, `--mujoco`, came later and makes real-looking demos: guide section
+"Simulation (MuJoCo)".) We're only checking that every step
 runs: install, download, fine-tune, save a checkpoint, serve, and the laptop talking to it.
 
 **Time:** about 1–1.5 hours, mostly waiting. **Cost:** about $1–4 of GPU time, or free credits.

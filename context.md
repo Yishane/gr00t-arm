@@ -19,6 +19,43 @@ Read this first every session. Update the "Status" and "Next" sections before st
     takeover (DAgger) would help more on failures (not built). autodemo only shows the 9 spots
     (jitter = heights/timing, NOT position) -> unseen positions likely fail; sim fixes that.
 - context.md had 4 stray Windows-1252 dashes; converted to UTF-8.
+- MUJOCO SIMULATION BUILT (milestone 10; Yishane asked to train GR00T + ACT "in simulation" after
+  the real recordings): software/sim.py (World / MujocoArm / MujocoCamera), --mujoco on every script
+  via arm_io.open_hardware(args, realtime). Facts:
+  - Meshes: cad/sim_meshes.py (needs cadquery env like assembly.py) -> software/sim_assets/*.stl
+    (arm parts from the STEP via assembly.home_pieces(), in each joint's frame at joint zero, metres;
+    baseplate + cup from cad/arm.py). CC BY-NC-SA derived -> sim_assets/ATTRIBUTION.md.
+  - Joints: base z; shoulder/elbow/wrist axis 0 -1 0, qpos = software joint angle (config
+    conventions). Finger pivots (home pose) (103.5, 6.04) / (103.5, -9.64), z 89.25; fingers mirrored
+    by an equality; finger angle 30 deg at GRIPPER_OPEN, 6 at GRIPPER_CLOSED (linear, uses calibration).
+    Holds block at ~12.5 deg, ball 13-16.
+  - Servos: firmware slew 180 deg/s in 10 ms ticks, position actuators kp 3, 0.18 N m, armature 5e-4
+    -> ~4 mm tool sag at home. Commands go through kinematics.from_servo = calibration.json.
+  - Collisions: arm contype 1/conaff 0 (no self-collision); plate/cup/desk contype 2/conaff 1; drum
+    contype 2/conaff 2 (objects only: the upper-arm hull rubbed it); objects 3/3; maxhullvert 32.
+    Ball condim 6 (rolling friction), block condim 4, elliptic cone, impratio 10, dt 2 ms.
+  - Camera "front" at (154, 55, 242) mm, 65 deg down, fovy 52 (estimate; sim.py --compare to tune).
+    Randomize per layout: cam +-4 mm, tilt +-1.5, fovy +-1.5, light, colours.
+  - result(): ok / knocked (other moved > 15 mm) / wrong object / missed. random_layout(offset):
+    autodemo.layout() spots + offset, >= MIN_GAP, autodemo.plan must succeed.
+  - realtime=True: thread keeps sim time = wall time (teleop, run_policy). realtime=False
+    (autodemo): MujocoArm.lockstep, send() advances 1/30 s; arm.wait() used by go_home/autodemo.
+  - autodemo --mujoco --record N --offset MM -> data/raw/pick_ball_mujoco, meta "sim": true, auto-keep,
+    stops after 20 fails in a row. Scripted picks: 30/30 ok at offset 0 and 15, 27/30 at 25.
+  - run_policy --mujoco [--trials N] [--offset] [--record]: random layout per instruction, done =
+    any object in cup, prints "ball: 9/10 ok (1 missed)"; --record keeps ok runs (pick_ball_mujoco).
+  - export_act.py / export_dataset.py --with NAME (merge raw sets; recorder.episodes_in), export_act --out.
+  - Rendering: ~55 ms/frame on this CPU-only cloud box (EGL, set automatically when no DISPLAY);
+    ~14 s per recorded demo here. Laptop GPU should be much faster (not measured).
+  - mujoco added to software/ and software/act/ pyproject. software/act/uv.lock NOT regenerated
+    (download.pytorch.org blocked from the cloud container) -> uv updates it on the first sync on the laptop.
+  - 100 tests pass (test_sim.py 20). Guide section "Simulation (MuJoCo)" + figure sim_views.jpg;
+    guide also got \DisableLigatures for tt (-- showed as one dash) and the troubleshooting table [H].
+  - FLAKY (pre-existing timing test): test_pipeline.py::test_a_slow_frame_read_does_not_stall_the_chunk
+    failed 2x in ~15 full-suite runs on this branch under heavy CPU load (gap 0.116 s > 0.07); main
+    passed 5/5 under load; branch passes it alone. Not changed (run loop only gained per-step checks).
+  - NOT done / ideas: servo bodies (blue SG90s) not in the model; camera never compared with a real
+    frame yet; ACT/GR00T never trained on sim data yet; DAgger-style keyboard takeover not built.
 
 ## >>> LATEST STATE (2026-10-27 night) — previous <<<
 Newest notes are here; older dated sections below give the history.

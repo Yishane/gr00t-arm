@@ -56,11 +56,11 @@ FINGER_OPEN_DEG = 30.0      # each finger, at C.GRIPPER_OPEN
 FINGER_CLOSED_DEG = 6.0     # at C.GRIPPER_CLOSED: a little narrower than the block
 
 # webcam: centre of the camera head on cad/arm.py's mount, looking 65 deg
-# down toward the arm. FOVY: a 90 deg (diagonal) 16:9 camera cropped to
-# 640x480 sees about 66 x 50 deg.
+# down toward the arm. FOVY (vertical): a 90 deg (diagonal) 16:9 camera
+# cropped to 640x480 sees about 66 x 52 deg.
 CAMERA_POS = (154.0, 55.0, 242.0)
 CAMERA_DOWN = 65.0
-CAMERA_FOVY = 50.0
+CAMERA_FOVY = 52.0
 WIDTH, HEIGHT = 640, 480
 
 # work cell (mm), as in cad/arm.py
