@@ -8,10 +8,11 @@ the baseplate) and drops it in the cup. Two uses:
      script moves the arm; you only place the two objects where it tells you):
          uv run autodemo.py --record 150
   3. The same in the MuJoCo simulation (sim.py): it places the objects
-     itself (--offset 15 moves them up to 15 mm off the spots), keeps only
-     the picks that land the right object in the cup, and saves them in
+     itself (--offset 15 moves them up to 15 mm off the spots; --anywhere puts
+     them anywhere the arm can pick and the camera can see), keeps only the
+     picks that land the right object in the cup, and saves them in
      data/raw/pick_ball_mujoco:
-         uv run autodemo.py --mujoco --record 300 --offset 15
+         uv run autodemo.py --mujoco --record 300 --anywhere
 
 Each recorded episode puts both objects on random spots, picks the ball or
 the block (about 50/50) and saves the matching instruction with the episode
@@ -181,11 +182,16 @@ def main():
                     "(default pick_ball, or pick_ball_mujoco with --mujoco)")
     ap.add_argument("--offset", type=float, default=0.0, metavar="MM",
                     help="with --mujoco: put each object up to MM away from its spot")
+    ap.add_argument("--anywhere", action="store_true",
+                    help="with --mujoco: put the objects anywhere the arm can pick "
+                         "and the camera can see, not just near the spots")
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter (testing)")
     args = ap.parse_args()
-    if args.offset and not args.mujoco:
-        raise SystemExit("--offset is for the simulator (--mujoco): on the real arm "
-                         "the objects go on the marked spots")
+    if (args.offset or args.anywhere) and not args.mujoco:
+        raise SystemExit("--offset and --anywhere are for the simulator (--mujoco): on the "
+                         "real arm the objects go on the marked spots")
+    if args.offset and args.anywhere:
+        raise SystemExit("use --offset or --anywhere, not both")
     dataset = args.dataset or ("pick_ball_mujoco" if args.mujoco else "pick_ball")
 
     # the simulator only moves when commands arrive (no waiting for the clock)
@@ -214,7 +220,7 @@ def main():
             done = sum(counts.values())
             if world:
                 # the simulator places the objects itself and checks the result
-                target, xy, other_xy = world.random_layout(args.offset)
+                target, xy, other_xy = world.random_layout(args.offset, anywhere=args.anywhere)
                 world.place_for(target, xy, other_xy)
                 run(arm, cam, xy, target, rec, jitter=8.0, keep=lambda: world.success(target))
                 print(f"[{done + 1}/{args.record}] {target} at ({xy[0]:.0f}, {xy[1]:.0f}): "

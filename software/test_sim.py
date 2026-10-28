@@ -68,6 +68,38 @@ def test_picks_off_the_spots(world, no_sleep):
         assert world.result(target) == "ok", (target, xy, other_xy)
 
 
+def test_anywhere_layouts_cover_the_plate_and_can_be_picked(world, no_sleep):
+    world.rng.seed(2)
+    A.random.seed(2)
+    off_spot = 0
+    for i in range(12):
+        target, xy, other_xy = world.random_layout(anywhere=True)
+        assert math.dist(xy, other_xy) >= A.MIN_GAP
+        assert sim.clear_of_fixed_parts(xy) and sim.clear_of_fixed_parts(other_xy)
+        assert world.in_view((*xy, 15)) and world.in_view((*other_xy, 15))
+        off_spot += min(math.dist(xy, s) for s in A.SPOTS.values()) > 15
+        if i < 3:                                 # the pick it promised works here too
+            world.place_for(target, xy, other_xy)
+            A.run(world.arm, FakeCamera(), xy, target)
+            assert world.result(target) == "ok", (target, xy, other_xy)
+    assert off_spot >= 4                          # not just round the spots
+
+
+def test_camera_view_check_matches_the_picture(world):
+    assert all(world.in_view((*s, 0)) for s in A.SPOTS.values())
+    assert world.in_view((*A.CUP, 35))
+    assert not world.in_view((175, 0, 15))        # under the camera
+    assert not world.in_view((0, 0, 500))         # above it
+
+
+def test_objects_never_overlap_the_fixed_parts():
+    assert sim.clear_of_fixed_parts(A.SPOTS["B2"])
+    assert not sim.clear_of_fixed_parts((40, 0))          # in the base drum
+    assert not sim.clear_of_fixed_parts(A.CUP)
+    assert not sim.clear_of_fixed_parts((155, 55))        # against the mast's socket
+    assert not sim.clear_of_fixed_parts((100, 150))       # off the back of the plate
+
+
 def test_result_tells_ok_wrong_object_and_missed(world):
     world.place(A.SPOTS["C1"], A.SPOTS["A3"])
     assert world.result("ball") == "missed"
@@ -102,7 +134,7 @@ def test_autodemo_records_only_successes_in_the_simulator(tmp_path, monkeypatch,
     monkeypatch.setattr(recorder, "DATA", tmp_path)
     monkeypatch.setattr(sim.MujocoCamera, "read",
                         lambda self, fresh=False: np.zeros((48, 64, 3), np.uint8))
-    monkeypatch.setattr("sys.argv", ["autodemo.py", "--mujoco", "--record", "2", "--offset", "10"])
+    monkeypatch.setattr("sys.argv", ["autodemo.py", "--mujoco", "--record", "2", "--anywhere"])
     A.main()
     eps = sorted((tmp_path / "pick_ball_mujoco").glob("episode_*"))
     assert len(eps) == 2

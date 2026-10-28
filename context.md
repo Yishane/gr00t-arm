@@ -49,15 +49,28 @@ Read this first every session. Update the "Status" and "Next" sections before st
     ~14 s per recorded demo here. Laptop GPU should be much faster (not measured).
   - mujoco added to software/ and software/act/ pyproject. software/act/uv.lock NOT regenerated
     (download.pytorch.org blocked from the cloud container) -> uv updates it on the first sync on the laptop.
-  - 100 tests pass (test_sim.py 20). Guide section "Simulation (MuJoCo)" + figure sim_views.jpg;
+  - 103 tests pass (test_sim.py 23). Guide section "Simulation (MuJoCo)" + figure sim_views.jpg;
     guide also got \DisableLigatures for tt (-- showed as one dash) and the troubleshooting table [H].
   - MAST +80 mm (Yishane asked "make the mast 80mm taller", mast already printed): new part
-    cad/stl/15_mast_riser.stl (arm.mast_riser(), MAST_RISER = 80, MAST_TOP = 265): 28x28x98 mm,
-    foot into the baseplate socket, mast into its socket; print upside down. One 274 mm mast
-    would not fit the Bambu's 256 mm height standing up. assembly.scene places riser + mast;
-    sim CAMERA_POS z 242 -> 322. Projection check over all scripted picks (fovy 52, 65 deg):
-    spots/cup/tool path stay in frame (rows 199-450 vs 112-441 before), elbow/wrist in view 100%
-    (was 77%/64%); ball ~64 px across (was ~86). Suggested tilting the head 5-10 deg more down.
+    cad/stl/15_mast_extension.stl (arm.mast_extension(), MAST_EXT = 80, MAST_TOP = 265): 30x30x94,
+    slanted faces matching the mast top (25 deg), pin socket in each; sits ON TOP (mast pin ->
+    extension -> 2nd 10_pin -> webcam mount). Print lying on a slanted face. A first version was a
+    riser UNDER the mast (98 mm, 28 mm socket at z 70-96): REPLACED because that socket sits at the
+    arm's travel height and the open right finger hit it just past C3 in the sim. One 274 mm mast
+    would not fit the Bambu standing. assembly --cell PASS with the extension; figures redone.
+    sim CAMERA_POS z 242 -> 322. Projection over all scripted picks (fovy 52, 65 deg): spots/cup/tool
+    stay in frame (rows 199-450 vs 112-441), elbow/wrist in view 100% (was 77%/64%); ball ~64 px
+    (was ~86). Suggested tilting the webcam head 5-10 deg more down.
+  - --anywhere (autodemo + run_policy, sim only, not with --offset): sim.random_layout samples
+    ANYWHERE_X (50-180) x ANYWHERE_Y (-30-130); EVERY layout (offset mode too) must pass
+    clear_of_fixed_parts (plate edge, drum r39, cup, mast socket 28 mm square, CLEAR 22 mm),
+    World.in_view (nominal camera, 20 px margin, object centre z 15) and _pick_works (scripted pick
+    in a hidden lockstep World, jitter 0, ~0.1 s). Accepted area ~x 51-149, y -23-130 (front edge
+    = camera view, right edge near the mast = fingers hit the mast socket). Figure sim_layouts.png.
+  - Sim collisions now: gripper+fingers contype 5 also hit the drum (conaffinity 6); mast bar,
+    mast head+extension box (z 145-272) and the baseplate's mast socket (28 mm, z 0-16) solid.
+  - SHADOWS = False in sim.py: MuJoCo shadow maps speckled the desk/plate with EGL software
+    rendering (spot and directional, shadowscale/clip/4096 tried). Try True on the laptop GPU.
   - FLAKY (pre-existing timing test): test_pipeline.py::test_a_slow_frame_read_does_not_stall_the_chunk
     failed 2x in ~15 full-suite runs on this branch under heavy CPU load (gap 0.116 s > 0.07); main
     passed 5/5 under load; branch passes it alone. Not changed (run loop only gained per-step checks).

@@ -99,8 +99,8 @@ author's STEP file to check them.
 - `cad/stl/` — our original self-designed parts. Arm parts `00`–`06` are now
   replaced by the open-source arm. The work-cell parts are still used: `07` baseplate,
   `08` camera mast, `09` phone cradle, `10` pin, `11` cup, `12` ball half,
-  `13` block (the second object), `14` webcam mount, `15` mast riser (lifts the
-  mast and camera 80 mm).
+  `13` block (the second object), `14` webcam mount, `15` mast extension (lifts
+  the camera 80 mm).
 - `cad/arm.py` — CadQuery source for the work-cell parts (and the old arm parts)
 - `cad/assembly.py` — builds the Easy Robot Arm from the author's STEP file;
   collision sweep (`--check`), reach check of every ball/block spot and the cup,
@@ -270,10 +270,14 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
-- ⬜ **First: raise the camera 80 mm** (new, 2026-10-28). Print **`15_mast_riser`**
-  (28 × 28 × 98 mm, upside down: the wide end with the socket on the bed, no
-  supports). Pull the mast out of the baseplate, push the riser into the
-  baseplate's socket and the mast into the riser's socket (tape if it wobbles).
+- ⬜ **First: raise the camera 80 mm** (new, 2026-10-28). Print
+  **`15_mast_extension`** (30 × 30 × 94 mm, lying on one of its slanted faces,
+  no supports) and a **second `10_pin`**. Take the webcam mount off the mast,
+  then: pin into the mast top → extension on that pin → second pin into the
+  extension's top → webcam mount on that pin (tape the joints if they wobble).
+  It goes on top, not under the mast, so nothing new is near the arm (a
+  riser under the mast would put its 28 mm socket right at the arm's travel
+  height next to C3, where the open fingers hit it in the simulator).
   Why: from 80 mm higher the camera sees the elbow and wrist in every frame of
   every scripted pick (now 77 % / 64 %), and still sees all 9 spots, the cup and
   the fingers. The plate sits in the lower half of the picture: tilt the
@@ -354,16 +358,22 @@ Built (Claude, 2026-10-28):
   one). Geared fingers squeeze with limited force. Light, colours and camera
   change a little with every layout.
 - ✅ `--mujoco` on every script: `teleop.py` drives the simulated arm,
-  `autodemo.py --mujoco --record N --offset 15` records demos with the objects
-  up to 15 mm off the spots and keeps only clean picks (it checks the cup
-  itself), `run_policy.py ... --mujoco --trials 20` scores a model
+  `autodemo.py --mujoco --record N --anywhere` records demos with the objects
+  **anywhere the arm can pick and the camera can see** (`--offset 15` instead:
+  up to 15 mm off the spots) and keeps only clean picks (it checks the cup
+  itself), `run_policy.py ... --mujoco --trials 20 [--anywhere]` scores a model
   (`ball: 9/10 ok (1 missed)`), `--record` there keeps its successful runs.
+- ✅ Every layout is checked before it's used: objects on the plate, clear of the
+  drum, cup and mast, 60 mm apart, in the camera's picture, and the scripted pick
+  works there (tried in a hidden copy of the world, ~0.1 s). The gripper collides
+  with the base drum and the mast, so impossible picks don't get recorded.
 - ✅ `export_act.py` / `export_dataset.py --with pick_ball_mujoco --out pick_ball_mix`
   train on real + simulated demos together.
 - ✅ `sim.py --compare <photo>`: real webcam frame next to (and over) the
   simulated view, to line the camera up. `sim.py --viewer`: 3D viewer.
-- ✅ 100 tests pass (20 for the simulator, incl. scripted picks on and off the
-  spots). In a 30-layout check, scripted picks went 30/30 with `--offset 15`, 27/30 at 25.
+- ✅ 103 tests pass (23 for the simulator, incl. scripted picks on and off the
+  spots and `--anywhere` layouts). Shadows are off (they came out speckled with
+  software rendering; `SHADOWS` in `sim.py` to try them on the laptop).
 
 You (after milestones 7–9):
 - ⬜ First `uv sync` in `software/` and `software/act/` (adds `mujoco`; needs internet once).
@@ -371,12 +381,13 @@ You (after milestones 7–9):
   block on A3, **H**, **Enter**, wait 1 s, **Enter**, **Esc**; then
   `uv run sim.py --compare ..\data\raw\camcheck\episode_000000\frames\000000.jpg`
   and send `data/sim_compare.png` to Claude to tune the simulated camera.
-- ⬜ `uv run autodemo.py --mujoco --record 300 --offset 15` (`data/raw/pick_ball_mujoco`).
+- ⬜ `uv run autodemo.py --mujoco --record 300 --anywhere` (`data/raw/pick_ball_mujoco`).
 - ⬜ `cd act; uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix;
   uv run train_act.py --name pick_ball_mix --steps 20000` (overnight).
 - ⬜ Score both models in the simulator: `uv run ..\run_policy.py act --mujoco
   --trials 20 --checkpoint ..\..\outputs\act\<name>\checkpoints\020000\pretrained_model`
-  (add `--offset 15` for positions off the spots).
+  (add `--anywhere` for objects anywhere: the score that says whether
+  "put it down anywhere" works).
 - ⬜ The real test: run the better one on the real arm. A simulator score
   compares models; only the real arm says whether the simulated demos helped.
 - Optional: GR00T on the mix (`uv run export_dataset.py --with pick_ball_mujoco
