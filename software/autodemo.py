@@ -129,7 +129,8 @@ def trajectory(waypoints, fps):
         cur = wp
 
 
-def run(arm, cam, spot, target="ball", rec=None, jitter=0.0):
+def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None):
+    """keep: asked after the moves whether to save the episode (default: save)."""
     dt = 1.0 / C.FPS
     last = arm.last
     cmds = list(trajectory(plan(spot, target, jitter), C.FPS))   # fails here, before moving
@@ -150,7 +151,12 @@ def run(arm, cam, spot, target="ball", rec=None, jitter=0.0):
             rec.stop(keep=False)                          # don't leave half an episode
         raise
     if rec:
-        rec.stop()
+        rec.stop(keep=keep() if keep else True)
+
+
+def ask_keep():
+    """y / Enter keeps the episode, n throws it away (missed grip, dropped object)."""
+    return not input("keep it? [Y/n] ").strip().lower().startswith("n")
 
 
 def main():
@@ -164,7 +170,7 @@ def main():
     ap.add_argument("--other-spot", choices=sorted(SPOTS),
                     help="where the other object is (only checked, it isn't moved)")
     ap.add_argument("--record", type=int, default=0, metavar="N",
-                    help="record N demos, random layout and target each time")
+                    help="record N demos (that you keep), random layout and target each time")
     ap.add_argument("--dataset", default="pick_ball")
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter (testing)")
     args = ap.parse_args()
@@ -181,14 +187,17 @@ def main():
             return
         rec = Recorder(args.dataset, fps=C.FPS, source="autodemo")
         counts = {name: 0 for name in OBJECTS}
-        for i in range(args.record):
+        while sum(counts.values()) < args.record:           # N kept demos, not N tries
             target, spot, other_spot = layout()
             other = next(name for name in OBJECTS if name != target)
             if not args.yes:
-                input(f"[{i + 1}/{args.record}] {target} on {spot}, {other} on {other_spot}"
+                done = sum(counts.values())
+                input(f"[{done + 1}/{args.record}] {target} on {spot}, {other} on {other_spot}"
                       f' -> "{TASKS[target]}". Place them, then press Enter ')
-            run(arm, cam, spot, target, rec, jitter=8.0)
-            counts[target] += 1
+            run(arm, cam, spot, target, rec, jitter=8.0,
+                keep=None if args.yes else ask_keep)
+            if rec.last_kept:
+                counts[target] += 1
         print("recorded:", ", ".join(f"{n} {name}" for name, n in counts.items()))
     finally:
         arm.close()

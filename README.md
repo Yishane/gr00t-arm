@@ -257,7 +257,9 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - **Record 100–200** (about 150 is a good target):
   `uv run autodemo.py --record 150 --camera 1`. Each time it prints e.g.
   `block on C1, ball on A3 -> "pick up the block"`; place both, press Enter.
-  About 20 s each, so 150 take under an hour. You can split it into sessions:
+  After the move it asks `keep it? [Y/n]`: answer **n** if it missed the grip,
+  dropped the object or knocked the other one, and that episode is thrown away
+  (it keeps going until 150 are kept). About 20 s each, so 150 take under an hour. You can split it into sessions:
   it keeps numbering where it left off.
 - Optional keyboard demos: `uv run teleop.py --camera 1`, press **T** to pick
   the instruction, then pick that object.

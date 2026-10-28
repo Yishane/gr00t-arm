@@ -36,6 +36,7 @@ class Recorder:
         self.dir.mkdir(parents=True, exist_ok=True)
         self.task, self.fps, self.source = task, fps, source
         self.ep = None
+        self.last_kept = False   # whether the last stop() saved its episode
 
     @property
     def recording(self):
@@ -64,7 +65,8 @@ class Recorder:
     def stop(self, keep=True):
         if self.ep is None:
             return
-        if keep and len(self.rows) > 10:
+        self.last_kept = keep and len(self.rows) > 10
+        if self.last_kept:
             with open(self.ep / "steps.csv", "w", newline="") as f:
                 w = csv.writer(f)
                 w.writerow(["t"] + [f"state_{i}" for i in range(5)]
