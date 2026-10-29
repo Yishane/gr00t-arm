@@ -225,3 +225,15 @@ def test_run_policy_trials_score_and_record_in_the_simulator(tmp_path, monkeypat
     eps = sorted((tmp_path / "pick_ball_mujoco").glob("episode_*"))
     assert len(eps) == 2
     assert json.loads((eps[0] / "meta.json").read_text())["source"] == "policy"
+
+
+def test_watch_shows_the_simulated_camera_while_recording(tmp_path, monkeypatch, no_sleep):
+    monkeypatch.setattr(recorder, "DATA", tmp_path)
+    monkeypatch.setattr(sim.MujocoCamera, "read",
+                        lambda self, fresh=False: np.zeros((48, 64, 3), np.uint8))
+    shown = []
+    monkeypatch.setattr(A, "preview", lambda frame: shown.append(frame.shape))
+    monkeypatch.setattr("sys.argv", ["autodemo.py", "--mujoco", "--record", "1", "--anywhere",
+                                     "--watch"])
+    A.main()
+    assert len(shown) > 200                   # every recorded frame was shown

@@ -232,6 +232,9 @@ def main():
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter (testing)")
     ap.add_argument("--no-preview", action="store_true",
                     help="don't show the camera while the arm moves")
+    ap.add_argument("--watch", type=float, nargs="?", const=3.0, metavar="SPEED",
+                    help="with --mujoco: show the simulated camera, SPEED times real "
+                         "speed (default 3; recording is fastest without --watch)")
     args = ap.parse_args()
     if (args.offset or args.anywhere) and not args.mujoco:
         raise SystemExit("--offset and --anywhere are for the simulator (--mujoco): on the "
@@ -244,6 +247,10 @@ def main():
     arm, cam = open_hardware(args, realtime=False)
     world = getattr(arm, "world", None)
     show = None if (world or args.yes or args.no_preview) else preview
+    if world and args.watch:
+        def show(frame):
+            preview(frame)
+            time.sleep(1.0 / C.FPS / args.watch)   # the simulator would otherwise run flat out
     arm.send(HOME + [C.GRIPPER_OPEN])
     getattr(arm, "wait", time.sleep)(1.0)
     try:
@@ -269,7 +276,8 @@ def main():
                 # the simulator places the objects itself and checks the result
                 target, xy, other_xy = world.random_layout(args.offset, anywhere=args.anywhere)
                 world.place_for(target, xy, other_xy)
-                run(arm, cam, xy, target, rec, jitter=8.0, keep=lambda: world.success(target))
+                run(arm, cam, xy, target, rec, jitter=8.0, keep=lambda: world.success(target),
+                    show=show)
                 print(f"[{done + 1}/{args.record}] {target} at ({xy[0]:.0f}, {xy[1]:.0f}): "
                       f"{world.result(target)}")
                 fails = 0 if rec.last_kept else fails + 1
