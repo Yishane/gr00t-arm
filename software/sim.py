@@ -1,5 +1,5 @@
 """MuJoCo simulation of the arm, the webcam and the work cell (plate, cup,
-ball, block). Every script that takes --mujoco runs in it instead of on the
+5 coloured balls, block). Every script that takes --mujoco runs in it instead of on the
 real arm: autodemo.py records demos, run_policy.py tests a trained policy,
 teleop.py drives it from the keyboard.
 
@@ -41,6 +41,7 @@ import autodemo as A
 import config as C
 import kinematics as K
 from arm_io import HOME
+from recorder import TARGETS, kind_of
 
 if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
     os.environ.setdefault("MUJOCO_GL", "egl")     # no screen (a cloud machine): render off-screen
@@ -85,8 +86,18 @@ KNOCK_MM = 15.0      # the other object moved further than this: knocked
 SHADOWS = False
 
 BLACK = "0.06 0.06 0.06 1"
-COLOURS = {"plate": (0.78, 0.78, 0.76), "ball": (1.0, 0.42, 0.08),
-           "block": (0.10, 0.55, 0.20), "desk": (0.55, 0.45, 0.35)}
+COLOURS = {"plate": (0.78, 0.78, 0.76), "block": (0.10, 0.55, 0.20), "desk": (0.55, 0.45, 0.35),
+           "red_ball": (0.85, 0.07, 0.07), "green_ball": (0.20, 0.75, 0.20),
+           "pink_ball": (1.0, 0.45, 0.70), "yellow_ball": (1.0, 0.85, 0.08),
+           "blue_ball": (0.08, 0.30, 0.90)}
+# Objects not in this episode wait here (x, y mm, on the desk behind the
+# camera, out of its picture and out of the arm's reach), one per object.
+PARK = {t: (520.0, -300.0 + 120.0 * i) for i, t in enumerate(TARGETS)}
+
+
+def body(target):
+    """MuJoCo name of an object: "red ball" -> "red_ball"."""
+    return target.replace(" ", "_")
 
 
 def _m(*v):
@@ -128,6 +139,11 @@ def model_xml():
     # camera axes: x = image right (+y), y = image up; it looks along its -z
     down = math.radians(CAMERA_DOWN)
     cam_x, cam_y = "0 1 0", f"{-math.sin(down):.5f} 0 {math.cos(down):.5f}"
+    balls = "\n".join(
+        f'<body name="{body(t)}" pos="{_m(*PARK[t], BALL_R)}"><freejoint name="{body(t)}"/>'
+        f'<geom type="sphere" size="{_m(BALL_R)}" mass="0.006" material="{body(t)}" contype="3" '
+        f'conaffinity="3" condim="6" friction="1 0.01 0.003"/></body>'
+        for t in TARGETS if kind_of(t) == "ball")
     return f"""
 <mujoco model="gr00t_arm">
   <compiler angle="radian" meshdir="{ASSETS.as_posix()}" autolimits="true"/>
@@ -142,7 +158,8 @@ def model_xml():
     <material name="pla_black" rgba="{BLACK}" specular="0.3" shininess="0.3"/>
     <material name="plate" rgba="{' '.join(map(str, COLOURS['plate']))} 1" specular="0.1"/>
     <material name="engraving" rgba="0.62 0.62 0.6 1"/>
-    <material name="ball" rgba="{' '.join(map(str, COLOURS['ball']))} 1" specular="0.05"/>
+    {"".join(f'<material name="{body(t)}" rgba="{" ".join(map(str, COLOURS[body(t)]))} 1" '
+             f'specular="0.05"/>' for t in TARGETS if kind_of(t) == "ball")}
     <material name="block" rgba="{' '.join(map(str, COLOURS['block']))} 1" specular="0.2"/>
     <material name="desk" rgba="{' '.join(map(str, COLOURS['desk']))} 1"/>
   </asset>
@@ -205,12 +222,8 @@ def model_xml():
         </body>
       </body>
     </body>
-    <body name="ball" pos="{_m(*A.SPOTS["C1"], BALL_R)}">
-      <freejoint name="ball"/>
-      <geom type="sphere" size="{_m(BALL_R)}" mass="0.006" material="ball" contype="3" conaffinity="3"
-            condim="6" friction="1 0.01 0.003"/>
-    </body>
-    <body name="block" pos="{_m(*A.SPOTS["A3"], BLOCK / 2)}">
+    {balls}
+    <body name="block" pos="{_m(*PARK["block"], BLOCK / 2)}">
       <freejoint name="block"/>
       <geom type="box" size="{_m(BLOCK / 2, BLOCK / 2, BLOCK / 2)}" mass="0.006" material="block"
             contype="3" conaffinity="3" condim="4" friction="1 0.01 0.001"/>
@@ -280,9 +293,9 @@ class World:
                          "light_dir": m.light_dir[0].copy(),
                          "rgba": {k: m.mat(k).rgba.copy() for k in COLOURS}}
         self._qadr = {j: m.joint(j).qposadr[0] for j in
-                      ("base", "shoulder", "elbow", "wrist", "finger_l", "finger_r", "ball", "block")}
-        self._vadr = {j: m.joint(j).dofadr[0] for j in ("ball", "block")}
-        self.place(A.SPOTS["C1"], A.SPOTS["A3"])
+                      ("base", "shoulder", "elbow", "wrist", "finger_l", "finger_r",
+                       *map(body, TARGETS))}
+        self.place({"red ball": A.SPOTS["C1"], "block": A.SPOTS["A3"]})
         self.arm = MujocoArm(self, lockstep=not realtime)
         self.camera = MujocoCamera(self)
         self._stop = threading.Event()
@@ -329,8 +342,9 @@ class World:
             self._checker.close()
 
     # ------------------------------------------------------------ layout
-    def place(self, ball_xy, block_xy, block_yaw=None):
-        """Arm home, gripper open, ball and block (x, y in mm) on the plate.
+    def place(self, xy, block_yaw=None):
+        """Arm home, gripper open, and the objects in xy ({"red ball": (x, y),
+        "block": (x, y)}, mm) on the plate; the rest wait off the plate.
         block_yaw (deg): default turns a face toward the arm's base, as the
         guide says to place it."""
         with self.lock:
@@ -343,23 +357,28 @@ class World:
             for j, a in zip(("base", "shoulder", "elbow", "wrist"), K.from_servo(HOME)):
                 d.qpos[q[j]] = a
             d.qpos[q["finger_l"]] = d.qpos[q["finger_r"]] = math.radians(FINGER_OPEN_DEG)
-            if block_yaw is None:
-                block_yaw = math.degrees(math.atan2(block_xy[1], block_xy[0]))
-                if self.randomize:
-                    block_yaw += self.rng.uniform(-10, 10)
-            yaw = math.radians(block_yaw)
-            d.qpos[q["ball"]:q["ball"] + 7] = [ball_xy[0] / 1000, ball_xy[1] / 1000, BALL_R / 1000, 1, 0, 0, 0]
-            d.qpos[q["block"]:q["block"] + 7] = [block_xy[0] / 1000, block_xy[1] / 1000, BLOCK / 2000,
-                                                 math.cos(yaw / 2), 0, 0, math.sin(yaw / 2)]
+            self.on_plate = list(xy)
+            for t in TARGETS:
+                x, y = xy.get(t, PARK[t])
+                yaw = 0.0
+                if t == "block":
+                    if block_yaw is None:
+                        block_yaw = math.degrees(math.atan2(y, x))
+                        if self.randomize:
+                            block_yaw += self.rng.uniform(-10, 10)
+                    yaw = math.radians(block_yaw)
+                z = BALL_R if kind_of(t) == "ball" else BLOCK / 2
+                d.qpos[q[body(t)]:q[body(t)] + 7] = [x / 1000, y / 1000, z / 1000,
+                                                     math.cos(yaw / 2), 0, 0, math.sin(yaw / 2)]
             d.ctrl[:] = controls(self.out)
             self._next_tick = 0.0
             self.mj.mj_forward(self.model, d)
             self.advance(0.3)                    # let everything settle
-            self.start = {k: self.pos(k) for k in ("ball", "block")}
+            self.start = {k: self.pos(k) for k in self.on_plate}
             self._sim0, self._wall0 = self.data.time, time.perf_counter()
 
     def random_layout(self, offset=0.0, target=None, anywhere=False):
-        """(target, target xy, other xy) for one episode. Default: spots as
+        """(target, target xy, other object, other xy) for one episode. Default: spots as
         autodemo.layout() picks them, each moved up to `offset` mm in a random
         direction. anywhere: both objects anywhere in ANYWHERE_X/Y. Always: at
         least MIN_GAP apart, clear of the drum, cup, mast and plate edge, in
@@ -367,8 +386,9 @@ class World:
         in a hidden copy of the world), so every layout is one the arm can
         really do and the camera can see."""
         for _ in range(400):
-            t, spot, other_spot = A.layout()
-            t = target or t
+            t, spot, other, other_spot = A.layout()
+            if target:
+                t, other = target, A.other_for(target)
             if anywhere:
                 xy = [(self.rng.uniform(*ANYWHERE_X), self.rng.uniform(*ANYWHERE_Y))
                       for _ in range(2)]
@@ -376,8 +396,8 @@ class World:
                 xy = [self._nudge(A.SPOTS[s], offset) for s in (spot, other_spot)]
             if (math.dist(*xy) >= A.MIN_GAP and all(map(clear_of_fixed_parts, xy))
                     and all(self.in_view((*q, 15.0)) for q in xy)
-                    and self._pick_works(t, *xy)):
-                return t, xy[0], xy[1]
+                    and self._pick_works(t, xy[0], other, xy[1])):
+                return t, xy[0], other, xy[1]
         raise SystemExit(f"no reachable layout with --offset {offset:g}: try a smaller one")
 
     def in_view(self, p, margin=20):
@@ -393,7 +413,7 @@ class World:
         u, v = WIDTH / 2 + f * x / -z, HEIGHT / 2 - f * y / -z
         return margin <= u <= WIDTH - margin and margin <= v <= HEIGHT - margin
 
-    def _pick_works(self, target, xy, other_xy):
+    def _pick_works(self, target, xy, other, other_xy):
         """Does autodemo's pick work for this layout? Tried in a second,
         hidden world (physics only, ~0.1 s), so this one isn't disturbed."""
         try:
@@ -403,14 +423,12 @@ class World:
         if self._checker is None:
             self._checker = World(realtime=False)
         c = self._checker
-        c.place_for(target, xy, other_xy)
+        c.place_for(target, xy, other, other_xy)
         A.run(c.arm, _NoCamera(), xy, target)
         return c.success(target)
 
-    def place_for(self, target, target_xy, other_xy):
-        other = next(n for n in A.OBJECTS if n != target)
-        xy = {target: target_xy, other: other_xy}
-        self.place(xy["ball"], xy["block"])
+    def place_for(self, target, target_xy, other, other_xy):
+        self.place({target: target_xy, other: other_xy})
 
     def _nudge(self, xy, offset):
         r = offset * math.sqrt(self.rng.random())
@@ -434,8 +452,8 @@ class World:
 
     # ------------------------------------------------------------ checks
     def pos(self, name):
-        """(x, y, z) of a body in mm."""
-        return tuple(1000 * self.data.body(name).xpos)
+        """(x, y, z) of an object ("red ball") or other body in mm."""
+        return tuple(1000 * self.data.body(body(name)).xpos)
 
     def tool(self):
         return tuple(1000 * self.data.site("tool").xpos)
@@ -444,17 +462,23 @@ class World:
         x, y, z = self.pos(name)
         return math.dist((x, y), A.CUP) < CUP_R - CUP_WALL and z < CUP_H
 
+    def any_in_cup(self):
+        """Has any object on the plate landed in the cup? (A run can stop.)"""
+        with self.lock:
+            return any(self.in_cup(t) for t in self.on_plate)
+
     def result(self, target):
         """'ok' (the right object in the cup, the other where it was),
         'knocked' (right object, but the other was pushed), 'wrong object'
         or 'missed'."""
-        other = next(n for n in A.OBJECTS if n != target)
+        others = [t for t in self.on_plate if t != target]
         with self.lock:
-            if self.in_cup(other):
+            if any(self.in_cup(o) for o in others):
                 return "wrong object"
             if not self.in_cup(target):
                 return "missed"
-            moved = math.dist(self.pos(other)[:2], self.start[other][:2])
+            moved = max((math.dist(self.pos(o)[:2], self.start[o][:2]) for o in others),
+                        default=0.0)
             return "knocked" if moved > KNOCK_MM else "ok"
 
     def success(self, target):
@@ -527,11 +551,13 @@ def main():
     ap.add_argument("--compare", type=Path, metavar="PHOTO",
                     help="a real webcam frame (e.g. frame 0 of a recorded episode)")
     ap.add_argument("--ball", default="C1", choices=sorted(A.SPOTS))
+    ap.add_argument("--colour", default="red", choices=[t.split()[0] for t in TARGETS
+                                                         if kind_of(t) == "ball"])
     ap.add_argument("--block", default="A3", choices=sorted(A.SPOTS))
     ap.add_argument("--viewer", action="store_true", help="open MuJoCo's 3D viewer")
     a = ap.parse_args()
     world = World(realtime=False)
-    world.place(A.SPOTS[a.ball], A.SPOTS[a.block])
+    world.place({f"{a.colour} ball": A.SPOTS[a.ball], "block": A.SPOTS[a.block]})
     if a.viewer:
         import mujoco.viewer
         mujoco.viewer.launch(world.model, world.data)
@@ -548,7 +574,7 @@ def main():
                                     np.zeros_like(img)])])
         path = DATA / "sim_compare.png"
         cv2.imwrite(str(path), out)
-        print(f"wrote {path}: real | sim on top, 50/50 blend below. Put the ball on "
+        print(f"wrote {path}: real | sim on top, 50/50 blend below. Put the {a.colour} ball on "
               f"{a.ball} and the block on {a.block} in the real photo, arm at home.")
     else:
         path = DATA / "sim_view.png"

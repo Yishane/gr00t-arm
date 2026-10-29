@@ -2,7 +2,34 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
-## >>> LATEST STATE (2026-10-28) — READ THIS FIRST <<<
+## >>> LATEST STATE (2026-10-29) — COLOURED BALLS <<<
+- Yishane asked: "make it so that the training uses different colours of red, green, pink, yellow,
+  blue". His choices: balls only (5 coloured 40 mm balls + the one green block); 2 objects per demo,
+  sometimes two balls; he has all 5 balls.
+- recorder.py: BALL_COLOURS, TARGETS = ["red ball", ..., "blue ball", "block"],
+  TASKS = {t: "pick up the " + t}, kind_of(target) -> "ball"/"block". target_of() needs the colour:
+  "pick up the ball" -> None. OLD DEMOS saying "pick up the ball" no longer export (export_act raises;
+  GR00T export would keep them as a 7th task string) -> record new ones.
+- autodemo.py: OBJECTS stays keyed by kind (grip z); plan() uses kind_of. layout() ->
+  (target, spot, other, other_spot); target uniform over 6; other_for(): block target -> random ball;
+  ball target -> another-colour ball with SAME_SHAPE = 0.5, else block. --target "red ball" (default),
+  --other. Prompt: "pink ball on C1, blue ball on A3 -> ... (nothing else on the plate)".
+  Recommended --record 250 (~40 per target).
+- sim.py: 5 ball bodies red_ball..blue_ball (body(t) = t with "_"), materials per colour (COLOURS),
+  PARK = off-plate spots behind the camera for objects not in the episode. place({target: xy, ...}),
+  place_for(target, xy, other, other_xy), random_layout -> (t, xy, other, other_xy), on_plate,
+  any_in_cup(), result() checks all other on-plate objects. sim.py --colour for --view/--compare.
+- run_policy: instruction("red") / "red ball" -> TASKS; --trials cycles the 6 targets; done=world.any_in_cup.
+  ACT state index = sorted(TASKS).index(target) (0 block, 1 blue, 2 green, 3 pink, 4 red, 5 yellow):
+  any ACT checkpoint trained on old ball/block data is incompatible.
+- cad/assembly.py --cell also checks ball next to ball: PASS (24 pairs x 3).
+- Sim scripted ball pick at the A2 *spot name* misses (SPOT_FIX A2 is tuned for the real arm; same on
+  main before this change). Sim recording uses xy positions (no SPOT_FIX), so not affected.
+- Cloud container: `apt-get install libegl1 libosmesa6 libgl1` makes EGL rendering + test_sim.py work
+  here. 115 tests pass. Docs (README 2e, guide, learning_guide, computer_to_nano, dry run) updated;
+  guide.pdf rebuilt.
+
+## >>> STATE (2026-10-28) <<<
 - Milestones 3-6 (print, wire + flash, assemble, calibrate) are DONE (Yishane, 2026-10-28).
   Next: 7 record demos, 8 ACT, 9 GR00T, 10 simulation (new), 11 present.
 - Branch claude/autodemo-keep-prompt (cloud session, NOT yet merged into main):

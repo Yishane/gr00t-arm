@@ -60,15 +60,16 @@ GR00T is NVIDIA's \emph{robot foundation model}: one neural network, pretrained 
 amount of robot and human data, that turns \textbf{what a robot sees}, \textbf{what it is
 told} and \textbf{where its joints are} into \textbf{the next motions}. It was built for
 humanoids, but it is designed so a \emph{new} body can be taught to it with a small amount of
-data. This arm is that new body: five \$2 servos, a webcam for eyes, and 100--200
-demonstrations. A ball and a block sit on the plate; you type ``pick up the ball'' or ``pick up
-the block'', and the arm drops that one in the cup. The words decide which object it goes for.
+data. This arm is that new body: five \$2 servos, a webcam for eyes, and about 250
+demonstrations. Two objects sit on the plate (a ball and a block, or two balls of different
+colours); you type ``pick up the blue ball'' or ``pick up the block'', and the arm drops that
+one in the cup. The words decide which object it goes for.
 
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[node distance=7mm and 9mm]
   \node[box,fill=green!8] (cam) {\textbf{Camera}\\ image $640{\times}480$};
-  \node[box,fill=green!8,below=of cam] (lang) {\textbf{Instruction}\\ ``pick up the ball'' or\\ ``pick up the block''};
+  \node[box,fill=green!8,below=of cam] (lang) {\textbf{Instruction}\\ ``pick up the red ball'' or\\ ``pick up the block''};
   \node[box,fill=green!8,below=of lang] (state) {\textbf{Joint state}\\ 5 servo angles};
 
   \node[box,fill=NavyBlue!10,right=16mm of lang,minimum width=40mm,minimum height=46mm] (g) {};
@@ -139,7 +140,7 @@ the block'', and the arm drops that one in the cup. The words decide which objec
 GR00T concept & On this arm & Where \\
 \midrule
 Vision input & One USB webcam on a fixed mast looking down at the work area (key \texttt{front}). Fixed so every demo looks the same. & mast + webcam mount, \file{arm_io.py} \\
-Language instruction & ``pick up the ball'' or ``pick up the block'', saved with each demo; typed in at run time & \file{recorder.py}, \file{run_policy.py} \\
+Language instruction & ``pick up the red ball'' (green, pink, yellow, blue) or ``pick up the block'', saved with each demo; typed in at run time & \file{recorder.py}, \file{run_policy.py} \\
 Proprioceptive state & 5 servo angles in degrees: base, shoulder, elbow, wrist (\texttt{single\_arm}) and gripper (\texttt{gripper}) & \file{export_dataset.py} \\
 Embodiment & \texttt{NEW\_EMBODIMENT} with our modality config & \file{gr00t_arm_config.py} \\
 Dataset format & LeRobot v2.1 + \file{meta/modality.json} (parquet tables + mp4 videos) & \file{export_dataset.py} \\
@@ -147,7 +148,7 @@ Action chunk & 16 future commands; we execute 8 then re-query & \file{run_policy
 Relative vs absolute actions & Arm joints are predicted as \emph{changes} from the current angles (generalises better); the gripper as an absolute open/close target & \file{gr00t_arm_config.py} \\
 Post-training & Fine-tune on 100--200 demos on a rented cloud GPU, $\approx$3000 steps & \file{gr00t/finetune.sh} \\
 Inference & Model runs on the cloud GPU as a server; the laptop sends image + state, gets actions back over ZeroMQ & \file{gr00t/serve.sh}, \file{policy_client.py} \\
-Demonstrations & Scripted pick-and-place (auto-collected; random layout, ball or block about half each) or keyboard teleop & \file{autodemo.py}, \file{teleop.py} \\
+Demonstrations & Scripted pick-and-place (auto-collected; random layout, each of the 6 targets equally often, half the ball demos next to a second ball) or keyboard teleop & \file{autodemo.py}, \file{teleop.py} \\
 Simulation data & A MuJoCo copy of the arm records extra demos at varied positions and scores models automatically; GR00T's pretraining also mixes in simulated robots & \file{sim.py} \\
 \bottomrule
 \end{tabularx}
@@ -193,8 +194,9 @@ Simulation data & A MuJoCo copy of the arm records extra demos at varied positio
   and a diffusion transformer turns that into \emph{how} the joints move. Slow thinking and
   fast moving.''
 \item \textbf{New body.} ``GR00T has never seen this arm. I registered it as a new embodiment:
-  4 joints, a gripper, one camera, and fine-tuned it on about 150 demonstrations, half picking
-  the ball and half the block, each with its sentence. That took
+  4 joints, a gripper, one camera, and fine-tuned it on about 250 demonstrations, picking five
+  colours of ball and a block, each with its sentence. Half the ball demos have a second ball
+  next to it, so only the colour word says which one. That took
   an hour or two on a rented GPU.''
 \item \textbf{Demo} (\cref{sec:demo}).
 \item \textbf{Back to humanoids.} ``A humanoid is the same loop with more joints, more cameras
@@ -208,12 +210,12 @@ Simulation data & A MuJoCo copy of the arm records extra demos at varied positio
 Pick the most ambitious option you have working, and keep the next one ready.
 \begin{enumerate}
 \item \textbf{GR00T live.} Start the cloud machine and \file{serve.sh} about 30 minutes before class, connect with
-  \file{run_policy.py gr00t}. Needs internet. Put the ball and the block on two marked
-  spots, ask the audience which one, and type it: \texttt{pick up the block}. When it's done it
-  asks again, so swap the objects around and do the other one.
+  \file{run_policy.py gr00t}. Needs internet. Put two balls (or a ball and the block) on
+  two marked spots, ask the audience which one, and type it: \texttt{pick up the yellow ball}.
+  When it's done it asks again, so swap the objects around and do another.
 \item \textbf{ACT live (no internet).} Same pipeline, smaller model running on the laptop:
   \file{run_policy.py act}. Say clearly that this is the small model trained on the same data.
-  ACT can't read words: it gets ``ball'' or ``block'' as a single number (0 or 1). That
+  ACT can't read words: it gets the target as a single number (0--5). That
   difference is a good point to make: GR00T understands the sentence, ACT only gets a switch.
 \item \textbf{Scripted demo.} \file{autodemo.py --target block --spot C1 --other-spot A3}
   always works. Explain that this script is how the training demonstrations were collected,
@@ -266,10 +268,10 @@ Arduino Nano + USB cable & 1 & the cable must carry data, not only charge \\
 Adjustable bench power supply & 1 & set to 5.5\,V, current limit 3\,A \\
 Breadboard + male--male jumper wires & -- & to share power between servos \\
 Superglue (CA) & -- & optional: only if a part slips on its horn or the gripper turns \\
-Orange soft foam ball (40\,mm) & 1 & squeezable PU/stress-ball foam: grips better and rolls less than a ping-pong ball. Keep it 40\,mm (the grip height and finger opening assume it); a ping-pong ball or two glued \file{12_ball_half} also work \\
-Printed block (25\,mm cube) & 1 & \file{13_block}, in a colour that stands out from the ball
-  and the plate (green, with an orange ball on a light grey plate). Avoid a white ball: it barely
-  stands out from the light grey plate \\
+Soft foam balls (40\,mm): red, green, pink, yellow, blue & 5 & all the same size, only the colour differs (the instruction names the colour). Squeezable PU/stress-ball foam: grips better and rolls less than a ping-pong ball. Keep it 40\,mm (the grip height and finger opening assume it); a ping-pong ball or two glued \file{12_ball_half} also work \\
+Printed block (25\,mm cube) & 1 & \file{13_block}, in a colour that stands out from the plate
+  (ours: green, on a light grey plate; the green ball has the same colour but is round). Avoid a
+  white ball: it barely stands out from the light grey plate \\
 USB webcam with monitor clip & 1 & ours: KitGody 1080p, 90\textdegree{} view. Plug and play.
   Its clip has a 1/4"-20 tripod hole underneath. A phone with a webcam app (Iriun, DroidCam,
   Phone Link) on \file{09_phone_cradle} also works \\
@@ -456,7 +458,7 @@ laptop instead and everything below stays the same.
 \centering
 \begin{tikzpicture}[node distance=6mm and 10mm]
   \node[box,fill=gray!8] (cam) {webcam\\ \footnotesize (USB)};
-  \node[box,below=of cam,fill=gray!8] (you) {you type\\ \footnotesize ``pick up the ball''};
+  \node[box,below=of cam,fill=gray!8] (you) {you type\\ \footnotesize ``pick up the red ball''};
   \node[box,right=20mm of $(cam)!0.5!(you)$,fill=orange!10,minimum height=16mm] (lap)
     {\textbf{Laptop}\\ \footnotesize \file{run_policy.py}};
   \node[box,right=18mm of lap,fill=NavyBlue!10,minimum height=16mm] (gpu)
@@ -668,8 +670,9 @@ and \texttt{TOOL\_UP} (how far the fingers hang below the wrist) get a small tri
 \begin{cmd}
 uv run autodemo.py --spot B2 --camera 1
 \end{cmd}
-Put the ball on spot B2 first. The arm should pick it up and drop it in the cup. Then the
-block, with the ball on another spot:
+Put the red ball on spot B2 first (\texttt{--target} picks another colour, e.g.\
+\texttt{--target "blue ball"}). The arm should pick it up and drop it in the cup. Then the
+block, with the red ball on A3:
 \begin{cmd}
 uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1
 \end{cmd}
@@ -689,18 +692,20 @@ to try it without hardware.
 \begin{enumerate}
 \item \textbf{Automatic (recommended):}
 \begin{cmd}
-uv run autodemo.py --record 150 --camera 1
+uv run autodemo.py --record 250 --camera 1
 \end{cmd}
-  Each time it tells you where to put the ball and the block and which one it will pick, e.g.\
-  \texttt{block on C1, ball on A3 -> "pick up the block"}. Place both, press Enter, and it
-  picks and places while recording, saving the instruction with the demo. It picks the ball or
-  the block about half the time each. After each pick it asks \texttt{keep it? [Y/n]}: press
+  Each time it tells you which two objects to put where and which one it will pick, e.g.\
+  \texttt{pink ball on C1, blue ball on A3 -> "pick up the pink ball"}. Place both (nothing else
+  on the plate), press Enter, and it picks and places while recording, saving the instruction
+  with the demo. Each of the six targets (five balls, the block) comes up equally often; half
+  the ball picks have a second ball of another colour next to it (otherwise the block), so
+  the model has to read the colour word. After each pick it asks \texttt{keep it? [Y/n]}: press
   Enter to keep the demo, or type \texttt{n} if it missed the grip, dropped the object or
-  knocked the other one, and that demo is thrown away. \texttt{--record 150} keeps going until
-  150 demos are kept. Aim for 100--200 (about 20 seconds each, so 150 take under an hour;
+  knocked the other one, and that demo is thrown away. \texttt{--record 250} keeps going until
+  250 demos are kept, about 40 per target (about 20 seconds each, so about an hour and a half;
   split it into sessions, it keeps numbering where it left off).
 \item \textbf{By hand (optional, adds variety):} in \file{teleop.py}, \key{T} switches the
-  instruction between ``pick up the ball'' and ``pick up the block'' (shown at the top of the
+  instruction through ``pick up the red ball'' \dots{} ``pick up the block'' (shown at the top of the
   window), \key{Enter} starts a recording, \key{Enter} again saves it, \key{Backspace} throws
   it away. Always pick the object the instruction names.
 \end{enumerate}
@@ -730,8 +735,8 @@ uv run ..\run_policy.py act --camera 1 ^
     --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model
 \end{cmd}
 Training runs at about 2.3 steps per second on the RTX 5050 (about 2.5 hours for 20k steps).
-It asks for an instruction; type \texttt{pick up the ball} or \texttt{pick up the block} (or just
-\texttt{ball} / \texttt{block}). Each runs for 20 seconds (\texttt{--seconds}), then the arm goes
+It asks for an instruction; type \texttt{pick up the red ball} or \texttt{pick up the block} (or just
+\texttt{red} / \texttt{block}). Each runs for 20 seconds (\texttt{--seconds}), then the arm goes
 home and it asks again; \texttt{q} quits. If ACT picks up the right object, the data is good
 and GR00T will learn from it too.
 
@@ -751,7 +756,7 @@ uv run ..\run_policy.py act --camera 1 --record pick_ball ^
   The arm goes home and asks \texttt{keep it? [Y/n]}.
 \item Keep a run \emph{only} if it picked the right object cleanly. Training on its successes
   makes it better (it sees more object positions it handled well); training on its failures
-  would teach it its own mistakes. Keep ball and block runs roughly even.
+  would teach it its own mistakes. Keep the six targets roughly even.
 \end{enumerate}
 \texttt{--record pick\_ball} puts the runs next to your demos, numbered after them, so the
 next export uses both; \texttt{--record} alone saves them to a separate
@@ -868,7 +873,7 @@ block are ours.}
 \begin{description}[leftmargin=0pt]
 \item[MuJoCo.] A free physics engine (\texttt{pip install mujoco}, installed by \texttt{uv sync}).
   \file{sim.py} describes the work cell to it: the arm's moving parts, the plate, the cup, the
-  ball and the block. MuJoCo works out how they move and collide 500 times a simulated second
+  five balls and the block. MuJoCo works out how they move and collide 500 times a simulated second
   and draws what a camera would see.
 \item[The arm.] Each part is the author's 3D model, on joints placed with the numbers in
   \file{config.py}: shoulder 54\,mm above the plate, two 60\,mm links, tool point 86.5\,mm
@@ -890,8 +895,9 @@ block are ours.}
   aims for 6\textdegree, a little narrower than the block, so the fingers stop on the object
   and squeeze it with the servo's limited force (on the block at about 12\textdegree, on the
   ball at 13--16\textdegree), like the real calibration.
-\item[The objects.] A 40\,mm ball and a 25\,mm block (6\,g each), with grip and some rolling
-  resistance like the foam ball. The block is turned with a face toward the base, as you place
+\item[The objects.] Five 40\,mm balls (red, green, pink, yellow, blue) and a 25\,mm block
+  (6\,g each), with grip and some rolling resistance like the foam balls. The two objects of an
+  episode go on the plate; the others wait on the desk behind the camera, out of the picture. The block is turned with a face toward the base, as you place
   it. The arm collides with the plate, the cup, the mast and the objects, and the gripper with the
   base drum; the arm's parts don't collide with each other (the joint limits already stop that on
   the real arm).
@@ -899,7 +905,7 @@ block are ours.}
   65\textdegree{} down, seeing about 66$\times$52\textdegree. The camera's exact place and view
   are estimates until you check them against a real photo (below).
 \item[A little different every time.] For each new layout the light (direction, brightness),
-  the colours (plate, ball, block, desk) and the camera (a few mm, 1--2\textdegree) change a
+  the colours (plate, balls, block, desk) and the camera (a few mm, 1--2\textdegree) change a
   little. A model trained on that can't rely on one exact look, which helps it cope with the
   real camera too.
 \item[Only layouts the arm can really do.] Before it uses a layout, the simulator checks that
@@ -923,7 +929,7 @@ simulation described here.
 
 \subsection{Step 1: check the simulated camera against the real one}
 The simulated pictures should look like the webcam's, or a model can't carry what it learns in
-one over to the other. Take one real photo with the arm at home, the ball on C1 and the block
+one over to the other. Take one real photo with the arm at home, the red ball on C1 and the block
 on A3 (a one-second teleop recording, kept out of your demos by its own dataset name):
 \begin{cmd}
 uv run teleop.py --camera 1 --dataset camcheck
@@ -989,8 +995,8 @@ many simulated ones can make the model better at the simulator than at the real 
 uv run ..\run_policy.py act --mujoco --trials 20 ^
     --checkpoint ..\..\outputs\act\pick_ball_mix\checkpoints\020000\pretrained_model
 \end{cmd}
-Twenty runs, ball and block taking turns, each on a new random layout, each stopping as soon as
-an object lands in the cup. At the end it prints e.g.\ \texttt{ball: 9/10 ok (1 missed)}. Add
+Twenty runs, the six targets taking turns, each on a new random layout, each stopping as soon as
+an object lands in the cup. At the end it prints e.g.\ \texttt{red ball: 3/4 ok (1 missed)}. Add
 \texttt{--anywhere} (or \texttt{--offset 15}) to test positions off the spots: that score says
 how well it copes with objects put down anywhere. Run the same command with the real-only
 model's checkpoint to compare the two; GR00T works too (\texttt{run\_policy.py gr00t --mujoco

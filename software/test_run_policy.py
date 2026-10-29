@@ -34,14 +34,14 @@ def no_sleep(monkeypatch):
 
 def test_timeouts_and_empty_chunks_stop_the_run_not_the_program():
     pol = ScriptedPolicy([TimeoutError(), [], RuntimeError("server error")])
-    run_policy.run(pol, SimArm(), FakeCamera(), "pick up the ball", 8, 60)
+    run_policy.run(pol, SimArm(), FakeCamera(), "pick up the red ball", 8, 60)
     assert pol.calls == 3                             # MAX_FAILS, then returned
 
 
 def test_a_success_resets_the_failure_count():
     pol = ScriptedPolicy([TimeoutError(), TimeoutError(), [HOME5], TimeoutError(),
                           TimeoutError(), TimeoutError()])
-    run_policy.run(pol, SimArm(), FakeCamera(), "pick up the ball", 8, 60)
+    run_policy.run(pol, SimArm(), FakeCamera(), "pick up the red ball", 8, 60)
     assert pol.calls == 6
 
 
@@ -49,7 +49,7 @@ def test_unsafe_commands_are_never_sent():
     arm = RecordingSimArm()
     fold = [90, 90, 120, 150, 125]                    # gripper folded into the upper arm
     pol = ScriptedPolicy([[fold, fold]] + [TimeoutError()] * 3)
-    run_policy.run(pol, arm, FakeCamera(), "pick up the ball", 8, 60)
+    run_policy.run(pol, arm, FakeCamera(), "pick up the red ball", 8, 60)
     assert fold not in arm.sent
     assert all(K.servo_ok(c[:4]) for c in arm.sent)
 
@@ -71,7 +71,7 @@ def test_nan_or_short_commands_are_never_sent():
     arm = RecordingSimArm()
     bad = [[90, 90, 90, 90, float("nan")], [90, 90, 90, 90]]
     pol = ScriptedPolicy([bad] + [TimeoutError()] * 3)
-    run_policy.run(pol, arm, FakeCamera(), "pick up the ball", 8, 60)
+    run_policy.run(pol, arm, FakeCamera(), "pick up the red ball", 8, 60)
     assert all(len(c) == 5 and all(a == a for a in c) for c in arm.sent)   # a != a only for NaN
 
 

@@ -11,7 +11,7 @@ the laptop over the internet. The laptop then passes its answer on to the Nano.
 ```
  phone camera ──(webcam app)──▶ ┌────────────┐ ◀──(internet, port 5555)──▶ ┌──────────────┐
                                 │   LAPTOP   │                             │ cloud GPU    │
- you type "pick up the ball" ─▶ │ run_policy │                             │ GR00T server │
+ "pick up the red ball" ──────▶ │ run_policy │                             │ GR00T server │
                                 └─────┬──────┘                             └──────────────┘
                                       │ USB cable (serial, 115200 baud)
                                       │ "90.0,90.0,90.0,90.0,125.0\n"  ×30 per second
@@ -94,7 +94,7 @@ This is `run(...)` in `software/run_policy.py`:
 
 1. Grab a photo from the phone camera (640×480).
 2. Package the photo, the 5 angles it last sent, and your sentence
-   ("pick up the ball").
+   ("pick up the red ball").
 3. Send that to the GR00T server on the cloud GPU (`policy_client.py`: a ZeroMQ
    request on port 5555, through the SSH tunnel). GR00T replies with **16
    future steps** of 5 angles each (an "action chunk").

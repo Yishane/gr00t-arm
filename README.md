@@ -1,9 +1,10 @@
 # gr00t-arm
 
 A small 3D-printed desk arm (SG90 servos, Arduino Nano) used to show how
-NVIDIA GR00T learns robot skills. A ball and a block sit on the plate. You
-type **"pick up the ball"** or **"pick up the block"**, and the arm picks that
-object and drops it in the cup. You record demos of both (scripted or by
+NVIDIA GR00T learns robot skills. Two objects sit on the plate: a ball and a
+block, or two balls of different colours (red, green, pink, yellow, blue). You
+type **"pick up the blue ball"** or **"pick up the block"**, and the arm picks
+that object and drops it in the cup. You record demos of all six targets (scripted or by
 keyboard), export them as a GR00T/LeRobot dataset with the instruction saved
 per episode, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU,
 and run the learned policy back on the arm.
@@ -15,7 +16,10 @@ and run the learned policy back on the arm.
 > **New (2026-10-28):** every recording asks *keep it?*, the trained policy can
 > record its own runs to learn from (milestone 2d), and a MuJoCo simulation of
 > the arm makes extra training data and tests models automatically
-> (milestone 10). What's left: record demos, train ACT and GR00T, present.
+> (milestone 10). **New (2026-10-29):** five ball colours (red, green, pink,
+> yellow, blue) plus the block, and sometimes two balls on the plate, so the
+> model has to read the colour word (milestone 2e).
+> What's left: record demos, train ACT and GR00T, present.
 > See [Milestones](#milestones).
 
 ---
@@ -169,6 +173,23 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   collision checks, so a sweep takes seconds).
 - ✅ `context.md` up to date.
 
+### ✅ 2e. Coloured balls (Claude, 2026-10-29)
+- ✅ Six targets: the **red, green, pink, yellow and blue ball** and the **block**
+  (`recorder.TARGETS`); instructions "pick up the red ball" … "pick up the block".
+  A bare "pick up the ball" no longer names one object.
+- ✅ Each demo: target picked evenly from the six. The second object: for a ball
+  target, half the time another colour of ball (`autodemo.SAME_SHAPE`), else the
+  block; for the block, a random ball. With only ball + block in every demo, the
+  model could learn "ball = the round thing" and ignore the colour word; two balls
+  side by side force it to use the colour.
+- ✅ MuJoCo sim: all five balls, the ones not in the episode wait off the plate
+  out of the camera's view; colours are jittered per layout like the rest.
+- ✅ ACT gets the target as its 6th state number (0–5, `sorted(TASKS)`), so an
+  ACT model trained on the old ball/block demos must be retrained. Old demos that
+  say just "pick up the ball" can't be exported with the new ones (which ball?):
+  record new ones.
+- ✅ `cad/assembly.py --cell`: ball next to ball passes on all 24 spot pairs too.
+
 ### ✅ 2b. New demo: ball + block, pick the one you name (Claude)
 - ✅ The task: a ball and a block are both on the plate. You type
   **"pick up the ball"** or **"pick up the block"**, and the arm picks that
@@ -186,7 +207,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the fingertips hit the plate or the gripper hits the base drum).
 - ✅ Layouts: the two spots are ≥ 60 mm apart and C3 + A2 is left out, so the
   gripper never touches the other object (`cad/assembly.py --cell` checks
-  all 24 spot pairs × 2 targets: PASS). The middle spot B2 isn't used for
+  all 24 spot pairs × ball/block, block/ball and ball/ball: PASS). The middle spot B2 isn't used for
   recording (it's too close to every other spot).
 - ✅ `run_policy.py` asks `instruction>` in a loop: type the sentence (or just
   `ball` / `block`). It runs for 20 s (or until Ctrl+C), goes home, asks
@@ -242,6 +263,8 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   only for using a phone as the camera instead.
 - ✅ Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
+- ✅ **Five 40 mm balls: red, green, pink, yellow, blue** (all the same size; only the
+  colour differs). The orange one isn't one of the six targets, so leave it off the plate.
 
 ### ✅ 4. Wire and flash (You, guide "Wiring")
 - ✅ **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
@@ -285,12 +308,15 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the guide's framing check, and tape the hinge.
 - Test: `uv run autodemo.py --spot B2 --camera 1` (webcam), then the
   block: `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1`.
-- **Record 100–200** (about 150 is a good target):
-  `uv run autodemo.py --record 150 --camera 1`. Each time it prints e.g.
-  `block on C1, ball on A3 -> "pick up the block"`; place both, press Enter.
+- **Record about 250** (about 40 per target):
+  `uv run autodemo.py --record 250 --camera 1`. Each time it prints e.g.
+  `pink ball on C1, blue ball on A3 -> "pick up the pink ball"`; place both (only
+  those two on the plate), press Enter. Half the ball picks have a second ball of
+  another colour next to the target, so the colour word is the only way to tell
+  which one is meant.
   After the move it asks `keep it? [Y/n]`: answer **n** if it missed the grip,
   dropped the object or knocked the other one, and that episode is thrown away
-  (it keeps going until 150 are kept). About 20 s each, so 150 take under an hour. You can split it into sessions:
+  (it keeps going until 150 are kept). About 20 s each, so 250 take about an hour and a half. You can split it into sessions:
   it keeps numbering where it left off.
 - Optional keyboard demos: `uv run teleop.py --camera 1`, press **T** to pick
   the instruction, then pick that object.
@@ -300,7 +326,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   (about 2.5 hours on the RTX 5050).
 - Run it on the arm:
   `uv run ..\run_policy.py act --camera 1 --checkpoint ..\..\outputs\act\pick_ball\checkpoints\020000\pretrained_model`,
-  then type `pick up the ball` or `pick up the block` at the `instruction>` prompt.
+  then type `pick up the red ball` (or just `red`) or `pick up the block` at the `instruction>` prompt.
 - Optional, to improve it on its own runs: add `--record pick_ball`. Each run
   is saved next to your demos (tagged `"source": "policy"`, numbered after
   them). Press Ctrl+C once the object is in the cup, then answer

@@ -17,15 +17,23 @@ from pathlib import Path
 import cv2
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "raw"
-# The instruction typed at run time (run_policy.py) is one of these. Both
-# objects are on the plate in every episode; the instruction says which one
-# goes in the cup.
-TASKS = {"ball": "pick up the ball", "block": "pick up the block"}
-TASK = TASKS["ball"]
+# The instruction typed at run time (run_policy.py) is one of these. Two
+# objects are on the plate in every episode (a ball and the block, or two
+# balls of different colours); the instruction says which one goes in the cup.
+BALL_COLOURS = ("red", "green", "pink", "yellow", "blue")
+TARGETS = [f"{c} ball" for c in BALL_COLOURS] + ["block"]
+TASKS = {t: f"pick up the {t}" for t in TARGETS}
+TASK = TASKS["red ball"]
+
+
+def kind_of(target):
+    """"red ball" -> "ball", "block" -> "block"."""
+    return target.split()[-1]
 
 
 def target_of(task):
-    """Which object an instruction means ("ball" / "block"), or None."""
+    """Which object an instruction means ("red ball", ..., "block"), or None
+    (no object, two objects, or a ball without its colour)."""
     words = task.lower()
     found = [name for name in TASKS if name in words]
     return found[0] if len(found) == 1 else None

@@ -1,16 +1,18 @@
-"""Let a trained policy drive the arm. Put the ball and the block on the
-plate, then type what to do:
+"""Let a trained policy drive the arm. Put two objects on the plate (a ball
+and the block, or two balls of different colours), then type what to do:
 
-    instruction> pick up the block
+    instruction> pick up the blue ball
 
 The arm runs the policy for --seconds (or until Ctrl+C), goes home, and asks
-again. Type just "ball" or "block" for short, or q / an empty line to quit.
+again. Type just "blue", "blue ball" or "block" for short, or q / an empty
+line to quit. GR00T gets any wording you type; the demos all say "pick up
+the <colour> ball" / "pick up the block".
 
 GR00T (model running on the cloud GPU, see gr00t/README.md):
     uv run run_policy.py gr00t --host <cloud-ip> --server-port 5555
 ACT (trained locally, run from software/act):
     cd act && uv run ../run_policy.py act --checkpoint ../../outputs/act/pick_ball/checkpoints/020000/pretrained_model
---task "pick up the ball" runs one instruction without asking.
+--task "pick up the red ball" runs one instruction without asking.
 
 Each step: grab a camera frame + the current servo angles, ask the policy for
 the next chunk of actions, play the first --horizon of them at 30 Hz, repeat.
@@ -29,8 +31,8 @@ Press Ctrl+C once the object is in the cup so the idle rest isn't recorded,
 then answer keep it? [Y/n]: keep only the runs that picked the right object
 cleanly, so retraining on them doesn't teach the policy its own mistakes.
 
---mujoco runs it in the simulation (sim.py) instead: each run puts the ball
-and the block on a random layout (--offset MM moves them off the spots,
+--mujoco runs it in the simulation (sim.py) instead: each run puts the
+target and a second object (another ball or the block) on a random layout (--offset MM moves them off the spots,
 --anywhere puts them anywhere the arm can pick and the camera can see), stops
 as soon as an object lands in the cup, and prints ok / knocked / wrong object
 / missed. --trials N runs N of them on their own and prints the score; with
@@ -105,12 +107,16 @@ class ActBackend:
 
 def instruction(text):
     """What was typed -> the instruction to send, or None if it isn't usable.
-    "ball" / "block" expand to the exact wording the demos were recorded with."""
+    "red" / "red ball" / "block" expand to the exact wording the demos were
+    recorded with."""
     text = text.strip()
+    short = text.lower()
+    if f"{short} ball" in TASKS:              # just a colour
+        return TASKS[f"{short} ball"]
     target = target_of(text)
     if target is None:
         return None
-    return TASKS[target] if text.lower() in (target, TASKS[target]) else text
+    return TASKS[target] if short in (target, TASKS[target]) else text
 
 
 def ask():
@@ -124,7 +130,8 @@ def ask():
         task = instruction(text)
         if task:
             return task
-        print(f'say which object: "{TASKS["ball"]}" or "{TASKS["block"]}"')
+        print(f'say which object, with the ball\'s colour: "{TASKS["red ball"]}", '
+              f'"{TASKS["block"]}", ... ({", ".join(TASKS)})')
 
 
 def go_home(arm):
@@ -277,8 +284,8 @@ def main():
                     help="save each run as an episode in data/raw/DATASET (default "
                          "pick_ball_policy, or pick_ball_mujoco with --mujoco)")
     ap.add_argument("--trials", type=positive_int, metavar="N",
-                    help="with --mujoco: N runs on random layouts, ball and block "
-                         "taking turns, then the score")
+                    help="with --mujoco: N runs on random layouts, the 5 balls and "
+                         "the block taking turns, then the score")
     ap.add_argument("--offset", type=float, default=0.0, metavar="MM",
                     help="with --mujoco: put each object up to MM away from its spot")
     ap.add_argument("--anywhere", action="store_true",
@@ -294,7 +301,8 @@ def main():
     if args.task:
         task = instruction(args.task)
         if task is None:
-            raise SystemExit(f"--task must name the ball or the block: {args.task!r}")
+            raise SystemExit(f"--task must name one object (a ball with its colour, or the "
+                             f"block): {args.task!r}")
     policy = (Gr00tBackend(args.host, args.server_port) if args.backend == "gr00t"
               else ActBackend(args.checkpoint))
     rec = None
@@ -313,24 +321,26 @@ def main():
                 keep=ask_keep if rec else None, **opts)
             return None
         target = target_of(task)
-        _, xy, other_xy = world.random_layout(args.offset, target=target, anywhere=args.anywhere)
-        world.place_for(target, xy, other_xy)
+        _, xy, other, other_xy = world.random_layout(args.offset, target=target,
+                                                     anywhere=args.anywhere)
+        world.place_for(target, xy, other, other_xy)
         run(policy, arm, cam, task, args.horizon, args.seconds,
-            keep=lambda: world.success(target),
-            done=lambda: world.in_cup("ball") or world.in_cup("block"), **opts)
+            keep=lambda: world.success(target), done=world.any_in_cup, **opts)
         result = world.result(target)
-        print(f"{target} at ({xy[0]:.0f}, {xy[1]:.0f}): {result}")
+        print(f"{target} at ({xy[0]:.0f}, {xy[1]:.0f}), {other} next to it: {result}")
         return result
 
     go_home(arm)
     try:
         if args.trials:
-            score = {name: [] for name in sorted(TASKS)}
+            score = {name: [] for name in TASKS}
             for i in range(args.trials):
-                target = sorted(TASKS)[i % len(TASKS)]
+                target = list(TASKS)[i % len(TASKS)]
                 print(f"\ntrial {i + 1}/{args.trials}")
                 score[target].append(one(TASKS[target]))
             for target, results in score.items():
+                if not results:
+                    continue
                 others = ", ".join(f"{results.count(r)} {r}" for r in sorted(set(results)) if r != "ok")
                 print(f"{target}: {results.count('ok')}/{len(results)} ok"
                       + (f" ({others})" if others else ""))
@@ -338,7 +348,7 @@ def main():
         if task:
             one(task)
             return
-        print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
+        print(f'type an instruction, e.g. "{TASKS["blue ball"]}" or "{TASKS["block"]}" '
               f"(q to quit)")
         while (task := ask()) is not None:
             one(task)

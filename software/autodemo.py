@@ -1,9 +1,11 @@
-"""Scripted pick-and-place with two objects on the plate, a ball and a
-block. The script picks the one it's told to from its marked spot (A1..C3 on
-the baseplate) and drops it in the cup. Two uses:
+"""Scripted pick-and-place with two objects on the plate: a ball and the
+block, or two balls of different colours (red, green, pink, yellow, blue).
+The script picks the one it's told to from its marked spot (A1..C3 on the
+baseplate) and drops it in the cup. Three uses:
 
   1. Check the arm works / show it off:
          uv run autodemo.py --target block --spot C1 --other-spot A3
+         uv run autodemo.py --target "red ball" --spot A1 --other "blue ball" --other-spot C3
   2. Collect training demos automatically (the camera records while the
      script moves the arm; you only place the two objects where it tells you):
          uv run autodemo.py --record 150
@@ -14,11 +16,13 @@ the baseplate) and drops it in the cup. Two uses:
      data/raw/pick_ball_mujoco:
          uv run autodemo.py --mujoco --record 300 --anywhere
 
-Each recorded episode puts both objects on random spots, picks the ball or
-the block (about 50/50) and saves the matching instruction with the episode
-("pick up the ball" / "pick up the block"). The learned policy never sees the
-spot names, only the camera image and the instruction, so it has to learn
-which object the words mean and where that object is.
+Each recorded episode picks a random target (one of the 5 balls or the
+block, all equally often) and a second object (half the time a ball of
+another colour, so only the colour word tells them apart), puts both on
+random spots and saves the matching instruction with the episode ("pick up
+the red ball" / "pick up the block"). The learned policy never sees the spot
+names, only the camera image and the instruction, so it has to learn which
+object the words mean and where that object is.
 """
 import argparse
 import math
@@ -30,13 +34,14 @@ import cv2
 import config as C
 import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
-from recorder import TASKS, Recorder, ask_keep
+from recorder import TARGETS, TASKS, Recorder, ask_keep, kind_of
 
 # keep in sync with cad/arm.py SPOT_X / SPOT_Y / CUP_XY
 SPOTS = {f"{c}{r + 1}": (x, y) for c, x in zip("ABC", (85.0, 110.0, 135.0))
          for r, y in enumerate((0.0, 40.0, 80.0))}
 CUP = (20.0, 110.0)
-# grip height (tool point z) for each object resting on the plate. The ball
+# grip height (tool point z) for each kind of object resting on the plate
+# (every ball is the same size, only the colour differs). The ball
 # is gripped at its centre; the 25 mm block (cad/arm.py BLOCK) above its
 # centre: lower down the fingertips hit the plate at most spots and the
 # gripper tilts so far that it hits the base drum (A1) or the other object.
@@ -74,14 +79,27 @@ def pairs():
             and frozenset((a, b)) not in TOO_CLOSE]
 
 
+# how often a ball target gets another ball (not the block) next to it
+SAME_SHAPE = 0.5
+
+
+def other_for(target):
+    """A random second object for the plate: the block's is always a ball;
+    a ball's is another colour of ball SAME_SHAPE of the time, else the block."""
+    balls = [t for t in TARGETS if kind_of(t) == "ball" and t != target]
+    if kind_of(target) == "ball" and random.random() >= SAME_SHAPE:
+        return "block"
+    return random.choice(balls)
+
+
 def layout():
-    """Random target object and spots for one episode."""
-    target = random.choice(sorted(OBJECTS))
+    """(target, its spot, other object, its spot) for one episode."""
+    target = random.choice(TARGETS)
     spot, other_spot = random.choice(pairs())
-    return target, spot, other_spot
+    return target, spot, other_for(target), other_spot
 
 
-def plan(spot, target="ball", jitter=0.0):
+def plan(spot, target="red ball", jitter=0.0):
     """Waypoints (x, y, z, pitch, gripper_closed, seconds) for one pick.
     spot: a marked spot ("C1"), or an (x, y) position in mm (the simulator
     puts objects anywhere; SPOT_FIX is only for the real arm's spots)."""
@@ -90,7 +108,7 @@ def plan(spot, target="ball", jitter=0.0):
         sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
     else:
         (sx, sy), dz = spot, 0.0
-    grip_z = OBJECTS[target] + dz
+    grip_z = OBJECTS[kind_of(target)] + dz
     j = lambda: random.uniform(-jitter, jitter)
     home = K.fk(*K.from_servo(HOME))
     pts = [
@@ -149,7 +167,7 @@ def preview(frame):
     cv2.waitKey(1)
 
 
-def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None, show=None):
+def run(arm, cam, spot, target="red ball", rec=None, jitter=0.0, keep=None, show=None):
     """keep: asked after the moves whether to save the episode (default: save).
     show: called with every camera frame (the live preview)."""
     dt = 1.0 / C.FPS
@@ -182,10 +200,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     add_hw_args(ap)
-    ap.add_argument("--target", default="ball", choices=sorted(OBJECTS),
-                    help="object to pick when not recording")
+    ap.add_argument("--target", default="red ball", choices=TARGETS,
+                    help='object to pick when not recording (quote it: "red ball")')
     ap.add_argument("--spot", default="B2", choices=sorted(SPOTS),
                     help="where the target is when not recording")
+    ap.add_argument("--other", choices=TARGETS,
+                    help="the other object (default: the block, or the red ball if the "
+                         "target is the block)")
     ap.add_argument("--other-spot", choices=sorted(SPOTS),
                     help="where the other object is (only checked, it isn't moved)")
     ap.add_argument("--record", type=int, default=0, metavar="N",
@@ -214,6 +235,9 @@ def main():
     show = None if (world or args.yes or args.no_preview) else preview
     arm.send(HOME + [C.GRIPPER_OPEN])
     getattr(arm, "wait", time.sleep)(1.0)
+    other = args.other or ("red ball" if args.target == "block" else "block")
+    if other == args.target:
+        raise SystemExit("--other must be a different object from --target")
     try:
         if not args.record:
             if args.other_spot and (args.spot, args.other_spot) not in pairs():
@@ -223,33 +247,35 @@ def main():
                 # both objects are always in the simulator: without --other-spot
                 # the other one waits at the back of the plate, out of the way
                 other_xy = SPOTS[args.other_spot] if args.other_spot else (165.0, 135.0)
-                world.place_for(args.target, SPOTS[args.spot], other_xy)
+                world.place_for(args.target, SPOTS[args.spot], other, other_xy)
             run(arm, cam, args.spot, args.target, show=show)
             if world:
                 print(f"{args.target}: {world.result(args.target)}")
             return
         rec = Recorder(dataset, fps=C.FPS, source="autodemo", sim=world is not None)
-        counts = {name: 0 for name in OBJECTS}
+        counts = {name: 0 for name in TARGETS}
         fails = 0
         while sum(counts.values()) < args.record:           # N kept demos, not N tries
             done = sum(counts.values())
             if world:
                 # the simulator places the objects itself and checks the result
-                target, xy, other_xy = world.random_layout(args.offset, anywhere=args.anywhere)
-                world.place_for(target, xy, other_xy)
+                target, xy, other, other_xy = world.random_layout(args.offset,
+                                                                  anywhere=args.anywhere)
+                world.place_for(target, xy, other, other_xy)
                 run(arm, cam, xy, target, rec, jitter=8.0, keep=lambda: world.success(target))
-                print(f"[{done + 1}/{args.record}] {target} at ({xy[0]:.0f}, {xy[1]:.0f}): "
+                print(f"[{done + 1}/{args.record}] {target} at ({xy[0]:.0f}, {xy[1]:.0f}), "
+                      f"{other} next to it: "
                       f"{world.result(target)}")
                 fails = 0 if rec.last_kept else fails + 1
                 if fails >= 20:
                     raise SystemExit("20 simulated picks in a row failed: check the "
                                      "calibration and the gripper angles in sim.py")
             else:
-                target, spot, other_spot = layout()
-                other = next(name for name in OBJECTS if name != target)
+                target, spot, other, other_spot = layout()
                 if not args.yes:
                     input(f"[{done + 1}/{args.record}] {target} on {spot}, {other} on {other_spot}"
-                          f' -> "{TASKS[target]}". Place them, then press Enter ')
+                          f' -> "{TASKS[target]}". Place them (nothing else on the plate), '
+                          "then press Enter ")
                 run(arm, cam, spot, target, rec, jitter=8.0,
                     keep=None if args.yes else ask_keep, show=show)
             if rec.last_kept:

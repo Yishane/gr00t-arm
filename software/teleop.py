@@ -11,7 +11,7 @@ Keys (click the window first):
     SPACE      open / close gripper      H       go home
     ENTER      start / stop recording    BACKSPACE  discard current recording
     T          switch the instruction saved with the next recording
-               ("pick up the ball" / "pick up the block")
+               ("pick up the red ball", ... "pick up the blue ball", "pick up the block")
     ESC        quit
 A gamepad works too if one is plugged in (left stick xy, triggers z, A = gripper).
 """
@@ -53,7 +53,7 @@ def main():
     add_hw_args(ap)
     ap.add_argument("--dataset", help="where recordings go: data/raw/DATASET "
                     "(default pick_ball, or pick_ball_mujoco with --mujoco)")
-    ap.add_argument("--task", default=TASKS["ball"],
+    ap.add_argument("--task", default=TASKS["red ball"],
                     help="instruction stored with demos at the start (T switches it)")
     args = ap.parse_args()
 

@@ -65,7 +65,7 @@ ssh -p <port> -N -L 5555:localhost:5555 <user>@<host>
 **Window 2, the test.** Use `--sim`, so no arm or camera is used:
 ```
 cd gr00t-arm\software
-uv run run_policy.py gr00t --host localhost --sim --task "pick up the ball" --seconds 5
+uv run run_policy.py gr00t --host localhost --sim --task "pick up the red ball" --seconds 5
 ```
 ✅ **Expect:** `connected to GR00T at localhost:5555`, then a few lines like
 `policy call 150 ms, 8 steps, grip 120`. That's the whole pipeline working.

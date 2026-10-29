@@ -373,8 +373,10 @@ if __name__ == "__main__":
                    + (0, 0, arm.BALL / 2),
                    "block": _voxels(arm.block().val())}
         pairs = A.pairs()
-        print(f"pair check: {len(pairs)} spot pairs x 2 targets")
-        for target, other in (("ball", "block"), ("block", "ball")):
+        # (two balls of different colours: "ball", "ball")
+        kinds = (("ball", "block"), ("block", "ball"), ("ball", "ball"))
+        print(f"pair check: {len(pairs)} spot pairs x {len(kinds)} object pairs")
+        for target, other in kinds:
             for t_spot, o_spot in pairs:
                 j = _tool_pose(*A.SPOTS[t_spot], A.OBJECTS[target])
                 mats = _matrices(*j)

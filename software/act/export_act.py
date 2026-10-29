@@ -5,8 +5,10 @@ recordings, for training ACT on the laptop.
     uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix
                                             # real + simulated demos -> data/act/pick_ball_mix
 
-ACT has no language input, so the instruction ("pick up the ball" / "pick up
-the block") goes in as a 6th state number: 0 = ball, 1 = block. run_policy.py
+ACT has no language input, so the instruction ("pick up the red ball", ...,
+"pick up the block") goes in as a 6th state number: the target's place in
+sorted(TASKS), 0 = block, 1 = blue ball, 2 = green, 3 = pink, 4 = red,
+5 = yellow ball. run_policy.py
 adds the same number from what you type. GR00T reads the words themselves
 (export_dataset.py).
 """
@@ -52,7 +54,9 @@ def export(raw, out: Path):
         task = json.loads((ep / "meta.json").read_text())["task"]
         target = target_of(task)
         if target is None:
-            raise SystemExit(f"{ep.name}: can't tell ball or block from task {task!r}")
+            raise SystemExit(f"{ep.name}: can't tell which object task {task!r} means "
+                             f"(one of {', '.join(TARGETS)}; old ball/block-only "
+                             "demos say just \"ball\")")
         steps = pd.read_csv(ep / "steps.csv")
         state = steps[[f"state_{i}" for i in range(5)]].to_numpy(np.float32)
         state = np.hstack([state, np.full((len(state), 1), TARGETS.index(target), np.float32)])

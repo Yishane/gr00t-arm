@@ -37,8 +37,8 @@ demos are the fine-tuning data.
 It has two parts, nicknamed "slow thinking" and "fast thinking":
 
 1. **System 2, the vision-language model** (Cosmos-Reason2-2B). It looks at the
-   image and reads the sentence and works out *what's going on*: there's an orange ball
-   here, a green block there, and I've been asked for the block.
+   image and reads the sentence and works out *what's going on*: there's a pink ball
+   here, a blue ball there, and I've been asked for the blue one.
 2. **System 1, the action head** (a diffusion transformer). It takes System 2's
    understanding plus the current joint angles and works out *how the joints should move*.
 
@@ -50,8 +50,12 @@ to joint angles instead of pixels.
 ### What it does in this project
 GR00T **replaces the hand-written script**. `autodemo.py` knows exactly where the ball is
 because you put it on a marked spot. GR00T has to *see* where it is and *read* which object
-you asked for. The ball-or-block choice is there on purpose: the only way to know which one
-to pick is the sentence, so it shows the language input really being used.
+you asked for. The choice is there on purpose: the only way to know which one to pick is
+the sentence, so it shows the language input really being used. There are five ball colours
+(red, green, pink, yellow, blue) plus the block, and half the ball demos have a second ball
+of another colour next to the target. Without that, every scene would be "a ball and a
+block", and the action head could learn "go to the round thing" while ignoring the colour
+word; with two balls side by side, only the colour word says which one to take.
 
 ### How it's wired in, step by step
 1. **Collect demos.** `autodemo.py` (or `teleop.py`) moves the arm while `recorder.py` saves,
@@ -74,8 +78,8 @@ to pick is the sentence, so it shows the language input really being used.
    the first 8 on the arm (every command passes the safety check first) → repeat.
 
 **ACT** (`software/act/`) is the small, free version of the same pipeline. It's a much
-smaller model that trains on the laptop. It has no language input, so the ball/block choice
-goes in as an extra number (0 or 1). Use it to check your demos are good before paying for
+smaller model that trains on the laptop. It has no language input, so the target goes in as
+an extra number (0–5: block, blue, green, pink, red, yellow ball, in alphabetical order). Use it to check your demos are good before paying for
 a GPU.
 
 ### Try it / read more
@@ -121,16 +125,16 @@ From `software/` on the laptop:
 | What | Command |
 |---|---|
 | Try it with no hardware | `uv run autodemo.py --sim --target block --spot C1 --other-spot A3` |
-| One real pick (ball on B2) | `uv run autodemo.py --spot B2 --camera 1` |
+| One real pick (red ball on B2) | `uv run autodemo.py --spot B2 --camera 1` |
 | One real pick of the block | `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1` |
-| Record 150 demos | `uv run autodemo.py --record 150 --camera 1` |
+| Record 250 demos | `uv run autodemo.py --record 250 --camera 1` |
 | Record without pressing Enter (sim testing only) | `uv run autodemo.py --sim --record 5 --yes` |
 
 When recording, each episode prints something like
-`block on C1, ball on A3 -> "pick up the block". Place them, then press Enter`.
+`pink ball on C1, blue ball on A3 -> "pick up the pink ball". Place them (nothing else on the plate), then press Enter`.
 You place the two objects on those marked spots, press Enter, and the arm does the rest
 (about 9 s per pick). Then it asks `keep it? [Y/n]`: Enter keeps the episode, `n` throws it
-away (missed grip, dropped or knocked object), and `--record 150` keeps going until 150 are
+away (missed grip, dropped or knocked object), and `--record 250` keeps going until 250 are
 kept. Stop any time with Ctrl+C: the half-finished episode is thrown away, and the next run
 carries on numbering from where you stopped.
 

@@ -32,15 +32,11 @@ def no_sleep(monkeypatch):
     monkeypatch.setattr(run_policy.time, "sleep", lambda s: None)
 
 
-def other(target):
-    return "block" if target == "ball" else "ball"
-
-
 @pytest.mark.parametrize("xyz", [(110, 40, 40), (135, 0, 20), (85, 80, 60), (20, 110, 80)])
 def test_simulated_arm_goes_where_the_kinematics_say(world, xyz):
     x, y, z = xyz
     servo = K.solve(x, y, z, A.best_pitch(x, y, z))
-    world.place(A.SPOTS["A1"], A.SPOTS["C3"])            # out of the way
+    world.place({"red ball": A.SPOTS["A1"], "block": A.SPOTS["C3"]})   # out of the way
     world.arm.send(servo + [C.GRIPPER_OPEN])
     world.arm.wait(1.5)
     # a few mm of sag under gravity, like the real SG90s; a wrong joint
@@ -48,11 +44,15 @@ def test_simulated_arm_goes_where_the_kinematics_say(world, xyz):
     assert math.dist(world.tool(), (x, y, z)) < 8
 
 
-@pytest.mark.parametrize("target, spot, other_spot", [
-    ("ball", "C1", "A3"), ("block", "A3", "C1"), ("ball", "A1", "C3"),
-    ("block", "C2", "A1"), ("block", "C3", "A1"), ("ball", "B3", "C1")])
-def test_scripted_picks_work_in_the_simulator(world, no_sleep, target, spot, other_spot):
-    world.place_for(target, A.SPOTS[spot], A.SPOTS[other_spot])
+@pytest.mark.parametrize("target, spot, other, other_spot", [
+    ("red ball", "C1", "block", "A3"), ("block", "A3", "green ball", "C1"),
+    ("pink ball", "A1", "block", "C3"), ("block", "C2", "yellow ball", "A1"),
+    ("block", "C3", "blue ball", "A1"), ("blue ball", "B3", "block", "C1"),
+    # two balls: only the colour tells them apart
+    ("yellow ball", "C1", "pink ball", "A3"), ("green ball", "A3", "red ball", "C1"),
+    ("red ball", "C3", "blue ball", "A1"), ("pink ball", "B1", "green ball", "B3")])
+def test_scripted_picks_work_in_the_simulator(world, no_sleep, target, spot, other, other_spot):
+    world.place_for(target, A.SPOTS[spot], other, A.SPOTS[other_spot])
     A.run(world.arm, FakeCamera(), spot, target)
     assert world.result(target) == "ok"
 
@@ -61,9 +61,9 @@ def test_picks_off_the_spots(world, no_sleep):
     world.rng.seed(1)
     A.random.seed(1)
     for _ in range(4):
-        target, xy, other_xy = world.random_layout(offset=15)
-        assert math.dist(xy, other_xy) >= A.MIN_GAP
-        world.place_for(target, xy, other_xy)
+        target, xy, other, other_xy = world.random_layout(offset=15)
+        assert math.dist(xy, other_xy) >= A.MIN_GAP and other != target
+        world.place_for(target, xy, other, other_xy)
         A.run(world.arm, FakeCamera(), xy, target)
         assert world.result(target) == "ok", (target, xy, other_xy)
 
@@ -73,13 +73,13 @@ def test_anywhere_layouts_cover_the_plate_and_can_be_picked(world, no_sleep):
     A.random.seed(2)
     off_spot = 0
     for i in range(12):
-        target, xy, other_xy = world.random_layout(anywhere=True)
+        target, xy, other, other_xy = world.random_layout(anywhere=True)
         assert math.dist(xy, other_xy) >= A.MIN_GAP
         assert sim.clear_of_fixed_parts(xy) and sim.clear_of_fixed_parts(other_xy)
         assert world.in_view((*xy, 15)) and world.in_view((*other_xy, 15))
         off_spot += min(math.dist(xy, s) for s in A.SPOTS.values()) > 15
         if i < 3:                                 # the pick it promised works here too
-            world.place_for(target, xy, other_xy)
+            world.place_for(target, xy, other, other_xy)
             A.run(world.arm, FakeCamera(), xy, target)
             assert world.result(target) == "ok", (target, xy, other_xy)
     assert off_spot >= 4                          # not just round the spots
@@ -100,23 +100,45 @@ def test_objects_never_overlap_the_fixed_parts():
     assert not sim.clear_of_fixed_parts((100, 150))       # off the back of the plate
 
 
-def test_result_tells_ok_wrong_object_and_missed(world):
-    world.place(A.SPOTS["C1"], A.SPOTS["A3"])
-    assert world.result("ball") == "missed"
-    q = world.model.joint("ball").qposadr[0]
+@pytest.mark.parametrize("other", ["block", "blue ball"])
+def test_result_tells_ok_wrong_object_and_missed(world, other):
+    world.place({"red ball": A.SPOTS["C1"], other: A.SPOTS["A3"]})
+    assert world.result("red ball") == "missed"
+    assert not world.any_in_cup()
+    q = world.model.joint("red_ball").qposadr[0]
     world.data.qpos[q:q + 3] = [A.CUP[0] / 1000, A.CUP[1] / 1000, 0.03]   # drop it in the cup
     world.advance(0.5)
-    assert world.in_cup("ball")
-    assert world.result("ball") == "ok"
-    assert world.result("block") == "wrong object"
+    assert world.in_cup("red ball") and world.any_in_cup()
+    assert world.result("red ball") == "ok"
+    assert world.result(other) == "wrong object"
 
 
-def test_camera_sees_the_orange_ball(world):
-    world.place(A.SPOTS["C1"], A.SPOTS["A3"])
-    img = world.camera.read()
-    assert img.shape == (sim.HEIGHT, sim.WIDTH, 3) and img.dtype == np.uint8
-    r, g, b = (img[..., i].astype(int) for i in range(3))
-    assert ((r > 180) & (g > 50) & (g < 150) & (b < 80)).sum() > 500
+def test_objects_not_in_the_episode_wait_out_of_sight(world):
+    world.place({"pink ball": A.SPOTS["C1"], "yellow ball": A.SPOTS["A3"]})
+    assert world.on_plate == ["pink ball", "yellow ball"]
+    for t in recorder.TARGETS:
+        x, y, z = world.pos(t)
+        if t in world.on_plate:
+            assert math.dist((x, y), A.SPOTS["C1" if t == "pink ball" else "A3"]) < 3
+        else:
+            assert math.dist((x, y), sim.PARK[t]) < 3 and not world.in_view((x, y, z), margin=0)
+
+
+def test_camera_sees_each_ball_colour_differently(world):
+    world.place({"block": A.SPOTS["A3"]})
+    empty = world.camera.read().astype(int)
+    assert empty.shape == (sim.HEIGHT, sim.WIDTH, 3)
+    seen = {}
+    for t in recorder.TARGETS[:-1]:
+        world.place({t: A.SPOTS["C1"], "block": A.SPOTS["A3"]})
+        img = world.camera.read().astype(int)
+        changed = np.abs(img - empty).sum(axis=2) > 60
+        assert changed.sum() > 500, t                    # the ball shows up
+        seen[t] = img[changed].mean(axis=0)
+    names = list(seen)
+    for i, a in enumerate(names):                        # and no two colours look alike
+        for b in names[i + 1:]:
+            assert np.linalg.norm(seen[a] - seen[b]) > 50, (a, b, seen[a], seen[b])
 
 
 def test_realtime_world_moves_on_its_own():
@@ -160,11 +182,11 @@ def test_run_policy_in_the_simulator_stops_at_the_cup_and_keeps_successes(
     monkeypatch.setattr(recorder, "DATA", tmp_path)
     rec = recorder.Recorder("p", fps=30, source="policy", sim=True)
     target, spot = "block", "C2"
-    world.place_for(target, A.SPOTS[spot], A.SPOTS["A1"])
+    world.place_for(target, A.SPOTS[spot], "red ball", A.SPOTS["A1"])
     cmds = list(A.trajectory(A.plan(spot, target), C.FPS))
     run_policy.run(ReplayPolicy(cmds), world.arm, FakeCamera(), run_policy.TASKS[target], 8, 60,
                    pipeline=False, rec=rec, keep=lambda: world.success(target),
-                   done=lambda: world.in_cup("ball") or world.in_cup("block"))
+                   done=world.any_in_cup)
     assert world.result(target) == "ok"
     eps = sorted((tmp_path / "p").glob("episode_*"))
     assert len(eps) == 1
@@ -188,7 +210,7 @@ def test_episodes_of_several_datasets_merge_in_order(tmp_path):
 
 
 def test_home_pose_is_where_the_arm_starts(world):
-    world.place(A.SPOTS["C1"], A.SPOTS["A3"])
+    world.place({"red ball": A.SPOTS["C1"], "block": A.SPOTS["A3"]})
     assert world.arm.world.out == HOME + [C.GRIPPER_OPEN]
 
 
@@ -218,7 +240,7 @@ def test_run_policy_trials_score_and_record_in_the_simulator(tmp_path, monkeypat
                                      "--offset", "10", "--record", "--no-pipeline"])
     run_policy.main()
     out = capsys.readouterr().out
-    assert "ball: 1/1 ok" in out and "block: 1/1 ok" in out
+    assert "red ball: 1/1 ok" in out and "green ball: 1/1 ok" in out
     eps = sorted((tmp_path / "pick_ball_mujoco").glob("episode_*"))
     assert len(eps) == 2
     assert json.loads((eps[0] / "meta.json").read_text())["source"] == "policy"

@@ -7,7 +7,7 @@ import autodemo as A
 import recorder
 from arm_io import FakeCamera, SimArm
 from conftest import RecordingSimArm
-from recorder import TASKS, Recorder, target_of
+from recorder import TARGETS, TASKS, Recorder, kind_of, target_of
 from run_policy import instruction
 
 
@@ -36,15 +36,35 @@ def test_pairs_are_far_apart_and_use_every_spot_but_the_middle():
     assert {a for a, _ in pairs} == set(A.SPOTS) - {"B2"}
 
 
-def test_layout_picks_both_targets_about_half_each():
+def test_targets_are_five_coloured_balls_and_the_block():
+    assert TARGETS == ["red ball", "green ball", "pink ball", "yellow ball", "blue ball", "block"]
+    assert TASKS["pink ball"] == "pick up the pink ball"
+    assert {kind_of(t) for t in TARGETS} == set(A.OBJECTS)
+
+
+def test_layout_picks_every_target_about_equally():
     random.seed(0)
-    picks = [A.layout()[0] for _ in range(2000)]
-    assert 0.45 < picks.count("ball") / len(picks) < 0.55
+    picks = [A.layout()[0] for _ in range(6000)]
+    assert all(0.14 < picks.count(t) / len(picks) < 0.19 for t in TARGETS)
+
+
+def test_layout_second_object_differs_and_is_often_a_ball():
+    random.seed(1)
+    layouts = [A.layout() for _ in range(4000)]
+    assert all(other != target for target, _, other, _ in layouts)
+    assert all((spot, other_spot) in A.pairs() for _, spot, _, other_spot in layouts)
+    ball_targets = [other for target, _, other, _ in layouts if kind_of(target) == "ball"]
+    same = sum(kind_of(o) == "ball" for o in ball_targets) / len(ball_targets)
+    assert 0.45 < same < 0.55                       # SAME_SHAPE: two balls, only colour differs
+    assert all(kind_of(o) == "ball" for t, _, o, _ in layouts if t == "block")
 
 
 @pytest.mark.parametrize("text, want", [
-    ("pick up the ball", "ball"), ("Pick up the BLOCK", "block"),
-    ("ball", "ball"), ("pick up the cup", None), ("ball and block", None),
+    ("pick up the red ball", "red ball"), ("Pick up the BLOCK", "block"),
+    ("blue ball", "blue ball"), ("pick up the Yellow Ball", "yellow ball"),
+    ("pick up the ball", None),                     # which ball?
+    ("pick up the cup", None), ("red ball and block", None),
+    ("red ball, not the green ball", None),
 ])
 def test_target_of(text, want):
     assert target_of(text) == want
@@ -52,8 +72,11 @@ def test_target_of(text, want):
 
 def test_instruction_expands_short_words():
     assert instruction(" block ") == TASKS["block"]
-    assert instruction("pick up the ball") == TASKS["ball"]
-    assert instruction("grab the block") == "grab the block"
+    assert instruction("pink") == TASKS["pink ball"]
+    assert instruction("Green Ball") == TASKS["green ball"]
+    assert instruction("pick up the blue ball") == TASKS["blue ball"]
+    assert instruction("grab the yellow ball") == "grab the yellow ball"
+    assert instruction("pick up the ball") is None
     assert instruction("hello") is None
 
 
@@ -63,14 +86,14 @@ def test_recorded_episode_saves_its_instruction(tmp_path, monkeypatch):
     import recorder
     monkeypatch.setattr(recorder, "DATA", tmp_path)
     rec = Recorder("t", fps=30, source="autodemo")
-    for task in (TASKS["block"], TASKS["ball"]):
+    for task in (TASKS["block"], TASKS["red ball"]):
         rec.start(task=task)
         for _ in range(12):
             rec.add(np.zeros((8, 8, 3), np.uint8), [90] * 5, [90] * 5)
         rec.stop()
     tasks = [json.loads((ep / "meta.json").read_text())["task"]
              for ep in sorted((tmp_path / "t").glob("episode_*"))]
-    assert tasks == [TASKS["block"], TASKS["ball"]]
+    assert tasks == [TASKS["block"], TASKS["red ball"]]
 
 
 
@@ -80,7 +103,7 @@ def test_answering_no_discards_the_episode(tmp_path, monkeypatch, no_sleep):
     rec = Recorder("t", fps=30, source="autodemo")
     arm, cam = SimArm(), FakeCamera()
     for answer in (False, True):
-        A.run(arm, cam, "B2", "ball", rec, keep=lambda: answer)
+        A.run(arm, cam, "B2", "red ball", rec, keep=lambda: answer)
         assert rec.last_kept is answer
     assert len(list((tmp_path / "t").glob("episode_*"))) == 1
 
@@ -120,7 +143,7 @@ def test_unreachable_plan_fails_before_the_arm_moves(monkeypatch, no_sleep):
     arm = RecordingSimArm()
     monkeypatch.setattr(A, "solve_near", lambda *a: None)
     with pytest.raises(ValueError):
-        A.run(arm, FakeCamera(), "B2", "ball")
+        A.run(arm, FakeCamera(), "B2", "red ball")
     assert arm.sent == []
 
 
@@ -128,12 +151,12 @@ def test_interrupted_recording_leaves_no_episode(tmp_path, monkeypatch, no_sleep
     monkeypatch.setattr(recorder, "DATA", tmp_path)
     rec = Recorder("t", fps=30, source="autodemo")
     with pytest.raises(KeyboardInterrupt):
-        A.run(SimArm(), CrashingCamera(after=20), "B2", "ball", rec)
+        A.run(SimArm(), CrashingCamera(after=20), "B2", "red ball", rec)
     assert list((tmp_path / "t").glob("episode_*")) == []
 
 
 def test_run_shows_every_frame_it_reads(no_sleep):
     shown = []
-    A.run(SimArm(), FakeCamera(), "B2", "ball", show=shown.append)
-    assert len(shown) == len(list(A.trajectory(A.plan("B2", "ball"), 30)))
+    A.run(SimArm(), FakeCamera(), "B2", "red ball", show=shown.append)
+    assert len(shown) == len(list(A.trajectory(A.plan("B2", "red ball"), 30)))
     assert shown[0].shape == (480, 640, 3)
