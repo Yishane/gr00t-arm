@@ -237,3 +237,16 @@ def test_watch_shows_the_simulated_camera_while_recording(tmp_path, monkeypatch,
                                      "--watch"])
     A.main()
     assert len(shown) > 200                   # every recorded frame was shown
+
+
+def test_every_layout_gets_a_new_ball_colour_never_green_or_grey(world):
+    import colorsys
+    hues = []
+    for _ in range(30):
+        world._randomize()
+        r, g, b = world.model.mat("ball").rgba[:3]
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+        assert s > 0.5 and v > 0.5                       # strong colour, not white/grey/dark
+        assert not 80 / 360 <= h <= 170 / 360           # not the block's green
+        hues.append(h)
+    assert max(hues) - min(hues) > 0.4                   # really different colours

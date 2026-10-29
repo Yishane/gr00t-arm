@@ -27,6 +27,7 @@ How it matches the real arm:
   simulator's exact look.
 """
 import argparse
+import colorsys
 import math
 import os
 import random
@@ -435,6 +436,10 @@ class World:
         for k, rgba in n["rgba"].items():
             j = 0.15 if k == "desk" else 0.04
             m.mat(k).rgba[:3] = np.clip(rgba[:3] + [u(-j, j) for _ in range(3)], 0, 1)
+        # a new ball colour every layout, as on the real arm: any strong colour
+        # except green (the block's) - hue 170..440 deg wraps past red to 80
+        hue = (u(170, 440) % 360) / 360
+        m.mat("ball").rgba[:3] = colorsys.hsv_to_rgb(hue, u(0.65, 1.0), u(0.7, 1.0))
 
     # ------------------------------------------------------------ checks
     def pos(self, name):
