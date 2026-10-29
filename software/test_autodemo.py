@@ -137,3 +137,12 @@ def test_run_shows_every_frame_it_reads(no_sleep):
     A.run(SimArm(), FakeCamera(), "B2", "ball", show=shown.append)
     assert len(shown) == len(list(A.trajectory(A.plan("B2", "ball"), 30)))
     assert shown[0].shape == (480, 640, 3)
+
+
+@pytest.mark.parametrize("target", sorted(A.OBJECTS))
+@pytest.mark.parametrize("spot", sorted(A.SPOTS))
+def test_no_servo_moves_faster_than_max_speed(target, spot):
+    # SG90s carrying the arm wobble when swung faster (worst on the way home)
+    cmds = [c[:4] for c in A.trajectory(A.plan(spot, target), 30)]
+    steps = [max(abs(a - b) for a, b in zip(c0, c1)) for c0, c1 in zip(cmds, cmds[1:])]
+    assert max(steps) * 30 <= A.MAX_SPEED

@@ -56,6 +56,7 @@ MIN_GAP = 60.0
 TOO_CLOSE = {frozenset(("C3", "A2"))}   # at C3 the tilted gripper reaches back over A2
 SAFE_Z = 75.0
 DROP_Z = 80.0
+MAX_SPEED = 60.0    # deg/s: the fastest any servo is commanded to move
 PITCH_SEARCH = 30   # deg: how far solve_near tilts the gripper to find a solution
 
 
@@ -127,20 +128,42 @@ def solve_near(x, y, z, pitch):
 def trajectory(waypoints, fps):
     """Servo commands at fps, moving in straight lines between waypoints.
     Where the exact pitch can't reach a point, the gripper tilts a little
-    instead, so the arm never jumps."""
+    instead, so the arm never jumps. A move that would turn any servo faster
+    than MAX_SPEED takes longer instead."""
     cur = waypoints[0]
+    last = solve_near(*cur[:4])
+    limit = MAX_SPEED / fps                               # deg per step
     for wp in waypoints[1:]:
         n = max(1, int(wp[5] * fps))
-        for k in range(1, n + 1):
-            s = k / n
-            s = s * s * (3 - 2 * s)                      # ease in/out
-            pose = [a + (b - a) * s for a, b in zip(cur[:4], wp[:4])]
-            servo = solve_near(*pose)
-            if servo is None:
-                raise ValueError(f"can't reach {pose}")
-            grip = C.GRIPPER_CLOSED if wp[4] else C.GRIPPER_OPEN
+        leg, peak = _leg(cur, wp, n), math.inf
+        while True:
+            new_peak = max(max(abs(a - b) for a, b in zip(p, q))
+                           for p, q in zip([last] + leg, leg))
+            # a small jump where the gripper tilt changes solution doesn't get
+            # smaller when the move is slower: stop stretching then
+            if new_peak <= limit or new_peak > 0.9 * peak:
+                break
+            peak = new_peak
+            n = math.ceil(n * peak / limit) + 1
+            leg = _leg(cur, wp, n)
+        grip = C.GRIPPER_CLOSED if wp[4] else C.GRIPPER_OPEN
+        for servo in leg:
             yield servo + [grip]
-        cur = wp
+        last, cur = leg[-1], wp
+
+
+def _leg(cur, wp, n):
+    """n servo commands easing from waypoint cur to waypoint wp."""
+    out = []
+    for k in range(1, n + 1):
+        s = k / n
+        s = s * s * (3 - 2 * s)                          # ease in/out
+        pose = [a + (b - a) * s for a, b in zip(cur[:4], wp[:4])]
+        servo = solve_near(*pose)
+        if servo is None:
+            raise ValueError(f"can't reach {pose}")
+        out.append(servo)
+    return out
 
 
 def preview(frame):
