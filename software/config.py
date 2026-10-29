@@ -60,6 +60,11 @@ SERVO_MAX = 180.0
 
 JOINTS = ("base", "shoulder", "elbow", "wrist")
 
+# The home pose every script starts and ends in is the calibration pose above
+# except the elbow: -83 instead of -90 (forearm 7 deg off level, servo 83 with a
+# true calibration) so the forearm sits on the elbow horn and the servo idles.
+HOME_ELBOW = -83.0      # deg
+
 # ---------------------------------------------------------- serial / camera
 BAUD = 115200
 FPS = 30                # control + recording rate

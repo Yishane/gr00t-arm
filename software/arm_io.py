@@ -15,9 +15,9 @@ import config as C
 import kinematics as K
 
 # servo degrees (base, shoulder, elbow, wrist) of the home pose: arm forward,
-# upper arm up, forearm and gripper level. From the calibration, so it is the
-# same pose as calibrate.py's `home` ([90, 90, 90, 90] before any trim).
-HOME = K.to_servo([0.0, math.pi / 2, -math.pi / 2, 0.0])
+# upper arm up, forearm resting on the elbow horn (config.HOME_ELBOW), gripper
+# in line with it. From the calibration, so it moves with any trim.
+HOME = K.to_servo([0.0, math.pi / 2, math.radians(C.HOME_ELBOW), 0.0])
 FLUSH = 2   # frames dropped by read(fresh=True)
 
 

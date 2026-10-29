@@ -169,8 +169,17 @@ def test_home_uses_the_calibration(monkeypatch):
     monkeypatch.setitem(C.OFFSET, "elbow", -4.0)
     try:
         importlib.reload(arm_io)
-        assert arm_io.HOME == pytest.approx(K.to_servo([0, math.pi / 2, -math.pi / 2, 0]))
+        assert arm_io.HOME == pytest.approx(
+            K.to_servo([0, math.pi / 2, math.radians(C.HOME_ELBOW), 0]))
         assert arm_io.HOME[0] == pytest.approx(95.0)
     finally:
         monkeypatch.undo()
         importlib.reload(arm_io)
+
+
+def test_home_rests_the_forearm_on_the_elbow_horn():
+    # home is the calibration pose except the elbow, which sits 7 deg off level
+    # (servo 83 with a true calibration) so the forearm rests and the servo idles
+    import config as C
+    assert C.HOME_ELBOW == -83.0
+    assert arm_io.HOME[2] == C.OFFSET["elbow"] + C.SIGN["elbow"] * C.HOME_ELBOW
