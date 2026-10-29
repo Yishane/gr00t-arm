@@ -232,9 +232,9 @@ def main():
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter (testing)")
     ap.add_argument("--no-preview", action="store_true",
                     help="don't show the camera while the arm moves")
-    ap.add_argument("--watch", type=float, nargs="?", const=3.0, metavar="SPEED",
+    ap.add_argument("--watch", type=float, nargs="?", const=15.0, metavar="SPEED",
                     help="with --mujoco: show the simulated camera, SPEED times real "
-                         "speed (default 3; recording is fastest without --watch)")
+                         "speed (default 15; recording is fastest without --watch)")
     args = ap.parse_args()
     if (args.offset or args.anywhere) and not args.mujoco:
         raise SystemExit("--offset and --anywhere are for the simulator (--mujoco): on the "

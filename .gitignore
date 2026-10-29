@@ -8,6 +8,7 @@ outputs/
 checkpoints/
 # per-arm calibration (each physical arm differs)
 software/calibration.json
+software/calibration_*.json
 # LaTeX build files
 docs/*.aux
 docs/*.log

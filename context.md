@@ -2,8 +2,41 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
-## >>> LATEST STATE (2026-10-29 night, local agent on his laptop) — READ THIS FIRST <<<
-- RECORDING IN PROGRESS: data/raw/pick_ball has 45 kept real demos (episodes 1-45, recorded
+## >>> LATEST STATE (2026-10-30 afternoon, local agent on his laptop) — READ THIS FIRST <<<
+- NOW: away from the arm. He is recording ~1000 SIM demos (`autodemo.py --mujoco --record 770
+  --anywhere`; 305 in data/raw/pick_ball_mujoco so far, all recorded after every sim change below),
+  then trains overnight, in software/act:
+    model A = 45 real only:  `uv run export_act.py` + `uv run train_act.py`
+    model B = 45 real + all sim: `uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix`
+      + `uv run train_act.py --name pick_ball_mix` (~22 sim per real; ~2.5 h each, 20k steps)
+  Later at the arm: `uv run ../run_policy.py act --camera 1 --checkpoint
+  ../../outputs/act/<name>/checkpoints/020000/pretrained_model`, same ~10 layouts for A and B.
+  Told him: 45 real is thin (A will be unreliable); B may suffer sim-to-real; keep recording real
+  demos (target ~150) and retrain A for the class. If B wins, add export_act option to cap #sim
+  (not built; asked for it only if needed). train_act fails if outputs/act/<name> exists -> rename.
+- CALIBRATION NOW (true): base 95, shoulder 181, elbow 0, wrist 92; open 50 / closed 90. HOME is
+  NOT the calibration pose: config.HOME_ELBOW = -83 (elbow servo 83, forearm rests on the horn so
+  the elbow idles - his idea; done in the home pose, not the calibration, so IK stays accurate).
+  arm_io.HOME = [95, 91, 83, 92]; calibrate.py `home` still = level pose [95, 91, 90, 92].
+  Backups (git-ignored): software/calibration_backup_2026-10-29.json (95/178/-1/92),
+  calibration_defaults_2026-10-30.json (90/180/0/90), calibration_elbow-7_2026-10-30.json.
+  Rule: SPOT_FIX/GRIP_FIX changes never affect recordings; only re-mounting/trim needs
+  convert_calibration.py (changing a number WITHOUT a physical change: don't convert).
+- SIM (10-30): ball gets a random strong colour every layout (no green 80-170 deg hue, no grey);
+  no object nearer the base than A1 (sim.NEAREST = 85 mm), --anywhere still ~60% off-spot over
+  x 63-143, y -20-130; `--watch [SPEED]` shows the sim camera while recording (his default 15x).
+  Sim demo ~2 s each, ~6 MB; real demo ~14 MB. Laptop has ~273 GB free.
+- DATA STORAGE: don't put demos in git (size, ~300k files). Suggested a private Hugging Face
+  dataset repo for the EXPORTED datasets (cloud GR00T box can download it); raw zip on Drive.
+  Not set up. He makes the HF write token himself (never in chat).
+- GR00T explained to him (training = flow-matching action head on (image, state, instruction) ->
+  next 16 actions; VLM frozen). He pushed back hard on "only does what demos show": phrase it as
+  pretrained perception/language generalizes, positions interpolate between spots, but THIS
+  arm's motor mapping and recovery behaviour come from the demos. Offered (not built):
+  deliberate off-course-then-back moves in autodemo so demos contain corrections.
+
+## (previous) 2026-10-29 night
+- REAL DEMOS: data/raw/pick_ball has 45 kept real demos (episodes 1-45, recorded
   10-28 22:54 to 10-29 00:23). Target ~150 -> `uv run autodemo.py --camera 1 --record 105`.
   episode_000000 (10-28 01:44, OLD camera pose, washed out, no objects) moved to
   data/raw/_set_aside/ - never train on it. No ACT/GR00T model on real data yet (outputs/act has
