@@ -155,3 +155,22 @@ def test_arm_resets_a_stuck_nano_as_a_last_resort(monkeypatch):
     arm = arm_io.Arm("COM3")
     assert arm.ser.stuck is False
     arm.close()
+
+
+def test_home_uses_the_calibration(monkeypatch):
+    # calibrate.py's `home` and every script's home must be the same pose,
+    # or the arm jumps when a script starts after calibrating
+    import importlib
+    import pytest
+    import config as C
+    import math
+    import kinematics as K
+    monkeypatch.setitem(C.OFFSET, "base", 95.0)
+    monkeypatch.setitem(C.OFFSET, "elbow", -4.0)
+    try:
+        importlib.reload(arm_io)
+        assert arm_io.HOME == pytest.approx(K.to_servo([0, math.pi / 2, -math.pi / 2, 0]))
+        assert arm_io.HOME[0] == pytest.approx(95.0)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(arm_io)

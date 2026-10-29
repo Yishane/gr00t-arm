@@ -5,14 +5,19 @@ Both have stand-ins so every script can run without the arm plugged in:
 a moving square) and --mujoco (a physics simulation of the arm, the objects
 and the webcam's view, see sim.py).
 """
+import math
 import sys
 import time
 
 import numpy as np
 
 import config as C
+import kinematics as K
 
-HOME = [90.0, 90.0, 90.0, 90.0]   # servo degrees for base, shoulder, elbow, wrist
+# servo degrees (base, shoulder, elbow, wrist) of the home pose: arm forward,
+# upper arm up, forearm and gripper level. From the calibration, so it is the
+# same pose as calibrate.py's `home` ([90, 90, 90, 90] before any trim).
+HOME = K.to_servo([0.0, math.pi / 2, -math.pi / 2, 0.0])
 FLUSH = 2   # frames dropped by read(fresh=True)
 
 

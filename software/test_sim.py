@@ -51,7 +51,9 @@ def test_simulated_arm_goes_where_the_kinematics_say(world, xyz):
 @pytest.mark.parametrize("target, spot, other_spot", [
     ("ball", "C1", "A3"), ("block", "A3", "C1"), ("ball", "A1", "C3"),
     ("block", "C2", "A1"), ("block", "C3", "A1"), ("ball", "B3", "C1")])
-def test_scripted_picks_work_in_the_simulator(world, no_sleep, target, spot, other_spot):
+def test_scripted_picks_work_in_the_simulator(world, no_sleep, monkeypatch, target, spot,
+                                             other_spot):
+    monkeypatch.setattr(A, "SPOT_FIX", {})          # those correct the real arm's sag
     world.place_for(target, A.SPOTS[spot], A.SPOTS[other_spot])
     A.run(world.arm, FakeCamera(), spot, target)
     assert world.result(target) == "ok"

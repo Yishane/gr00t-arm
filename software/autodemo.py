@@ -40,14 +40,17 @@ CUP = (20.0, 110.0)
 # is gripped at its centre; the 25 mm block (cad/arm.py BLOCK) above its
 # centre: lower down the fingertips hit the plate at most spots and the
 # gripper tilts so far that it hits the base drum (A1) or the other object.
-OBJECTS = {"ball": 20.0, "block": 18.0}
+OBJECTS = {"ball": 21.0, "block": 18.0}
 # Per-spot corrections (mm) for spots the real arm misses while the rest are
 # fine: (toward column C, toward row 3, up). Tune these by watching picks.
 #   gripper lands too far toward C3 at A2 -> make the first two negative
 #   grips too low at C3                    -> make the third positive
 SPOT_FIX = {
-    "C3": (0.0, 0.0, 6.0),
+    "C3": (0.0, 0.0, 15.0),
     "A2": (-3.0, -3.0, 0.0),
+    "C2": (0.0, 0.0, 9.0),  
+    "A1": (3.0, 0.0, 0.0),
+    
 }
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
 # a pair in TOO_CLOSE, so the gripper can't touch the object it isn't picking
