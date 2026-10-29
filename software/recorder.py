@@ -4,6 +4,7 @@ data/raw/<dataset>/episode_000000/
     frames/000000.jpg ...   camera frames (RGB)
     steps.csv               t, state_0..4, action_0..4 (servo degrees)
     meta.json               task (the instruction), fps, source (teleop / autodemo / policy),
+                            the calibration it was recorded with,
                             and "sim": true for episodes recorded in the simulator (sim.py)
 
 export_dataset.py turns these into a GR00T / LeRobot dataset.
@@ -15,6 +16,8 @@ import time
 from pathlib import Path
 
 import cv2
+
+import config as C
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "raw"
 # The instruction typed at run time (run_policy.py) is one of these. Both
@@ -88,7 +91,12 @@ class Recorder:
                 w.writerow(["t"] + [f"state_{i}" for i in range(5)]
                            + [f"action_{i}" for i in range(5)])
                 w.writerows(self.rows)
-            meta = {"task": self.ep_task, "fps": self.fps, "source": self.source}
+            meta = {"task": self.ep_task, "fps": self.fps, "source": self.source,
+                    # the servo degrees above only mean a pose with this
+                    # calibration: kept so demos survive a recalibration
+                    "calibration": {"offset": dict(C.OFFSET), "sign": dict(C.SIGN),
+                                    "gripper_open": C.GRIPPER_OPEN,
+                                    "gripper_closed": C.GRIPPER_CLOSED}}
             if self.sim:
                 meta["sim"] = True
             (self.ep / "meta.json").write_text(json.dumps(meta, indent=2))

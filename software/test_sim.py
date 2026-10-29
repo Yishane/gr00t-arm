@@ -54,6 +54,7 @@ def test_simulated_arm_goes_where_the_kinematics_say(world, xyz):
 def test_scripted_picks_work_in_the_simulator(world, no_sleep, monkeypatch, target, spot,
                                              other_spot):
     monkeypatch.setattr(A, "SPOT_FIX", {})          # those correct the real arm's sag
+    monkeypatch.setattr(A, "GRIP_FIX", {})
     world.place_for(target, A.SPOTS[spot], A.SPOTS[other_spot])
     A.run(world.arm, FakeCamera(), spot, target)
     assert world.result(target) == "ok"

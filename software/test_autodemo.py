@@ -18,11 +18,22 @@ def test_every_spot_plans_for_both_objects(target, spot):
     steps = list(A.trajectory(wps, 30))
     assert len(steps) > 200
     grip_z = min(wp[2] for wp in wps)
-    assert grip_z == pytest.approx(A.OBJECTS[target] + A.SPOT_FIX.get(spot, (0, 0, 0))[2])
+    assert grip_z == pytest.approx(A.OBJECTS[target] + A.SPOT_FIX.get(spot, (0, 0, 0))[2]
+                                   + A.GRIP_FIX.get(target, 0.0))
+
+
+def test_grip_fix_is_for_the_real_arm_only(monkeypatch):
+    # named spots = the real arm; (x, y) positions = the simulator
+    monkeypatch.setattr(A, "SPOT_FIX", {})
+    monkeypatch.setattr(A, "GRIP_FIX", {"ball": 4.0})
+    low = lambda spot: min(wp[2] for wp in A.plan(spot, "ball"))
+    assert low("B2") == pytest.approx(A.OBJECTS["ball"] + 4)
+    assert low(A.SPOTS["B2"]) == pytest.approx(A.OBJECTS["ball"])
 
 
 def test_spot_fix_moves_only_the_grip_at_that_spot(monkeypatch):
     monkeypatch.setattr(A, "SPOT_FIX", {"A2": (-3.0, -2.0, 4.0)})
+    monkeypatch.setattr(A, "GRIP_FIX", {})
     grip = lambda spot: min(A.plan(spot, "ball"), key=lambda wp: wp[2])[:3]
     assert grip("A2") == pytest.approx((A.SPOTS["A2"][0] - 3, A.SPOTS["A2"][1] - 2,
                                         A.OBJECTS["ball"] + 4))
@@ -71,6 +82,26 @@ def test_recorded_episode_saves_its_instruction(tmp_path, monkeypatch):
     tasks = [json.loads((ep / "meta.json").read_text())["task"]
              for ep in sorted((tmp_path / "t").glob("episode_*"))]
     assert tasks == [TASKS["block"], TASKS["ball"]]
+
+
+def test_episode_saves_the_calibration_it_was_recorded_with(tmp_path, monkeypatch):
+    # servo degrees only mean a pose together with the calibration: keep it so
+    # demos from before a recalibration can be converted
+    import json
+    import numpy as np
+    import config as C
+    import recorder
+    monkeypatch.setattr(recorder, "DATA", tmp_path)
+    monkeypatch.setitem(C.OFFSET, "elbow", -4.0)
+    rec = Recorder("t", fps=30, source="autodemo")
+    rec.start(task=TASKS["ball"])
+    for _ in range(12):
+        rec.add(np.zeros((8, 8, 3), np.uint8), [90] * 5, [90] * 5)
+    rec.stop()
+    meta = json.loads(next((tmp_path / "t").glob("episode_*/meta.json")).read_text())
+    assert meta["calibration"]["offset"]["elbow"] == -4.0
+    assert meta["calibration"]["sign"] == C.SIGN
+    assert meta["calibration"]["gripper_open"] == C.GRIPPER_OPEN
 
 
 

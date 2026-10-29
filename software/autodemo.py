@@ -40,16 +40,21 @@ CUP = (20.0, 110.0)
 # is gripped at its centre; the 25 mm block (cad/arm.py BLOCK) above its
 # centre: lower down the fingertips hit the plate at most spots and the
 # gripper tilts so far that it hits the base drum (A1) or the other object.
-OBJECTS = {"ball": 21.0, "block": 18.0}
+OBJECTS = {"ball": 20.0, "block": 18.0}
+# Real arm only (the simulator doesn't sag): grip this much higher (mm) for
+# each object at every spot, on top of SPOT_FIX.
+GRIP_FIX = {"ball": 4.0}
 # Per-spot corrections (mm) for spots the real arm misses while the rest are
 # fine: (toward column C, toward row 3, up). Tune these by watching picks.
 #   gripper lands too far toward C3 at A2 -> make the first two negative
 #   grips too low at C3                    -> make the third positive
 SPOT_FIX = {
-    "C3": (0.0, 0.0, 15.0),
+    "C3": (-3.0, 18.0, 18.0),
+    "A3": (-5.0, 3.0, 12.0),
     "A2": (-3.0, -3.0, 0.0),
     "C2": (0.0, 0.0, 9.0),  
-    "A1": (3.0, 0.0, 0.0),
+    "A1": (-3.0, 0.0, 0.0),
+    "B2": (3.0, 12.0, 4.0),
     
 }
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
@@ -91,6 +96,7 @@ def plan(spot, target="ball", jitter=0.0):
     puts objects anywhere; SPOT_FIX is only for the real arm's spots)."""
     if isinstance(spot, str):
         dx, dy, dz = SPOT_FIX.get(spot, (0.0, 0.0, 0.0))
+        dz += GRIP_FIX.get(target, 0.0)
         sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
     else:
         (sx, sy), dz = spot, 0.0
