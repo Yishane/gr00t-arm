@@ -8,6 +8,13 @@ Read this first every session. Update the "Status" and "Next" sections before st
   episode_000000 (10-28 01:44, OLD camera pose, washed out, no objects) moved to
   data/raw/_set_aside/ - never train on it. No ACT/GR00T model on real data yet (outputs/act has
   only sim_test). Next: finish recording -> export_act + train_act (model A, real only) -> test on arm.
+- 10-30 ~02:30: elbow servo RE-MOUNTED. calibration.json now base 95, shoulder 181, elbow 0, wrist 92
+  (open 50, closed 90). All 45 demos were recorded with 95/181/-4/92 (inferred exactly from the
+  fixed cup-drop pose) -> converted with `convert_calibration.py pick_ball --old-offsets 95,181,-4,92`
+  (elbow +4); originals in data/raw/_set_aside/pick_ball_before_conversion_*. Verified 45/45 now
+  imply the current calibration. He had reset all offsets to 90/180/0/90 without re-mounting the
+  others -> restored. SPOT_FIX values were tuned on the old setup: retest spots. New demos store
+  their calibration in meta.json. Lighting at 02:30 was a warm lamp, darker than demos 1-45.
 - He swaps ball COLOUR every demo (several 40 mm balls; no green, no white). Ball, block green, cup black.
   Remind: other object goes on its named spot (ep 45 started with the block already in the cup).
 - HARDWARE TROUBLE (10-29): arm drooped/folded at far reach and later even with an empty plate;
