@@ -2,7 +2,50 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
-## >>> LATEST STATE (2026-10-28) — READ THIS FIRST <<<
+## >>> LATEST STATE (2026-10-29 night, local agent on his laptop) — READ THIS FIRST <<<
+- RECORDING IN PROGRESS: data/raw/pick_ball has 45 kept real demos (episodes 1-45, recorded
+  10-28 22:54 to 10-29 00:23). Target ~150 -> `uv run autodemo.py --camera 1 --record 105`.
+  episode_000000 (10-28 01:44, OLD camera pose, washed out, no objects) moved to
+  data/raw/_set_aside/ - never train on it. No ACT/GR00T model on real data yet (outputs/act has
+  only sim_test). Next: finish recording -> export_act + train_act (model A, real only) -> test on arm.
+- He swaps ball COLOUR every demo (several 40 mm balls; no green, no white). Ball, block green, cup black.
+  Remind: other object goes on its named spot (ep 45 started with the block already in the cup).
+- HARDWARE TROUBLE (10-29): arm drooped/folded at far reach and later even with an empty plate;
+  current spikes (he read "50 A"/"70 A" = surely 0.50/0.70 A) = servo stall -> supply limit (3 A) ->
+  voltage sag. Holding home = 0.18 A. `s 2 110` (elbow, forearm down) -> ~0.7 A stall. He added a
+  shoulder rubber band (DON'T tell him to again). Suspects: band crossing the elbow, damaged elbow
+  SG90, slipped horns. Advised: 5 A limit, band upper arm->base only, swap elbow if still ~0.7 A.
+  Status of these checks unknown. He gets frustrated by repeats: ask what he already did.
+- His tuning (autodemo.py, all real-arm only): GRIP_FIX {"ball": 4} (OBJECTS stays geometry 20/18
+  for the sim), SPOT_FIX C3 (-3,18,18), A3 (-5,3,12), A2 (-3,-3,0), C2 (0,0,9), A1 (-3,0,0),
+  B2 (3,12,4). B2/C3 sideways fixes ~5-6 deg of base = likely base horn/drum slipped after the
+  folds (heights creeping up = shoulder sag/slip). He prefers SPOT_FIX over trims ("only changing
+  the markers") - fine: demos stay consistent. Calibration unchanged: offsets base 95, shoulder 178,
+  elbow -4, wrist 92; signs 1/-1/-1/-1; gripper open 50 (small = open), closed 84-90.
+  Backup: software/calibration_backup_2026-10-29.json (elbow -1 then).
+- Code today (branch claude/autodemo-preview, pushed to main):
+  - run_policy pipelining (plan docs/superpowers/plans/2026-10-27-pipelined-policy.md DONE) +
+    --no-pipeline; _CALL_LOCK; frame read after a step's send. Deferred minors: calls slower than a
+    16-step chunk collapse to 1 step; exit can wait 15 s after Ctrl+C; lock-leak race; camera errors
+    in prefetch escape run(); ACT (~20 ms) never prefetches.
+  - arm_io.HOME = K.to_servo(home joints) from the calibration (was fixed 90s -> arm jumped ~5 deg
+    when autodemo started after calibrate.py). Kept demos 1-45 start ~5 deg off the new home: fine.
+  - autodemo: live OpenCV preview (--no-preview; off with --yes/--mujoco); SPOT_FIX/GRIP_FIX apply
+    only to NAMED spots (real arm), not sim (x, y) layouts; MAX_SPEED 60 deg/s (trajectory stretches
+    fast legs; was ~100 deg/s home<->object, arm wobbled; stops stretching when a peak is a
+    solution jump - a first version looped forever).
+  - recorder meta.json now stores the calibration (offset/sign/gripper) per episode (eps 1-45 don't).
+  - teleop window resizable (picture scales; frames stay 640x480).
+  - sim camera FITTED to his real webcam from the 9 spot crosses (0.6 px rms), lens x pinned 154:
+    CAMERA_POS (154, 57.9, 307.9), DOWN 70.7, new CAMERA_YAW -2.3, FOVY 39.6 (was 52: 640x480 is the
+    sensor centre). Crosses alone can't separate height from FOV; x pin decides. Don't move the camera.
+- Video script (his): don't claim sim demos unless model B (real+sim) beats A on the real arm;
+  ACT has no language input (VLM joke only fits GR00T); film demos with run_policy, not autodemo.
+  Arm credit already in the video intro.
+- Plan for sim: model A = real only, model B = real + pick_ball_mujoco (export_act --with
+  pick_ball_mujoco --out pick_ball_mix; train_act --name pick_ball_mix), compare 10 picks each.
+
+## (previous) LATEST STATE (2026-10-28)
 - Milestones 3-6 (print, wire + flash, assemble, calibrate) are DONE (Yishane, 2026-10-28).
   Next: 7 record demos, 8 ACT, 9 GR00T, 10 simulation (new), 11 present.
 - Branch claude/autodemo-keep-prompt (cloud session, NOT yet merged into main):
