@@ -20,7 +20,7 @@ DATA = Path(__file__).resolve().parent.parent / "data" / "raw"
 # The instruction typed at run time (run_policy.py) is one of these. Two
 # objects are on the plate in every episode (a ball and the block, or two
 # balls of different colours); the instruction says which one goes in the cup.
-BALL_COLOURS = ("red", "green", "pink", "yellow", "blue")
+BALL_COLOURS = ("red", "pink", "yellow", "blue")
 TARGETS = [f"{c} ball" for c in BALL_COLOURS] + ["block"]
 TASKS = {t: f"pick up the {t}" for t in TARGETS}
 TASK = TASKS["red ball"]

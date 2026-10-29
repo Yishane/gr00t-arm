@@ -7,8 +7,7 @@ recordings, for training ACT on the laptop.
 
 ACT has no language input, so the instruction ("pick up the red ball", ...,
 "pick up the block") goes in as a 6th state number: the target's place in
-sorted(TASKS), 0 = block, 1 = blue ball, 2 = green, 3 = pink, 4 = red,
-5 = yellow ball. run_policy.py
+sorted(TASKS), 0 = block, 1 = blue ball, 2 = pink, 3 = red, 4 = yellow ball. run_policy.py
 adds the same number from what you type. GR00T reads the words themselves
 (export_dataset.py).
 """

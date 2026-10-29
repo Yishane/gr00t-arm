@@ -51,8 +51,8 @@ to joint angles instead of pixels.
 GR00T **replaces the hand-written script**. `autodemo.py` knows exactly where the ball is
 because you put it on a marked spot. GR00T has to *see* where it is and *read* which object
 you asked for. The choice is there on purpose: the only way to know which one to pick is
-the sentence, so it shows the language input really being used. There are five ball colours
-(red, green, pink, yellow, blue) plus the block, and half the ball demos have a second ball
+the sentence, so it shows the language input really being used. There are four ball colours
+(red, pink, yellow, blue) plus the block, and half the ball demos have a second ball
 of another colour next to the target. Without that, every scene would be "a ball and a
 block", and the action head could learn "go to the round thing" while ignoring the colour
 word; with two balls side by side, only the colour word says which one to take.
@@ -79,7 +79,7 @@ word; with two balls side by side, only the colour word says which one to take.
 
 **ACT** (`software/act/`) is the small, free version of the same pipeline. It's a much
 smaller model that trains on the laptop. It has no language input, so the target goes in as
-an extra number (0–5: block, blue, green, pink, red, yellow ball, in alphabetical order). Use it to check your demos are good before paying for
+an extra number (0–4: block, blue, pink, red, yellow ball, in alphabetical order). Use it to check your demos are good before paying for
 a GPU.
 
 ### Try it / read more

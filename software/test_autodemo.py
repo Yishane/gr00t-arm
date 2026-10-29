@@ -36,8 +36,8 @@ def test_pairs_are_far_apart_and_use_every_spot_but_the_middle():
     assert {a for a, _ in pairs} == set(A.SPOTS) - {"B2"}
 
 
-def test_targets_are_five_coloured_balls_and_the_block():
-    assert TARGETS == ["red ball", "green ball", "pink ball", "yellow ball", "blue ball", "block"]
+def test_targets_are_four_coloured_balls_and_the_block():
+    assert TARGETS == ["red ball", "pink ball", "yellow ball", "blue ball", "block"]
     assert TASKS["pink ball"] == "pick up the pink ball"
     assert {kind_of(t) for t in TARGETS} == set(A.OBJECTS)
 
@@ -45,7 +45,7 @@ def test_targets_are_five_coloured_balls_and_the_block():
 def test_layout_picks_every_target_about_equally():
     random.seed(0)
     picks = [A.layout()[0] for _ in range(6000)]
-    assert all(0.14 < picks.count(t) / len(picks) < 0.19 for t in TARGETS)
+    assert all(0.17 < picks.count(t) / len(picks) < 0.23 for t in TARGETS)
 
 
 def test_layout_second_object_differs_and_is_often_a_ball():
@@ -64,7 +64,7 @@ def test_layout_second_object_differs_and_is_often_a_ball():
     ("blue ball", "blue ball"), ("pick up the Yellow Ball", "yellow ball"),
     ("pick up the ball", None),                     # which ball?
     ("pick up the cup", None), ("red ball and block", None),
-    ("red ball, not the green ball", None),
+    ("red ball, not the pink ball", None),
 ])
 def test_target_of(text, want):
     assert target_of(text) == want
@@ -73,7 +73,8 @@ def test_target_of(text, want):
 def test_instruction_expands_short_words():
     assert instruction(" block ") == TASKS["block"]
     assert instruction("pink") == TASKS["pink ball"]
-    assert instruction("Green Ball") == TASKS["green ball"]
+    assert instruction("Yellow Ball") == TASKS["yellow ball"]
+    assert instruction("green") is None              # no green ball
     assert instruction("pick up the blue ball") == TASKS["blue ball"]
     assert instruction("grab the yellow ball") == "grab the yellow ball"
     assert instruction("pick up the ball") is None

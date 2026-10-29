@@ -45,12 +45,12 @@ def test_simulated_arm_goes_where_the_kinematics_say(world, xyz):
 
 
 @pytest.mark.parametrize("target, spot, other, other_spot", [
-    ("red ball", "C1", "block", "A3"), ("block", "A3", "green ball", "C1"),
+    ("red ball", "C1", "block", "A3"), ("block", "A3", "pink ball", "C1"),
     ("pink ball", "A1", "block", "C3"), ("block", "C2", "yellow ball", "A1"),
     ("block", "C3", "blue ball", "A1"), ("blue ball", "B3", "block", "C1"),
     # two balls: only the colour tells them apart
-    ("yellow ball", "C1", "pink ball", "A3"), ("green ball", "A3", "red ball", "C1"),
-    ("red ball", "C3", "blue ball", "A1"), ("pink ball", "B1", "green ball", "B3")])
+    ("yellow ball", "C1", "pink ball", "A3"), ("blue ball", "A3", "red ball", "C1"),
+    ("red ball", "C3", "blue ball", "A1"), ("pink ball", "B1", "yellow ball", "B3")])
 def test_scripted_picks_work_in_the_simulator(world, no_sleep, target, spot, other, other_spot):
     world.place_for(target, A.SPOTS[spot], other, A.SPOTS[other_spot])
     A.run(world.arm, FakeCamera(), spot, target)
@@ -240,7 +240,7 @@ def test_run_policy_trials_score_and_record_in_the_simulator(tmp_path, monkeypat
                                      "--offset", "10", "--record", "--no-pipeline"])
     run_policy.main()
     out = capsys.readouterr().out
-    assert "red ball: 1/1 ok" in out and "green ball: 1/1 ok" in out
+    assert "red ball: 1/1 ok" in out and "pink ball: 1/1 ok" in out
     eps = sorted((tmp_path / "pick_ball_mujoco").glob("episode_*"))
     assert len(eps) == 2
     assert json.loads((eps[0] / "meta.json").read_text())["source"] == "policy"

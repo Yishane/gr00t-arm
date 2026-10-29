@@ -284,7 +284,7 @@ def main():
                     help="save each run as an episode in data/raw/DATASET (default "
                          "pick_ball_policy, or pick_ball_mujoco with --mujoco)")
     ap.add_argument("--trials", type=positive_int, metavar="N",
-                    help="with --mujoco: N runs on random layouts, the 5 balls and "
+                    help="with --mujoco: N runs on random layouts, the 4 balls and "
                          "the block taking turns, then the score")
     ap.add_argument("--offset", type=float, default=0.0, metavar="MM",
                     help="with --mujoco: put each object up to MM away from its spot")

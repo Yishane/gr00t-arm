@@ -3,6 +3,8 @@
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
 ## >>> LATEST STATE (2026-10-29) — COLOURED BALLS <<<
+- UPDATE: Yishane: "get rid of the green ball". Now 4 balls (red, pink, yellow, blue) + block =
+  5 targets; ACT index 0 block, 1 blue, 2 pink, 3 red, 4 yellow. Notes below say 5 balls / 0-5: outdated.
 - Yishane asked: "make it so that the training uses different colours of red, green, pink, yellow,
   blue". His choices: balls only (5 coloured 40 mm balls + the one green block); 2 objects per demo,
   sometimes two balls; he has all 5 balls.

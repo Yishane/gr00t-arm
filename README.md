@@ -2,9 +2,9 @@
 
 A small 3D-printed desk arm (SG90 servos, Arduino Nano) used to show how
 NVIDIA GR00T learns robot skills. Two objects sit on the plate: a ball and a
-block, or two balls of different colours (red, green, pink, yellow, blue). You
+block, or two balls of different colours (red, pink, yellow, blue). You
 type **"pick up the blue ball"** or **"pick up the block"**, and the arm picks
-that object and drops it in the cup. You record demos of all six targets (scripted or by
+that object and drops it in the cup. You record demos of all five targets (scripted or by
 keyboard), export them as a GR00T/LeRobot dataset with the instruction saved
 per episode, train ACT on the laptop or fine-tune GR00T N1.7 on a cloud GPU,
 and run the learned policy back on the arm.
@@ -16,7 +16,7 @@ and run the learned policy back on the arm.
 > **New (2026-10-28):** every recording asks *keep it?*, the trained policy can
 > record its own runs to learn from (milestone 2d), and a MuJoCo simulation of
 > the arm makes extra training data and tests models automatically
-> (milestone 10). **New (2026-10-29):** five ball colours (red, green, pink,
+> (milestone 10). **New (2026-10-29):** four ball colours (red, pink,
 > yellow, blue) plus the block, and sometimes two balls on the plate, so the
 > model has to read the colour word (milestone 2e).
 > What's left: record demos, train ACT and GR00T, present.
@@ -174,17 +174,17 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - ✅ `context.md` up to date.
 
 ### ✅ 2e. Coloured balls (Claude, 2026-10-29)
-- ✅ Six targets: the **red, green, pink, yellow and blue ball** and the **block**
+- ✅ Five targets: the **red, pink, yellow and blue ball** and the **block**
   (`recorder.TARGETS`); instructions "pick up the red ball" … "pick up the block".
   A bare "pick up the ball" no longer names one object.
-- ✅ Each demo: target picked evenly from the six. The second object: for a ball
+- ✅ Each demo: target picked evenly from the five. The second object: for a ball
   target, half the time another colour of ball (`autodemo.SAME_SHAPE`), else the
   block; for the block, a random ball. With only ball + block in every demo, the
   model could learn "ball = the round thing" and ignore the colour word; two balls
   side by side force it to use the colour.
-- ✅ MuJoCo sim: all five balls, the ones not in the episode wait off the plate
+- ✅ MuJoCo sim: all four balls, the ones not in the episode wait off the plate
   out of the camera's view; colours are jittered per layout like the rest.
-- ✅ ACT gets the target as its 6th state number (0–5, `sorted(TASKS)`), so an
+- ✅ ACT gets the target as its 6th state number (0–4, `sorted(TASKS)`), so an
   ACT model trained on the old ball/block demos must be retrained. Old demos that
   say just "pick up the ball" can't be exported with the new ones (which ball?):
   record new ones.
@@ -263,8 +263,8 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   only for using a phone as the camera instead.
 - ✅ Buy a **40 mm orange soft foam ball** (stress-ball type). It grips better and rolls
   less than a ping-pong ball. Keep it 40 mm: the code grips it at its centre (20 mm up).
-- ✅ **Five 40 mm balls: red, green, pink, yellow, blue** (all the same size; only the
-  colour differs). The orange one isn't one of the six targets, so leave it off the plate.
+- ✅ **Four 40 mm balls: red, pink, yellow, blue** (all the same size; only the
+  colour differs). No green ball (too close to the green block). The orange one isn't one of the five targets, so leave it off the plate.
 
 ### ✅ 4. Wire and flash (You, guide "Wiring")
 - ✅ **Check every servo is a 180° one** before it goes in: send it 0 then 180. It must
@@ -308,7 +308,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the guide's framing check, and tape the hinge.
 - Test: `uv run autodemo.py --spot B2 --camera 1` (webcam), then the
   block: `uv run autodemo.py --target block --spot C1 --other-spot A3 --camera 1`.
-- **Record about 250** (about 40 per target):
+- **Record about 250** (about 50 per target):
   `uv run autodemo.py --record 250 --camera 1`. Each time it prints e.g.
   `pink ball on C1, blue ball on A3 -> "pick up the pink ball"`; place both (only
   those two on the plate), press Enter. Half the ball picks have a second ball of

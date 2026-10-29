@@ -1,5 +1,5 @@
 """Scripted pick-and-place with two objects on the plate: a ball and the
-block, or two balls of different colours (red, green, pink, yellow, blue).
+block, or two balls of different colours (red, pink, yellow, blue).
 The script picks the one it's told to from its marked spot (A1..C3 on the
 baseplate) and drops it in the cup. Three uses:
 
@@ -16,7 +16,7 @@ baseplate) and drops it in the cup. Three uses:
      data/raw/pick_ball_mujoco:
          uv run autodemo.py --mujoco --record 300 --anywhere
 
-Each recorded episode picks a random target (one of the 5 balls or the
+Each recorded episode picks a random target (one of the 4 balls or the
 block, all equally often) and a second object (half the time a ball of
 another colour, so only the colour word tells them apart), puts both on
 random spots and saves the matching instruction with the episode ("pick up

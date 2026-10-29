@@ -1,5 +1,5 @@
 """MuJoCo simulation of the arm, the webcam and the work cell (plate, cup,
-5 coloured balls, block). Every script that takes --mujoco runs in it instead of on the
+4 coloured balls, block). Every script that takes --mujoco runs in it instead of on the
 real arm: autodemo.py records demos, run_policy.py tests a trained policy,
 teleop.py drives it from the keyboard.
 
@@ -87,7 +87,7 @@ SHADOWS = False
 
 BLACK = "0.06 0.06 0.06 1"
 COLOURS = {"plate": (0.78, 0.78, 0.76), "block": (0.10, 0.55, 0.20), "desk": (0.55, 0.45, 0.35),
-           "red_ball": (0.85, 0.07, 0.07), "green_ball": (0.20, 0.75, 0.20),
+           "red_ball": (0.85, 0.07, 0.07),
            "pink_ball": (1.0, 0.45, 0.70), "yellow_ball": (1.0, 0.85, 0.08),
            "blue_ball": (0.08, 0.30, 0.90)}
 # Objects not in this episode wait here (x, y mm, on the desk behind the
