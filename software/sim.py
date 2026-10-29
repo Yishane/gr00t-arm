@@ -55,12 +55,13 @@ FINGER_Z = 89.25
 FINGER_OPEN_DEG = 30.0      # each finger, at C.GRIPPER_OPEN
 FINGER_CLOSED_DEG = 6.0     # at C.GRIPPER_CLOSED: a little narrower than the block
 
-# webcam: centre of the camera head on cad/arm.py's mount, on the mast and
-# its 80 mm extension, looking 65 deg down toward the arm. FOVY (vertical): a
-# 90 deg (diagonal) 16:9 camera cropped to 640x480 sees about 66 x 52 deg.
-CAMERA_POS = (154.0, 55.0, 322.0)
-CAMERA_DOWN = 65.0
-CAMERA_FOVY = 52.0
+# webcam: fitted to a real webcam frame (2026-10-29) from where the plate's 9
+# spot crosses appear (0.6 px rms), with the lens's x held at 154 mm, in
+# front of the mast where the mount puts it; the other numbers come from the fit.
+CAMERA_POS = (154.0, 57.9, 307.9)
+CAMERA_DOWN = 70.7
+CAMERA_YAW = -2.3        # deg about the vertical, + = counter-clockwise from above
+CAMERA_FOVY = 39.6       # 640x480 is the middle of the webcam's sensor: narrower than its 90 deg
 WIDTH, HEIGHT = 640, 480
 
 # work cell (mm), as in cad/arm.py
@@ -126,8 +127,11 @@ def model_xml():
     pw, pd = PLATE_X[1] - PLATE_X[0], PLATE_Y[1] - PLATE_Y[0]
     px, py = (PLATE_X[0] + PLATE_X[1]) / 2, (PLATE_Y[0] + PLATE_Y[1]) / 2
     # camera axes: x = image right (+y), y = image up; it looks along its -z
-    down = math.radians(CAMERA_DOWN)
-    cam_x, cam_y = "0 1 0", f"{-math.sin(down):.5f} 0 {math.cos(down):.5f}"
+    # turned CAMERA_YAW about the vertical (positive = counter-clockwise from above)
+    down, yaw = math.radians(CAMERA_DOWN), math.radians(CAMERA_YAW)
+    cam_x = f"{-math.sin(yaw):.5f} {math.cos(yaw):.5f} 0"
+    cam_y = (f"{-math.sin(down) * math.cos(yaw):.5f} {-math.sin(down) * math.sin(yaw):.5f} "
+             f"{math.cos(down):.5f}")
     return f"""
 <mujoco model="gr00t_arm">
   <compiler angle="radian" meshdir="{ASSETS.as_posix()}" autolimits="true"/>
