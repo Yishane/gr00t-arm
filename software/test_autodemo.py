@@ -130,3 +130,10 @@ def test_interrupted_recording_leaves_no_episode(tmp_path, monkeypatch, no_sleep
     with pytest.raises(KeyboardInterrupt):
         A.run(SimArm(), CrashingCamera(after=20), "B2", "ball", rec)
     assert list((tmp_path / "t").glob("episode_*")) == []
+
+
+def test_run_shows_every_frame_it_reads(no_sleep):
+    shown = []
+    A.run(SimArm(), FakeCamera(), "B2", "ball", show=shown.append)
+    assert len(shown) == len(list(A.trajectory(A.plan("B2", "ball"), 30)))
+    assert shown[0].shape == (480, 640, 3)

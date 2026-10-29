@@ -25,6 +25,8 @@ import math
 import random
 import time
 
+import cv2
+
 import config as C
 import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
@@ -44,7 +46,8 @@ OBJECTS = {"ball": 20.0, "block": 18.0}
 #   gripper lands too far toward C3 at A2 -> make the first two negative
 #   grips too low at C3                    -> make the third positive
 SPOT_FIX = {
-    "C3": (0.0, 0.0, 4.0),
+    "C3": (0.0, 0.0, 6.0),
+    "A2": (-3.0, -3.0, 0.0),
 }
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
 # a pair in TOO_CLOSE, so the gripper can't touch the object it isn't picking
@@ -140,8 +143,15 @@ def trajectory(waypoints, fps):
         cur = wp
 
 
-def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None):
-    """keep: asked after the moves whether to save the episode (default: save)."""
+def preview(frame):
+    """Show a camera frame (RGB) in a window; the arm keeps moving meanwhile."""
+    cv2.imshow("autodemo camera", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+    cv2.waitKey(1)
+
+
+def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None, show=None):
+    """keep: asked after the moves whether to save the episode (default: save).
+    show: called with every camera frame (the live preview)."""
     dt = 1.0 / C.FPS
     last = arm.last
     cmds = list(trajectory(plan(spot, target, jitter), C.FPS))   # fails here, before moving
@@ -151,6 +161,8 @@ def run(arm, cam, spot, target="ball", rec=None, jitter=0.0, keep=None):
     try:
         for cmd in cmds:
             frame = cam.read()
+            if show:
+                show(frame)
             if rec:
                 rec.add(frame, last, cmd)
             arm.send(cmd)
@@ -186,6 +198,8 @@ def main():
                     help="with --mujoco: put the objects anywhere the arm can pick "
                          "and the camera can see, not just near the spots")
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter (testing)")
+    ap.add_argument("--no-preview", action="store_true",
+                    help="don't show the camera while the arm moves")
     args = ap.parse_args()
     if (args.offset or args.anywhere) and not args.mujoco:
         raise SystemExit("--offset and --anywhere are for the simulator (--mujoco): on the "
@@ -197,6 +211,7 @@ def main():
     # the simulator only moves when commands arrive (no waiting for the clock)
     arm, cam = open_hardware(args, realtime=False)
     world = getattr(arm, "world", None)
+    show = None if (world or args.yes or args.no_preview) else preview
     arm.send(HOME + [C.GRIPPER_OPEN])
     getattr(arm, "wait", time.sleep)(1.0)
     try:
@@ -209,7 +224,7 @@ def main():
                 # the other one waits at the back of the plate, out of the way
                 other_xy = SPOTS[args.other_spot] if args.other_spot else (165.0, 135.0)
                 world.place_for(args.target, SPOTS[args.spot], other_xy)
-            run(arm, cam, args.spot, args.target)
+            run(arm, cam, args.spot, args.target, show=show)
             if world:
                 print(f"{args.target}: {world.result(args.target)}")
             return
@@ -236,13 +251,15 @@ def main():
                     input(f"[{done + 1}/{args.record}] {target} on {spot}, {other} on {other_spot}"
                           f' -> "{TASKS[target]}". Place them, then press Enter ')
                 run(arm, cam, spot, target, rec, jitter=8.0,
-                    keep=None if args.yes else ask_keep)
+                    keep=None if args.yes else ask_keep, show=show)
             if rec.last_kept:
                 counts[target] += 1
         print("recorded:", ", ".join(f"{n} {name}" for name, n in counts.items()))
     finally:
         arm.close()
         cam.close()
+        if show:
+            cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
