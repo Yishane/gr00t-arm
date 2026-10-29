@@ -75,7 +75,7 @@ def test_anywhere_layouts_cover_the_plate_and_can_be_picked(world, no_sleep):
     world.rng.seed(2)
     A.random.seed(2)
     off_spot = 0
-    for i in range(12):
+    for i in range(24):
         target, xy, other_xy = world.random_layout(anywhere=True)
         assert math.dist(xy, other_xy) >= A.MIN_GAP
         assert sim.clear_of_fixed_parts(xy) and sim.clear_of_fixed_parts(other_xy)
@@ -85,7 +85,7 @@ def test_anywhere_layouts_cover_the_plate_and_can_be_picked(world, no_sleep):
             world.place_for(target, xy, other_xy)
             A.run(world.arm, FakeCamera(), xy, target)
             assert world.result(target) == "ok", (target, xy, other_xy)
-    assert off_spot >= 4                          # not just round the spots
+    assert off_spot >= 8                          # not just round the spots (~60% are)
 
 
 def test_camera_view_check_matches_the_picture(world):
@@ -250,3 +250,14 @@ def test_every_layout_gets_a_new_ball_colour_never_green_or_grey(world):
         assert not 80 / 360 <= h <= 170 / 360           # not the block's green
         hues.append(h)
     assert max(hues) - min(hues) > 0.4                   # really different colours
+
+
+def test_no_object_is_placed_closer_to_the_arm_than_a1(world):
+    world.rng.seed(3)
+    A.random.seed(3)
+    nearest = math.hypot(*A.SPOTS["A1"])
+    for _ in range(25):
+        for anywhere, offset in ((True, 0.0), (False, 20.0)):
+            t, xy, other = world.random_layout(offset, anywhere=anywhere)
+            assert math.hypot(*xy) >= nearest - 1e-9
+            assert math.hypot(*other) >= nearest - 1e-9

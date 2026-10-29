@@ -75,6 +75,8 @@ MAST_SOCKET = 28.0          # the baseplate's square boss round the mast's foot 
 # --anywhere: objects go anywhere in this box (mm) that is clear of the fixed
 # parts and that autodemo can plan a pick for
 ANYWHERE_X, ANYWHERE_Y = (50.0, 180.0), (-30.0, 130.0)
+# no object nearer the base axis than spot A1 (Yishane, 2026-10-30)
+NEAREST = math.hypot(*A.SPOTS["A1"])
 CLEAR = 22.0        # object footprint radius (ball 20, block's half diagonal 17.7) + margin
 
 # SG90: about 0.18 N m stall torque
@@ -367,7 +369,7 @@ class World:
         """(target, target xy, other xy) for one episode. Default: spots as
         autodemo.layout() picks them, each moved up to `offset` mm in a random
         direction. anywhere: both objects anywhere in ANYWHERE_X/Y. Always: at
-        least MIN_GAP apart, clear of the drum, cup, mast and plate edge, in
+        least MIN_GAP apart, no nearer the base than A1 (NEAREST), clear of the drum, cup, mast and plate edge, in
         the camera's picture, and the scripted pick works there (tried first
         in a hidden copy of the world), so every layout is one the arm can
         really do and the camera can see."""
@@ -380,6 +382,7 @@ class World:
             else:
                 xy = [self._nudge(A.SPOTS[s], offset) for s in (spot, other_spot)]
             if (math.dist(*xy) >= A.MIN_GAP and all(map(clear_of_fixed_parts, xy))
+                    and all(math.hypot(*q) >= NEAREST for q in xy)
                     and all(self.in_view((*q, 15.0)) for q in xy)
                     and self._pick_works(t, *xy)):
                 return t, xy[0], xy[1]
