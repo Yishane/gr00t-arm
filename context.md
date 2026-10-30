@@ -1,6 +1,21 @@
 # gr00t-arm — context / where we left off
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
+RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
+including small fixes. Put the note in the same commit, not a later one.
+
+## 2026-10-30: --step to pick/compare checkpoints (branch claude/compare-checkpoints)
+- run_policy/run_act `--step 60k` (one), `40k,60k,80k` or `all` (needs --mujoco --trials): each
+  checkpoint scored on the SAME layouts (trials seed random + world.rng with the trial index,
+  always, so separate runs compare too), table at the end; GPU cache freed between models.
+  checkpoints(name, which) replaces the glob; latest_checkpoint wraps it. 140 tests.
+  e.g. `uv run run_act.py --model pick_ball_mixed --step all --mujoco --trials 20 --anywhere`.
+- Commit 9a5f980 went out without this note (the note's anchor only existed on the resume
+  branch); fixed in the next commit, no history rewrite. This branch also merges
+  claude/train-resume-total-steps: merging this one PR brings both.
+- Steps advice given: ~10-20 passes for small sets (150 real ~46k frames -> 60-115k steps);
+  big sim sets limited by time; watch loss; pick the checkpoint where the score levels off.
+  Real-only models: compare checkpoints on the real arm (the sim is the wrong judge for them).
 
 ## 2026-10-30 13:18: model B is already at 80,000 steps
 - His `train_act.py --resume --name pick_ball_mixed --steps 36000` ended at once: LeRobot printed

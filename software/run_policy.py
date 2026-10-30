@@ -48,6 +48,7 @@ as soon as an object lands in the cup, and prints ok / knocked / wrong object
 """
 import argparse
 import math
+import random
 import threading
 import time
 from pathlib import Path
@@ -67,13 +68,34 @@ OUTPUTS = Path(__file__).resolve().parent.parent / "outputs"   # trained models:
 _CALL_LOCK = threading.Lock()
 
 
-def latest_checkpoint(name):
-    """The newest saved checkpoint of ACT model `name` (outputs/act/<name>)."""
-    steps = sorted((OUTPUTS / "act" / name / "checkpoints").glob("*/pretrained_model"))
-    if not steps:
+def checkpoints(name, which=None):
+    """[(step, folder)] of ACT model `name` (outputs/act/<name>): its newest
+    checkpoint, or `which`: one step ("60000" or "60k"), several ("40k,60k"),
+    or "all"."""
+    saved = {int(p.parent.name): p for p in
+             (OUTPUTS / "act" / name / "checkpoints").glob("*/pretrained_model")
+             if p.parent.name.isdigit()}
+    if not saved:
         raise SystemExit(f"no trained model '{name}' in {OUTPUTS / 'act'}: train it first "
                          "(software/act: uv run train_act.py --name ...)")
-    return steps[-1]
+    if which is None:
+        return [max(saved.items())]
+    if which.strip().lower() == "all":
+        return sorted(saved.items())
+    out = []
+    for item in which.split(","):
+        item = item.strip().lower()
+        step = int(float(item[:-1]) * 1000) if item.endswith("k") else int(item)
+        if step not in saved:
+            raise SystemExit(f"{name} has no checkpoint at step {step}; it has: "
+                             + ", ".join(str(s) for s in sorted(saved)))
+        out.append((step, saved[step]))
+    return out
+
+
+def latest_checkpoint(name):
+    """The newest saved checkpoint of ACT model `name` (outputs/act/<name>)."""
+    return checkpoints(name)[0][1]
 
 
 class Gr00tBackend:
@@ -339,6 +361,16 @@ def viewer(fullscreen=False):
     return show
 
 
+def free_gpu_memory():
+    """Let the next checkpoint load into the GPU memory the last one used."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
+
+
 def positive_int(text):
     n = int(text)
     if n < 1:
@@ -356,6 +388,10 @@ def main():
     ap.add_argument("--model", default="pick_ball",
                     help="ACT model name (outputs/act/<name>); its newest checkpoint is used")
     ap.add_argument("--checkpoint", help="ACT pretrained_model folder (instead of --model)")
+    ap.add_argument("--step", metavar="N",
+                    help="ACT: which saved checkpoint of --model: 60000 or 60k; several "
+                         "(40k,60k,80k) or all are scored one after another with --mujoco "
+                         "--trials, on the same layouts, and compared in a table")
     ap.add_argument("--task", help="run this one instruction and exit (no prompt)")
     ap.add_argument("--horizon", type=positive_int, default=8,
                     help="actions played per policy call (GR00T predicts 16)")
@@ -384,14 +420,18 @@ def main():
         raise SystemExit("--trials, --offset and --anywhere are for the simulator (--mujoco)")
     if args.offset and args.anywhere:
         raise SystemExit("use --offset or --anywhere, not both")
+    if args.step and (args.backend != "act" or args.checkpoint):
+        raise SystemExit("--step picks a checkpoint of an ACT --model (not with --checkpoint)")
+    chosen = ([(None, Path(args.checkpoint))] if args.checkpoint
+              else checkpoints(args.model, args.step) if args.backend == "act" else [None])
+    if len(chosen) > 1 and not args.trials:
+        raise SystemExit("several checkpoints are compared with --mujoco --trials N")
 
     task = None
     if args.task:
         task = instruction(args.task)
         if task is None:
             raise SystemExit(f"--task must name the ball or the block: {args.task!r}")
-    policy = (Gr00tBackend(args.host, args.server_port) if args.backend == "gr00t"
-              else ActBackend(args.checkpoint or latest_checkpoint(args.model)))
     rec = None
     if args.record is not None:
         dataset = args.record or ("pick_ball_mujoco" if args.mujoco else "pick_ball_policy")
@@ -400,7 +440,15 @@ def main():
     world = getattr(arm, "world", None)
     show = viewer(args.fullscreen) if (args.view or args.fullscreen) else None
 
-    def one(task):
+    def load(entry):
+        if args.backend == "gr00t":
+            return Gr00tBackend(args.host, args.server_port)
+        step, folder = entry
+        if step is not None:
+            print(f"\n=== {args.model}, checkpoint {step} ===")
+        return ActBackend(folder)
+
+    def one(policy, task):
         """One instruction. In the simulator: lay the objects out, keep only
         clean picks, and return the result."""
         opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show)
@@ -418,26 +466,47 @@ def main():
         print(f"{target} at ({xy[0]:.0f}, {xy[1]:.0f}): {result}")
         return result
 
+    def trials(policy):
+        """--trials N runs, ball and block taking turns. Trial i always gets
+        the same layout and look, so runs (and checkpoints) compare fairly."""
+        score = {name: [] for name in sorted(TASKS)}
+        for i in range(args.trials):
+            random.seed(i)
+            world.rng.seed(i)
+            target = sorted(TASKS)[i % len(TASKS)]
+            print(f"\ntrial {i + 1}/{args.trials}")
+            score[target].append(one(policy, TASKS[target]))
+        for target, results in score.items():
+            others = ", ".join(f"{results.count(r)} {r}" for r in sorted(set(results)) if r != "ok")
+            print(f"{target}: {results.count('ok')}/{len(results)} ok"
+                  + (f" ({others})" if others else ""))
+        return score
+
     go_home(arm)
     try:
         if args.trials:
-            score = {name: [] for name in sorted(TASKS)}
-            for i in range(args.trials):
-                target = sorted(TASKS)[i % len(TASKS)]
-                print(f"\ntrial {i + 1}/{args.trials}")
-                score[target].append(one(TASKS[target]))
-            for target, results in score.items():
-                others = ", ".join(f"{results.count(r)} {r}" for r in sorted(set(results)) if r != "ok")
-                print(f"{target}: {results.count('ok')}/{len(results)} ok"
-                      + (f" ({others})" if others else ""))
+            table = []
+            for entry in chosen:
+                policy = load(entry)
+                score = trials(policy)
+                table.append((entry and entry[0], score))
+                del policy
+                free_gpu_memory()
+            if len(table) > 1:
+                print(f"\n{args.model}: ok out of {args.trials} trials per checkpoint")
+                for step, score in table:
+                    oks = {t: r.count("ok") for t, r in score.items()}
+                    print(f"  {step:>7}: " + ", ".join(f"{t} {n}/{len(score[t])}" for t, n in oks.items())
+                          + f"  -> {sum(oks.values())}/{args.trials}")
             return
+        policy = load(chosen[0])
         if task:
-            one(task)
+            one(policy, task)
             return
         print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
               f"(q to quit)")
         while (task := ask()) is not None:
-            one(task)
+            one(policy, task)
     finally:
         go_home(arm)
         arm.close()

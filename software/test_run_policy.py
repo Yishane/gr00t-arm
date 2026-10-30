@@ -151,6 +151,19 @@ def test_latest_checkpoint_is_the_newest_step_of_a_model(tmp_path, monkeypatch):
         run_policy.latest_checkpoint("not_trained")
 
 
+def test_step_picks_one_several_or_all_checkpoints(tmp_path, monkeypatch):
+    for step in ("040000", "060000", "080000"):
+        (tmp_path / "act" / "m" / "checkpoints" / step / "pretrained_model").mkdir(parents=True)
+    monkeypatch.setattr(run_policy, "OUTPUTS", tmp_path)
+    ck = tmp_path / "act" / "m" / "checkpoints"
+    assert run_policy.checkpoints("m") == [(80000, ck / "080000" / "pretrained_model")]
+    assert run_policy.checkpoints("m", "60k") == [(60000, ck / "060000" / "pretrained_model")]
+    assert [s for s, _ in run_policy.checkpoints("m", "40000, 80k")] == [40000, 80000]
+    assert [s for s, _ in run_policy.checkpoints("m", "all")] == [40000, 60000, 80000]
+    with pytest.raises(SystemExit, match="40000, 60000, 80000"):
+        run_policy.checkpoints("m", "50k")              # says which steps exist
+
+
 def test_the_view_shows_a_frame_with_the_instruction_every_step():
     shown = []
     steps = [[90, 90, 90, 90, 50]] * 5
