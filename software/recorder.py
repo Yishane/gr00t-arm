@@ -39,11 +39,18 @@ def ask_keep():
     return not input("keep it? [Y/n] ").strip().lower().startswith("n")
 
 
-def episodes_in(raws):
-    """Saved episodes of one or more raw dataset folders, in order."""
+def episodes_in(raws, max_extra=None):
+    """Saved episodes of one or more raw dataset folders, in order.
+    max_extra: take at most this many from each folder after the first,
+    spread evenly over it (e.g. 300 of 2000 simulated demos next to the real
+    ones), so they cover the whole recording, not just its start."""
     raws = [raws] if isinstance(raws, Path) else raws
-    episodes = [p for raw in raws for p in sorted(raw.glob("episode_*"))
-                if (p / "steps.csv").exists()]
+    episodes = []
+    for i, raw in enumerate(raws):
+        eps = [p for p in sorted(raw.glob("episode_*")) if (p / "steps.csv").exists()]
+        if i and max_extra is not None and len(eps) > max_extra:
+            eps = [eps[k * len(eps) // max_extra] for k in range(max_extra)]
+        episodes += eps
     if not episodes:
         raise SystemExit(f"no recorded episodes in {', '.join(map(str, raws))}")
     return episodes

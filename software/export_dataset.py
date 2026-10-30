@@ -5,6 +5,8 @@ LeRobot v2.1 layout + meta/modality.json, the format Isaac-GR00T fine-tunes on.
     uv run export_dataset.py --name pick_ball --out ../data/lerobot/pick_ball
     uv run export_dataset.py --with pick_ball_mujoco --out ../data/lerobot/pick_ball_mix
                                              # real demos + simulated ones in one dataset
+    uv run export_dataset.py --with pick_ball_mujoco --with-max 300 --out ../data/lerobot/pick_ball_mix300
+                                             # ...only 300 of the simulated ones
 
 Layout written:
     meta/info.json  meta/episodes.jsonl  meta/tasks.jsonl  meta/modality.json
@@ -53,9 +55,10 @@ def frame_size(frames_dir: Path):
     return h, w
 
 
-def export(raw, out: Path):
-    """raw: a data/raw/<name> folder, or a list of them to merge."""
-    episodes = episodes_in(raw)
+def export(raw, out: Path, max_extra=None):
+    """raw: a data/raw/<name> folder, or a list of them to merge (at most
+    max_extra episodes from each one after the first)."""
+    episodes = episodes_in(raw, max_extra)
     if out.exists():
         shutil.rmtree(out)
     (out / "meta").mkdir(parents=True)
@@ -139,10 +142,12 @@ def main():
     ap.add_argument("--raw", type=Path)
     ap.add_argument("--with", dest="also", action="append", default=[], metavar="NAME",
                     help="also take the episodes of data/raw/NAME (repeatable)")
+    ap.add_argument("--with-max", type=int, metavar="N",
+                    help="at most N episodes from each --with set, spread evenly over it")
     ap.add_argument("--out", type=Path)
     a = ap.parse_args()
     raws = [a.raw or ROOT / "data" / "raw" / a.name] + [ROOT / "data" / "raw" / n for n in a.also]
-    export(raws, a.out or ROOT / "data" / "lerobot" / a.name)
+    export(raws, a.out or ROOT / "data" / "lerobot" / a.name, a.with_max)
 
 
 if __name__ == "__main__":

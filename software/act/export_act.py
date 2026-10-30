@@ -4,6 +4,8 @@ recordings, for training ACT on the laptop.
     uv run export_act.py                    # data/raw/pick_ball -> data/act/pick_ball
     uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix
                                             # real + simulated demos -> data/act/pick_ball_mix
+    uv run export_act.py --with pick_ball_mujoco --with-max 300 --out pick_ball_mix300
+                                            # ...only 300 of the simulated ones
 
 ACT has no language input, so the instruction ("pick up the ball" / "pick up
 the block") goes in as a 6th state number: 0 = ball, 1 = block. run_policy.py
@@ -29,9 +31,10 @@ NAMES = ["base.pos", "shoulder.pos", "elbow.pos", "wrist.pos", "gripper.pos"]
 TARGETS = sorted(TASKS)                 # index = the 6th state number
 
 
-def export(raw, out: Path):
-    """raw: a data/raw/<name> folder, or a list of them to merge."""
-    episodes = episodes_in(raw)
+def export(raw, out: Path, max_extra=None):
+    """raw: a data/raw/<name> folder, or a list of them to merge (at most
+    max_extra episodes from each one after the first)."""
+    episodes = episodes_in(raw, max_extra)
     first = cv2.imread(str(next((episodes[0] / "frames").glob("*.jpg"))))
     h, w = first.shape[:2]
     fps = json.loads((episodes[0] / "meta.json").read_text())["fps"]
@@ -79,10 +82,12 @@ def main():
     ap.add_argument("--name", default="pick_ball")
     ap.add_argument("--with", dest="also", action="append", default=[], metavar="NAME",
                     help="also take the episodes of data/raw/NAME (repeatable)")
+    ap.add_argument("--with-max", type=int, metavar="N",
+                    help="at most N episodes from each --with set, spread evenly over it")
     ap.add_argument("--out", metavar="NAME", help="write data/act/NAME (default: --name)")
     a = ap.parse_args()
     raws = [ROOT / "data" / "raw" / n for n in [a.name, *a.also]]
-    export(raws, ROOT / "data" / "act" / (a.out or a.name))
+    export(raws, ROOT / "data" / "act" / (a.out or a.name), a.with_max)
 
 
 if __name__ == "__main__":
