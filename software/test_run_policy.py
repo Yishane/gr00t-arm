@@ -113,3 +113,13 @@ def test_answering_no_or_ctrl_c_leaves_no_episode(tmp_path, monkeypatch):
     with pytest.raises(KeyboardInterrupt):
         _policy_run(tmp_path, monkeypatch, keep=ctrl_c)
     assert list((tmp_path / "p").glob("episode_*")) == []
+
+
+def test_latest_checkpoint_is_the_newest_step_of_a_model(tmp_path, monkeypatch):
+    for step in ("004000", "016000", "008000"):
+        (tmp_path / "act" / "pick_ball" / "checkpoints" / step / "pretrained_model").mkdir(parents=True)
+    monkeypatch.setattr(run_policy, "OUTPUTS", tmp_path)
+    assert run_policy.latest_checkpoint("pick_ball") == (
+        tmp_path / "act" / "pick_ball" / "checkpoints" / "016000" / "pretrained_model")
+    with pytest.raises(SystemExit):
+        run_policy.latest_checkpoint("not_trained")

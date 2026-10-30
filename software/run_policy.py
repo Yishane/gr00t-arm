@@ -9,7 +9,9 @@ again. Type just "ball" or "block" for short, or q / an empty line to quit.
 GR00T (model running on the cloud GPU, see gr00t/README.md):
     uv run run_policy.py gr00t --host <cloud-ip> --server-port 5555
 ACT (trained locally, run from software/act):
-    cd act && uv run ../run_policy.py act --checkpoint ../../outputs/act/pick_ball/checkpoints/020000/pretrained_model
+    cd act && uv run run_act.py                       # newest checkpoint of model pick_ball
+    cd act && uv run run_act.py --model pick_ball_mixed
+    (--checkpoint ../../outputs/act/pick_ball/checkpoints/016000/pretrained_model picks one)
 --task "pick up the ball" runs one instruction without asking.
 
 Each step: grab a camera frame + the current servo angles, ask the policy for
@@ -40,6 +42,7 @@ import argparse
 import math
 import threading
 import time
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, wait
 
 import numpy as np
@@ -50,9 +53,19 @@ from arm_io import HOME, add_hw_args, open_hardware
 from recorder import TASKS, Recorder, ask_keep, target_of
 
 MAX_FAILS = 3   # policy failures in a row before a run gives up
+OUTPUTS = Path(__file__).resolve().parent.parent / "outputs"   # trained models: OUTPUTS/act/<name>
 # one policy call at a time: the GR00T client has one socket, and a call left
 # running by Ctrl+C must finish before the next instruction's first call
 _CALL_LOCK = threading.Lock()
+
+
+def latest_checkpoint(name):
+    """The newest saved checkpoint of ACT model `name` (outputs/act/<name>)."""
+    steps = sorted((OUTPUTS / "act" / name / "checkpoints").glob("*/pretrained_model"))
+    if not steps:
+        raise SystemExit(f"no trained model '{name}' in {OUTPUTS / 'act'}: train it first "
+                         "(software/act: uv run train_act.py --name ...)")
+    return steps[-1]
 
 
 class Gr00tBackend:
@@ -264,7 +277,9 @@ def main():
     add_hw_args(ap)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--server-port", type=int, default=5555)
-    ap.add_argument("--checkpoint", help="ACT pretrained_model folder")
+    ap.add_argument("--model", default="pick_ball",
+                    help="ACT model name (outputs/act/<name>); its newest checkpoint is used")
+    ap.add_argument("--checkpoint", help="ACT pretrained_model folder (instead of --model)")
     ap.add_argument("--task", help="run this one instruction and exit (no prompt)")
     ap.add_argument("--horizon", type=positive_int, default=8,
                     help="actions played per policy call (GR00T predicts 16)")
@@ -296,7 +311,7 @@ def main():
         if task is None:
             raise SystemExit(f"--task must name the ball or the block: {args.task!r}")
     policy = (Gr00tBackend(args.host, args.server_port) if args.backend == "gr00t"
-              else ActBackend(args.checkpoint))
+              else ActBackend(args.checkpoint or latest_checkpoint(args.model)))
     rec = None
     if args.record is not None:
         dataset = args.record or ("pick_ball_mujoco" if args.mujoco else "pick_ball_policy")
