@@ -40,6 +40,7 @@ def export(raw, out: Path):
     ds = LeRobotDataset.create(
         repo_id=f"local/{out.name}", fps=fps, root=out, robot_type="gr00t_arm_sg90",
         use_videos=True,
+        streaming_encoding=True,        # encode while adding frames: ~5x faster than the default
         features={
             "observation.state": {"dtype": "float32", "shape": (6,),
                                   "names": NAMES + ["target"]},
@@ -57,12 +58,18 @@ def export(raw, out: Path):
         state = steps[[f"state_{i}" for i in range(5)]].to_numpy(np.float32)
         state = np.hstack([state, np.full((len(state), 1), TARGETS.index(target), np.float32)])
         action = steps[[f"action_{i}" for i in range(5)]].to_numpy(np.float32)
+        frames = [ep / "frames" / f"{i:06d}.jpg" for i in range(len(steps))]
+        missing = [f.name for f in frames if not f.exists()]
+        if missing:                     # a step without its picture is dropped, not fatal
+            print(f"  {ep.name}: no image for {len(missing)} step(s) ({', '.join(missing[:3])}), skipped")
         for i in range(len(steps)):
-            img = cv2.cvtColor(cv2.imread(str(ep / "frames" / f"{i:06d}.jpg")), cv2.COLOR_BGR2RGB)
+            if frames[i].name in missing:
+                continue
+            img = cv2.cvtColor(cv2.imread(str(frames[i])), cv2.COLOR_BGR2RGB)
             ds.add_frame({"observation.state": state[i], "action": action[i],
                           "observation.images.front": img, "task": task})
         ds.save_episode()
-        print(f"  {ep.name}: {len(steps)} frames, {task!r}")
+        print(f"  {ep.name}: {len(steps) - len(missing)} frames, {task!r}")
     ds.finalize()
     print(f"wrote {out}")
 
