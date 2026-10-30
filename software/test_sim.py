@@ -264,3 +264,15 @@ def test_no_object_is_placed_closer_to_the_arm_than_a1(world):
             t, xy, other = world.random_layout(offset, anywhere=anywhere)
             assert math.hypot(*xy) >= nearest - 1e-9
             assert math.hypot(*other) >= nearest - 1e-9
+
+
+def test_with_max_takes_a_spread_of_the_extra_episodes(tmp_path):
+    for name, n in (("real", 3), ("sim", 10)):
+        for i in range(n):
+            ep = tmp_path / name / f"episode_{i:06d}"
+            ep.mkdir(parents=True)
+            (ep / "steps.csv").write_text("t\n")
+    eps = recorder.episodes_in([tmp_path / "real", tmp_path / "sim"], max_extra=4)
+    assert [p.parent.name for p in eps] == ["real"] * 3 + ["sim"] * 4    # real ones all kept
+    assert [p.name[-1] for p in eps[3:]] == ["0", "2", "5", "7"]           # spread over the set
+    assert len(recorder.episodes_in([tmp_path / "real", tmp_path / "sim"], max_extra=50)) == 13

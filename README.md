@@ -386,8 +386,9 @@ You (after milestones 7–9):
   `uv run sim.py --compare ..\data\raw\camcheck\episode_000000\frames\000000.jpg`
   and send `data/sim_compare.png` to Claude to tune the simulated camera.
 - ⬜ `uv run autodemo.py --mujoco --record 300 --anywhere` (`data/raw/pick_ball_mujoco`).
-- ⬜ `cd act; uv run export_act.py --with pick_ball_mujoco --out pick_ball_mix;
-  uv run train_act.py --name pick_ball_mix --steps 20000` (overnight).
+- ⬜ `cd act; uv run export_act.py --with pick_ball_mujoco --with-max 300 --out pick_ball_mix300;
+  uv run train_act.py --name pick_ball_mix300 --steps 20000` (overnight). `--with-max N` takes
+  only N simulated demos (spread over the set): about 1-2 per real demo; keep the rest on disk.
 - ⬜ Score both models in the simulator: `uv run ..\run_policy.py act --mujoco
   --trials 20 --checkpoint ..\..\outputs\act\<name>\checkpoints\020000\pretrained_model`
   (add `--anywhere` for objects anywhere: the score that says whether

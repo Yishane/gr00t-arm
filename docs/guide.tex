@@ -981,8 +981,13 @@ up and fine-tune it as in \cref{sec:cloud}:
 \begin{cmd}
 uv run export_dataset.py --with pick_ball_mujoco --out ..\data\lerobot\pick_ball_mix
 \end{cmd}
-Start with about as many simulated demos as real ones (e.g.\ 150 real + 150--300 simulated). Too
-many simulated ones can make the model better at the simulator than at the real arm.
+Start with about as many simulated demos as real ones, up to twice as many (e.g.\ 150 real +
+150--300 simulated). Too many simulated ones make the model better at the simulator than at the
+real arm. You don't have to delete any: \texttt{--with-max N} takes only $N$ of them, spread
+evenly over the whole set, and you can export several mixes under different names:
+\begin{cmd}
+uv run export_act.py --with pick_ball_mujoco --with-max 300 --out pick_ball_mix300
+\end{cmd}
 
 \subsection{Step 4: score models in the simulator}
 \begin{cmd}

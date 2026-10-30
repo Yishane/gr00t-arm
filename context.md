@@ -2,6 +2,16 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
+## 2026-10-30 (cloud session, later): fewer sim demos per real
+- export_act.py / export_dataset.py --with-max N: at most N episodes from each --with set, spread
+  evenly (recorder.episodes_in(raws, max_extra)). Advice: keep all 2108 sim demos on disk (~13 GB,
+  laptop has room), export a new mix, e.g. `--with pick_ball_mujoco --with-max 300 --out
+  pick_ball_mix300` (~1-2 sim per real), train under that name (train_act refuses an existing
+  outputs/act/<name>). Model B (pick_ball_mixed, 47 sim per real) stays for comparison.
+- Merged by Yishane: PR #17 (shadows back on) and #18 (cut unsafe moves short + gripper snap).
+- He hoped GR00T would work zero-shot; explained: new embodiment = arm-specific layers start
+  empty, so fine-tuning is required; pitch = few-shot (~150 demos), generalization from pretraining.
+
 ## 2026-10-30 (cloud session): sim trials "not working at all"
 - Model B (pick_ball_mixed, 98% sim demos) now grips in the sim but twitches after the grip.
   Trials code itself verified on main with an oracle policy + his calibration (real-time world):
