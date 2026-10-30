@@ -2,7 +2,8 @@
 
     uv run train_act.py                          # data/act/pick_ball, 20k steps
     uv run train_act.py --name pick_ball --steps 30000
-    uv run train_act.py --resume                 # continue from the newest checkpoint
+    uv run train_act.py --resume --steps 40000   # continue from the newest checkpoint
+                                                 # up to 40k in total (not 40k more)
 
 ~2.3 steps/s on an RTX 5050 at batch 8, so 20k steps is about 2.5 hours.
 Checkpoints: outputs/act/<name>/checkpoints/<step>/pretrained_model
@@ -38,7 +39,11 @@ def main():
             "*/pretrained_model/train_config.json"))
         if not saved:
             raise SystemExit(f"nothing to resume: no checkpoint in outputs/act/{a.name}")
-        print(f"resuming from {saved[-1].parent.parent.name}")
+        done = int(saved[-1].parent.parent.name)     # checkpoint folders are named by step
+        if a.steps <= done:
+            raise SystemExit(f"{a.name} is already at {done} steps. --steps is the total to "
+                             f"stop at, not how many more: e.g. --steps {done + 20000}")
+        print(f"resuming from step {done}, training up to {a.steps}")
         extra = ["--resume=true", f"--config_path={saved[-1]}", *extra]
     lerobot_train.update_last_checkpoint = _no_symlink
     sys.argv = [

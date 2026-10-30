@@ -2,6 +2,13 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
+## 2026-10-30 13:18: model B is already at 80,000 steps
+- His `train_act.py --resume --name pick_ball_mixed --steps 36000` ended at once: LeRobot printed
+  "Resuming data order at epoch 0, sample 640000" = step 80,000 (x batch 8) > 36,000 total.
+  --steps is the TOTAL. train_act --resume now refuses a total <= the saved step with a clear
+  message (branch claude/train-resume-total-steps). Next: score B@80k in the sim (--trials 20
+  --anywhere); continue only if it improved (e.g. --steps 116000 --save_freq=5000).
+
 ## 2026-10-30 (cloud session, later): fewer sim demos per real
 - export_act.py / export_dataset.py --with-max N: at most N episodes from each --with set, spread
   evenly (recorder.episodes_in(raws, max_extra)). Advice: keep all 2108 sim demos on disk (~13 GB,
