@@ -1,6 +1,7 @@
 import pytest
 
 import arm_io
+import autodemo as A
 import config as C
 import kinematics as K
 import run_policy
@@ -75,6 +76,30 @@ def test_nan_or_short_commands_are_never_sent():
     assert all(len(c) == 5 and all(a == a for a in c) for c in arm.sent)   # a != a only for NaN
 
 
+def test_an_unsafe_move_is_cut_short_and_the_gripper_still_closes():
+    x, y = 110, 40
+    pitch = A.best_pitch(x, y, 18)
+    above = K.solve(x, y, 40, A.best_pitch(x, y, 40))     # coming down on the object...
+    under = K.to_servo(K.ik(x, y, 6, pitch))              # ...asked to go into the plate
+    assert under and not K.servo_ok(under)
+    cmd, ok = run_policy.make_safe(under + [C.GRIPPER_CLOSED], above + [C.GRIPPER_OPEN])
+    assert not ok and K.servo_ok(cmd[:4])
+    assert cmd[4] == C.GRIPPER_CLOSED                     # the grip isn't thrown away
+    z = K.fk(*K.from_servo(cmd[:4]))[2]
+    assert z < 22                                         # went most of the way down, not frozen at 40
+    ok_cmd = above + [C.GRIPPER_OPEN]
+    assert run_policy.make_safe(ok_cmd, ok_cmd) == (ok_cmd, True)
+
+
+def test_gripper_goes_fully_open_or_fully_closed():
+    o, c = C.GRIPPER_OPEN, C.GRIPPER_CLOSED
+    near_closed = c + 0.2 * (o - c)                       # e.g. 82 when closed is 90, open 50
+    assert run_policy.snap_gripper(near_closed) == c
+    assert run_policy.snap_gripper(o + 0.2 * (c - o)) == o
+    pose = list(arm_io.HOME)
+    assert run_policy.make_safe(pose + [near_closed], pose + [o])[0][4] == c
+
+
 def _policy_run(tmp_path, monkeypatch, keep):
     """Two safe steps, one unsafe one, then the run gives up."""
     import recorder
@@ -102,7 +127,8 @@ def test_recorded_run_saves_every_played_step(tmp_path, monkeypatch):
     assert len(df) == 13 == len(list((eps[0] / "frames").glob("*.jpg")))
     assert state[0] == HOME5                          # starts from home
     assert state[1:] == action[:-1]                   # state = the last command sent
-    assert action[6] == turn                          # the unsafe step holds still
+    # the unsafe step is cut short: a safe pose between turn and the fold
+    assert K.servo_ok(action[6][:4]) and action[6] != turn
 
 
 def test_answering_no_or_ctrl_c_leaves_no_episode(tmp_path, monkeypatch):

@@ -204,7 +204,10 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 ### ✅ 2c. Code-review fixes (Claude, 2026-10-23)
 - ✅ When GR00T or ACT drives, every command is checked first (joint limits,
   gripper folding into the arm, gripper into the plate). Unsafe ones aren't
-  sent; the arm holds still and `run_policy.py` prints `N blocked`.
+  sent as asked: the arm goes as far toward it as is safe and `run_policy.py`
+  prints `N limited` (2026-10-30: it used to hold still, and a model then asked
+  for the same move forever). The gripper always follows, snapped fully open or
+  fully closed.
 - ✅ A GR00T timeout, server error or empty answer is retried. After 3 in a
   row the run stops and asks for the next instruction, instead of quitting.
 - ✅ The policy gets a fresh camera frame each time (old buffered frames are dropped),
@@ -227,7 +230,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   Press Ctrl+C once the object is in the cup (so the idle rest isn't saved),
   then answer `keep it?`. Keep only clean picks of the right object: retraining
   on those makes the policy better; retraining on its failures would teach it
-  its own mistakes. Steps the safety check blocked are saved as "hold still".
+  its own mistakes. Steps the safety check cut short are saved as the safe move actually sent.
 - ✅ 80 tests pass.
 
 ### ✅ 3. Print (You)

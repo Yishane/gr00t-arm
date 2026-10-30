@@ -11,6 +11,21 @@ Read this first every session. Update the "Status" and "Next" sections before st
   SIM_SHADOWS=0 turns them off. Nothing recorded/trained was affected (only new renders).
   Which episodes have shadows: compare each episode's meta.json time with 10-29 17:00, or look.
   Cause of "trials not working at all" still unknown: asked for his terminal output.
+- 10-30 LOGS from Yishane: SIM trials (model B, pick_ball_mixed): 0/4; gripper never left 49-50
+  (open); trials 1+4 froze with "8 blocked" every call for ~15 s (deadlock: blocked -> hold ->
+  same state+image -> same unsafe move). REAL arm (`instruction>` loop): no blocks; grip rises
+  49 -> 64 -> ~80-87 (closed = 90) and then sits ~15 s without lifting.
+  Measured: scripted demos grip with the lowest gripper point only ~1.6 mm (median) above the
+  2 mm floor limit (22/60 within 1 mm) -> ~26% of near-grip commands with ~2 deg error fail
+  servo_ok. Changes (branch claude/safe-limit-not-freeze): run_policy.make_safe cuts an unsafe
+  move short (bisection toward it from the last safe command), gripper always applied and
+  snap_gripper()'d to open/closed (nearest); log says "N limited". NaN/short -> hold.
+  test_pipeline keeps raw gripper tags (monkeypatch snap_gripper=float). 137 tests.
+  HONEST: an open-loop noisy-oracle sim test (2 deg bias) gave 11/20 old vs 10/20 new - it
+  can't reproduce the closed-loop deadlock, so no measured gain yet; his model in the sim is the test.
+  Suggested now: `--horizon 30` (fewer re-plans) as a no-code test; temporal ensembling not
+  built (his ACT calls take ~57 ms > 33 ms per step, so per-step queries would halve the rate;
+  chunk-level ensembling would work). Real arm stuck after grip = B is 98% sim: more REAL demos.
 - Twitching after the grip, explained (not built yet, offered): ACT chunk 100, run_policy plays
   8 then re-plans -> flips between plans when unsure; fix = temporal ensembling (query every step,
   average overlapping chunks) + snap gripper to open/closed; data fix = demos with recoveries.
