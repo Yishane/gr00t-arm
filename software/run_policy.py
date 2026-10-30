@@ -13,6 +13,8 @@ ACT (trained locally, run from software/act):
     cd act && uv run run_act.py --model pick_ball_mixed
     (--checkpoint ../../outputs/act/pick_ball/checkpoints/016000/pretrained_model picks one)
 --task "pick up the ball" runs one instruction without asking.
+--view shows the camera live with the instruction on top; --fullscreen fills
+the screen with it (for a projector).
 
 Each step: grab a camera frame + the current servo angles, ask the policy for
 the next chunk of actions, play the first --horizon of them at 30 Hz, repeat.
@@ -168,19 +170,20 @@ def _result(future):
 
 
 def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None,
-        done=None):
+        done=None, show=None):
     """Run one instruction until the time is up or Ctrl+C.
     pipeline: ask for the next chunk while the current one plays, so the arm
     doesn't stop for the length of each policy call.
     rec: a Recorder; every step played is saved (frame, last command, command).
     keep: asked once the arm is home whether to save the episode (default: save).
-    done: checked after every step; the run ends when it returns True."""
+    done: checked after every step; the run ends when it returns True.
+    show: called as show(frame, task) with a camera frame every step (the live view)."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
     if rec:
         rec.start(task=task)
     try:
-        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done)
+        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done, show)
         go_home(arm)
         if rec:
             rec.stop(keep=keep() if keep else True)
@@ -189,7 +192,8 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
             rec.stop(keep=False)        # no-op once saved; drops a half episode on errors
 
 
-def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=None):
+def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=None,
+           show=None):
     """The policy loop of run(); servo = the command the arm holds now."""
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
@@ -231,8 +235,12 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                 cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
                 ok = (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
                       and K.servo_ok(cmd[:4]))
-                if rec:                                   # what the camera saw, then what was sent
-                    rec.add(cam.read(), servo, cmd if ok else servo)
+                if rec or show:                           # what the camera sees at this step
+                    seen = cam.read()
+                    if rec:                               # ...then what was sent
+                        rec.add(seen, servo, cmd if ok else servo)
+                    if show:
+                        show(seen, task)
                 if ok:
                     arm.send(cmd)
                     servo = cmd
@@ -261,6 +269,45 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
         print("stopped")
     finally:
         pool.shutdown(wait=False, cancel_futures=True)   # never wait for a slow call
+
+
+def viewer(fullscreen=False):
+    """show(frame, task) for run(): the camera picture with the instruction on
+    top, in a window (full screen for a projector; F11 switches). pygame, not
+    OpenCV: the ACT environment's OpenCV can't open windows."""
+    import pygame
+    pygame.init()
+    pygame.display.set_caption("gr00t-arm camera")
+    state = {"full": fullscreen, "screen": None, "fonts": {}}
+
+    def set_screen():
+        state["screen"] = (pygame.display.set_mode((0, 0), pygame.FULLSCREEN) if state["full"]
+                           else pygame.display.set_mode((960, 720), pygame.RESIZABLE))
+    set_screen()
+
+    def show(frame, task):
+        for ev in pygame.event.get():
+            if ev.type == pygame.KEYDOWN and ev.key == pygame.K_F11:
+                state["full"] = not state["full"]
+                set_screen()
+        screen = state["screen"]
+        w, h = screen.get_size()
+        s = min(w / frame.shape[1], h / frame.shape[0])
+        pic = pygame.transform.smoothscale(
+            pygame.surfarray.make_surface(np.transpose(frame, (1, 0, 2))),
+            (max(1, int(frame.shape[1] * s)), max(1, int(frame.shape[0] * s))))
+        screen.fill((0, 0, 0))
+        screen.blit(pic, ((w - pic.get_width()) // 2, (h - pic.get_height()) // 2))
+        size = max(24, h // 18)
+        font = state["fonts"].get(size) or state["fonts"].setdefault(
+            size, pygame.font.SysFont("arial", size, bold=True))
+        text = font.render(f'"{task}"', True, (255, 255, 255))
+        bar = pygame.Surface((w, text.get_height() + 20), pygame.SRCALPHA)
+        bar.fill((0, 0, 0, 170))
+        screen.blit(bar, (0, 0))
+        screen.blit(text, ((w - text.get_width()) // 2, 10))
+        pygame.display.flip()
+    return show
 
 
 def positive_int(text):
@@ -299,6 +346,10 @@ def main():
     ap.add_argument("--anywhere", action="store_true",
                     help="with --mujoco: put the objects anywhere the arm can pick "
                          "and the camera can see")
+    ap.add_argument("--view", action="store_true",
+                    help="show the camera live, with the instruction on top")
+    ap.add_argument("--fullscreen", action="store_true",
+                    help="--view, full screen (for a projector; F11 switches, Ctrl+C stops)")
     args = ap.parse_args()
     if (args.trials or args.offset or args.anywhere) and not args.mujoco:
         raise SystemExit("--trials, --offset and --anywhere are for the simulator (--mujoco)")
@@ -318,11 +369,12 @@ def main():
         rec = Recorder(dataset, fps=C.FPS, source="policy", sim=args.mujoco)
     arm, cam = open_hardware(args)
     world = getattr(arm, "world", None)
+    show = viewer(args.fullscreen) if (args.view or args.fullscreen) else None
 
     def one(task):
         """One instruction. In the simulator: lay the objects out, keep only
         clean picks, and return the result."""
-        opts = dict(pipeline=not args.no_pipeline, rec=rec)
+        opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show)
         if not world:
             run(policy, arm, cam, task, args.horizon, args.seconds,
                 keep=ask_keep if rec else None, **opts)

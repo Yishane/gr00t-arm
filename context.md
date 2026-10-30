@@ -31,6 +31,12 @@ Read this first every session. Update the "Status" and "Next" sections before st
   ~[90,90,94,90], home is now [95,91,83,92]), goes to the object, hovers without grasping, only
   manages the ball. Checked: ball vs block label changes its commands ~10 deg (label is used).
   Verdict: too few demos -> record ~105 more real, retrain A (rename old outputs/act/pick_ball).
+- Live view for class: `run_act.py --view` / `--fullscreen` (also run_policy gr00t): pygame window,
+  camera + instruction banner, F11 toggles; frames read every step (like --record). pygame because
+  the ACT env's OpenCV is headless (lerobot) - pygame-ce added to software/act. teleop --fullscreen
+  + F11, text scales with window. OOM cause likely his video editing on the GPU at the same time.
+  His new SPOT_FIX (C3 8,5,15; B3 9,9,12; A3 2,-5,12; C2 7,7,16; A1/B1 3,0,0; C1 12,-2,9) - sim
+  tests that use named spots now ignore SPOT_FIX/GRIP_FIX.
 
 ## (previous) 2026-10-30 afternoon
 - NOW: away from the arm. He is recording ~1000 SIM demos (`autodemo.py --mujoco --record 770

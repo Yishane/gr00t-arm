@@ -161,6 +161,8 @@ class ReplayPolicy:
 def test_run_policy_in_the_simulator_stops_at_the_cup_and_keeps_successes(
         world, tmp_path, monkeypatch, no_sleep):
     monkeypatch.setattr(recorder, "DATA", tmp_path)
+    monkeypatch.setattr(A, "SPOT_FIX", {})            # real-arm corrections, not the sim's
+    monkeypatch.setattr(A, "GRIP_FIX", {})
     rec = recorder.Recorder("p", fps=30, source="policy", sim=True)
     target, spot = "block", "C2"
     world.place_for(target, A.SPOTS[spot], A.SPOTS["A1"])

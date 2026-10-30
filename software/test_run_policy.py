@@ -123,3 +123,21 @@ def test_latest_checkpoint_is_the_newest_step_of_a_model(tmp_path, monkeypatch):
         tmp_path / "act" / "pick_ball" / "checkpoints" / "016000" / "pretrained_model")
     with pytest.raises(SystemExit):
         run_policy.latest_checkpoint("not_trained")
+
+
+def test_the_view_shows_a_frame_with_the_instruction_every_step():
+    shown = []
+    steps = [[90, 90, 90, 90, 50]] * 5
+    pol = ScriptedPolicy([steps] + [TimeoutError()] * 3)
+    run_policy.run(pol, SimArm(), FakeCamera(), "pick up the ball", 8, 60,
+                   show=lambda frame, task: shown.append((frame.shape, task)))
+    assert len(shown) >= len(steps)
+    assert all(task == "pick up the ball" for _, task in shown)
+
+
+def test_viewer_draws_a_frame_windowed_and_full_screen(monkeypatch):
+    import numpy as np
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")           # no real screen in tests
+    for full in (False, True):
+        show = run_policy.viewer(full)
+        show(np.zeros((480, 640, 3), np.uint8), "pick up the ball")

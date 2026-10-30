@@ -12,6 +12,7 @@ Keys (click the window first):
     ENTER      start / stop recording    BACKSPACE  discard current recording
     T          switch the instruction saved with the next recording
                ("pick up the ball" / "pick up the block")
+    F11        full screen on / off (or start with --fullscreen, for a projector)
     ESC        quit
 A gamepad works too if one is plugged in (left stick xy, triggers z, A = gripper).
 """
@@ -39,6 +40,17 @@ def home_target():
 STATUS_H = 40   # px under the picture for the status line
 
 
+def font_size(window_height):
+    """Status text size: 16 px in the normal window, bigger on a projector."""
+    return max(16, window_height // 45)
+
+
+def set_screen(fullscreen):
+    if fullscreen:
+        return pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    return pygame.display.set_mode((640, 480 + STATUS_H), pygame.RESIZABLE)
+
+
 def fit(window):
     """Size to draw the 640x480 picture in a window of this size, keeping its
     shape and leaving room for the status line. Only the display is scaled;
@@ -55,15 +67,18 @@ def main():
                     "(default pick_ball, or pick_ball_mujoco with --mujoco)")
     ap.add_argument("--task", default=TASKS["ball"],
                     help="instruction stored with demos at the start (T switches it)")
+    ap.add_argument("--fullscreen", action="store_true",
+                    help="start full screen (F11 switches)")
     args = ap.parse_args()
 
     arm, cam = open_hardware(args)
     dataset = args.dataset or ("pick_ball_mujoco" if args.mujoco else "pick_ball")
     rec = Recorder(dataset, args.task, C.FPS, "teleop", sim=args.mujoco)
     pygame.init()
-    screen = pygame.display.set_mode((640, 480 + STATUS_H), pygame.RESIZABLE)
+    fullscreen = args.fullscreen
+    screen = set_screen(fullscreen)
     pygame.display.set_caption("gr00t-arm teleop")
-    font = pygame.font.SysFont("consolas", 16)
+    fonts = {}                                  # text size -> font
     pad = pygame.joystick.Joystick(0) if pygame.joystick.get_count() else None
 
     target = home_target()
@@ -83,6 +98,9 @@ def main():
                     running = False
                 elif ev.key == pygame.K_SPACE:
                     grip_closed = not grip_closed
+                elif ev.key == pygame.K_F11:
+                    fullscreen = not fullscreen
+                    screen = set_screen(fullscreen)
                 elif ev.key == pygame.K_h:
                     target = home_target()
                 elif ev.key == pygame.K_t and not rec.recording:
@@ -133,6 +151,8 @@ def main():
         surf = pygame.surfarray.make_surface(np.transpose(frame, (1, 0, 2)))
         screen.fill((20, 20, 20))
         win_w = screen.get_width()
+        size = font_size(screen.get_height())
+        font = fonts.get(size) or fonts.setdefault(size, pygame.font.SysFont("consolas", size))
         pic_w, pic_h = fit(screen.get_size())
         left = (win_w - pic_w) // 2
         screen.blit(pygame.transform.scale(surf, (pic_w, pic_h)), (left, 0))
