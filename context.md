@@ -2,7 +2,30 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
-## >>> LATEST STATE (2026-10-30 afternoon, local agent on his laptop) — READ THIS FIRST <<<
+## >>> LATEST STATE (2026-10-29 22:20, local agent on his laptop) — READ THIS FIRST <<<
+- DATA: 45 real demos (data/raw/pick_ball) + 2108 SIM demos (data/raw/pick_ball_mujoco, all
+  recorded 10-29 12:37-16:00, after every sim change; random ball colours, --anywhere, no shadows -
+  shadows were turned on later). Real episode_000045 lacks frames/000000.jpg (only broken episode).
+- EXPORTS (data/act): pick_ball = model A, 45 eps / 14,355 frames / 117 MB (re-exported with the
+  fixed export_act). pick_ball_mixed (NOTE the -ed name he chose) = model B, 2153 eps (45 real +
+  2108 sim) / 663,770 frames / 4.1 GB -> ~47 sim per real, B is essentially a sim model.
+  export_act now uses streaming_encoding (~3 s/demo, was ~17 s) and skips steps with a missing
+  frame. The long torchcodec/libtorchcodec error block at startup is harmless (falls back to pyav).
+- TRAINING (train_act.py, batch 8, 20k steps, save every 4000, ~2.65 step/s):
+  model A (outputs/act/pick_ball) started 20:18; checkpoints 004000..016000 exist (016000 at 21:22),
+  NO 020000. Then a run died with `torch.AcceleratorError: CUDA error: out of memory` at step
+  479/20000 after 3 min (his screenshot). Unclear which run: most likely model B started right
+  after A (`a; b` in one line) - outputs/act/pick_ball_mixed was never created - and A itself may
+  have stopped between 16k and 20k. GPU was empty (0 MiB) afterwards; sim recording had ended at
+  16:00, so nothing else held the GPU. Earlier ACT runs used ~2.1 GB of the 8 GB RTX 5050.
+  NEXT: (1) ask him which run crashed / what A's terminal printed last; (2) A's 016000 checkpoint
+  is usable: `uv run ../run_policy.py act --camera 1 --checkpoint
+  ../../outputs/act/pick_ball/checkpoints/016000/pretrained_model`; (3) retry B; if OOM again,
+  `uv run train_act.py --name pick_ball_mixed --batch_size=4` (extra args pass through).
+  A re-run of A needs outputs/act/pick_ball renamed first (lerobot FileExistsError).
+- Untracked `cad/stl_opensource/easy_robot_arm/* - Copy.stl` (his copies) left out of git.
+
+## (previous) 2026-10-30 afternoon
 - NOW: away from the arm. He is recording ~1000 SIM demos (`autodemo.py --mujoco --record 770
   --anywhere`; 305 in data/raw/pick_ball_mujoco so far, all recorded after every sim change below),
   then trains overnight, in software/act:
