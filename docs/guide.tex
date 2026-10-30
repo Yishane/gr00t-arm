@@ -746,7 +746,7 @@ uv run ..\run_policy.py act --camera 1 --record pick_ball ^
 \item Type an instruction as usual. Every step the arm plays is saved: the camera frame, the
   five angles last sent (the state) and the five angles sent now (the action), exactly like a
   demo, tagged \texttt{"source": "policy"} in its \file{meta.json}. If the safety check
-  blocked a step, the arm held still, and ``hold still'' is what gets saved.
+  cut a step short, the safe move the arm actually made is what gets saved.
 \item Press Ctrl+C as soon as the object is in the cup, so the seconds after it aren't saved.
   The arm goes home and asks \texttt{keep it? [Y/n]}.
 \item Keep a run \emph{only} if it picked the right object cleanly. Training on its successes
@@ -1042,7 +1042,7 @@ A servo spins non-stop & It's a 360\textdegree{} continuous servo; swap it for a
 GR00T: \texttt{GatedRepoError} & Your HF account hasn't been granted Cosmos-Reason2-2B access yet, or \texttt{HF\_TOKEN} is wrong. \\
 \texttt{run\_policy}: server not reachable & Is \file{serve.sh} running and the SSH tunnel open? \\
 \texttt{run\_policy}: ``policy call failed'' & One slow or failed GR00T reply; it retries. After 3 in a row it stops that run and asks again: check the SSH tunnel and \file{serve.sh}. \\
-\texttt{run\_policy}: ``N blocked'' & The model asked for a pose past a joint limit or into the plate, so those steps weren't sent and the arm held still. A few now and then is fine; many means more or better demos. \\
+\texttt{run\_policy}: ``N limited'' & The model asked for a pose past a joint limit or into the plate, so the arm only went as far as is safe (the gripper still opened or closed as asked). A few near the grip are normal: the demos grip only about 2\,mm above the limit. Many all the time means more or better demos. \\
 Policy runs but misses & More demos, more varied object positions, same camera position as in training. \\
 Picks the wrong object & More demos (both objects about equally), and check the instructions saved in \file{meta.json} match what was picked. \\
 \texttt{--mujoco}: ``gladLoadGL error'' or a black picture & The simulator couldn't draw: update the graphics driver. On a Linux machine without a screen it uses \texttt{MUJOCO\_GL=egl} (needs \texttt{libegl1}). \\

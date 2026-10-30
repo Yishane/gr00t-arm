@@ -56,6 +56,13 @@ def call_of(a):
 
 
 @pytest.fixture(autouse=True)
+def keep_gripper_tags(monkeypatch):
+    """These tests tell policy calls apart by the gripper value, so it must
+    reach the arm as sent (run_policy otherwise snaps it to open/closed)."""
+    monkeypatch.setattr(run_policy, "snap_gripper", float)
+
+
+@pytest.fixture(autouse=True)
 def quick_home(monkeypatch):
     monkeypatch.setattr(run_policy, "go_home",
                         lambda arm: (arm.send(list(HOME5)), list(HOME5))[1])

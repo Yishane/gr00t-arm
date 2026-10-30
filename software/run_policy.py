@@ -22,7 +22,13 @@ The next call goes out while the current chunk is still playing, so the arm
 doesn't stop and wait for it; the steps that played during the call are
 skipped in the new chunk. --no-pipeline waits for each call instead.
 A command that would break a joint limit or put the gripper in the plate is
-not sent (the arm holds still instead). If the policy fails 3 times in a row
+cut short: the arm goes as far toward it as is safe (printed as "N limited"),
+and the gripper still opens or closes as asked. (Holding still instead left
+the model asking for the same move forever, gripper included.) Garbage
+commands (NaN, wrong length) are not sent at all. The gripper goes fully open
+or fully closed, whichever the model's value is nearer: every demo does that,
+and a model stopping half-way (e.g. 82 of 90) grips looser than anything it
+learned from. If the policy fails 3 times in a row
 (timeout, server error, empty answer) the run stops and asks again.
 GR00T reads the instruction as words. ACT has no language input, so it gets
 the target as one extra state number (see act/export_act.py).
@@ -229,24 +235,20 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                 continue
             fails = 0
             lat = ms / 1000
-            sent, blocked = [], 0
+            sent, limited = [], 0
             t_next = time.perf_counter()
             for i, cmd in enumerate(steps):
-                cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd]
-                ok = (len(cmd) == 5 and all(math.isfinite(a) for a in cmd)
-                      and K.servo_ok(cmd[:4]))
+                cmd, ok = make_safe(cmd, servo)
                 if rec or show:                           # what the camera sees at this step
                     seen = cam.read()
                     if rec:                               # ...then what was sent
-                        rec.add(seen, servo, cmd if ok else servo)
+                        rec.add(seen, servo, cmd)
                     if show:
                         show(seen, task)
-                if ok:
-                    arm.send(cmd)
-                    servo = cmd
-                    sent.append(cmd)
-                else:
-                    blocked += 1                          # hold the last safe command
+                arm.send(cmd)
+                servo = cmd
+                sent.append(cmd)
+                limited += not ok
                 if pipeline and pending is None and (len(steps) - i) * dt <= lat + rd:
                     # read + call take about as long as what's left to play: send it
                     # now with a fresh frame + the command just sent (the read uses
@@ -263,12 +265,39 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                     return
             grip = f", grip {sent[0][4]:.0f}" if sent else ""
             print(f"policy call {ms:.0f} ms, {len(steps)} steps{grip}"
-                  + (f", {blocked} blocked" if blocked else "")
+                  + (f", {limited} limited" if limited else "")
                   + (", prefetched" if prefetched else ""))
     except KeyboardInterrupt:
         print("stopped")
     finally:
         pool.shutdown(wait=False, cancel_futures=True)   # never wait for a slow call
+
+
+def snap_gripper(value):
+    """Fully open or fully closed, whichever the value is nearer."""
+    return min((C.GRIPPER_OPEN, C.GRIPPER_CLOSED), key=lambda g: abs(g - float(value)))
+
+
+def make_safe(cmd, last):
+    """(command to send, whether it is the one asked for). last is the
+    command sent before, which passed this check. An arm move that breaks a
+    joint limit or puts the gripper in the plate is cut short: the farthest
+    point on the way from last to it that is safe. The gripper value is used
+    as asked (opening or closing can't hit anything). NaN or a wrong number
+    of values: hold still."""
+    if len(cmd) != 5 or not all(math.isfinite(float(a)) for a in cmd):
+        return list(last), False
+    cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd[:4]] + [snap_gripper(cmd[4])]
+    if K.servo_ok(cmd[:4]):
+        return cmd, True
+    lo, hi = 0.0, 1.0                                     # last is safe, cmd isn't
+    for _ in range(10):
+        mid = (lo + hi) / 2
+        if K.servo_ok([a + mid * (b - a) for a, b in zip(last[:4], cmd[:4])]):
+            lo = mid
+        else:
+            hi = mid
+    return [a + lo * (b - a) for a, b in zip(last[:4], cmd[:4])] + [cmd[4]], False
 
 
 def viewer(fullscreen=False):
