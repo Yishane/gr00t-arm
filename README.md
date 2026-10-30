@@ -372,9 +372,9 @@ Built (Claude, 2026-10-28):
 - ✅ `sim.py --compare <photo>`: real webcam frame next to (and over) the
   simulated view, to line the camera up. `sim.py --viewer`: 3D viewer.
 - ✅ 103 tests pass (23 for the simulator, incl. scripted picks on and off the
-  spots and `--anywhere` layouts). Shadows are off unless `SIM_SHADOWS=1`: all
-  simulated demos so far were recorded without them, and a model must be tested
-  with the same look it was trained on (turn them on only for a new dataset).
+  spots and `--anywhere` layouts). Shadows are on (as the simulated demos were
+  recorded); `SIM_SHADOWS=0` turns them off. Test a model with the same look it
+  was trained on.
 
 You (after milestones 7–9):
 - ⬜ First `uv sync` in `software/` and `software/act/` (adds `mujoco`; needs internet once).
