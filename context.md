@@ -2,6 +2,19 @@
 
 Read this first every session. Update the "Status" and "Next" sections before stopping.
 
+## 2026-10-30 (cloud session): sim trials "not working at all"
+- Model B (pick_ball_mixed, 98% sim demos) now grips in the sim but twitches after the grip.
+  Trials code itself verified on main with an oracle policy + his calibration (real-time world):
+  2/2 ok; layouts vary. Found: all 2108 sim demos (10-29 12:37-16:00) were rendered WITHOUT
+  shadows; f96a42e (10-29 17:00) turned shadows ON on the laptop -> every trial showed the
+  model a big dark arm shadow it never saw. Fix: sim.SHADOWS off unless SIM_SHADOWS=1 (branch
+  claude/sim-shadows-match-training). Asked him for the terminal output if trials still fail.
+- Twitching after the grip, explained (not built yet, offered): ACT chunk 100, run_policy plays
+  8 then re-plans -> flips between plans when unsure; fix = temporal ensembling (query every step,
+  average overlapping chunks) + snap gripper to open/closed; data fix = demos with recoveries.
+- test_sim trials test broke when run_policy started calling latest_checkpoint() before
+  ActBackend (no models in the cloud): test now passes --checkpoint. 135 tests pass.
+
 ## >>> LATEST STATE (2026-10-29 22:20, local agent on his laptop) — READ THIS FIRST <<<
 - DATA: 45 real demos (data/raw/pick_ball) + 2108 SIM demos (data/raw/pick_ball_mujoco, all
   recorded 10-29 12:37-16:00, after every sim change; random ball colours, --anywhere, no shadows -
