@@ -4,6 +4,23 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-10-30 evening: model B results, one ball colour (branch claude/sim-ball-colour)
+- Model B (pick_ball_mixed, 2153 eps, 98% sim) after the merged fixes, --mujoco --trials 20
+  --anywhere: 60k 3/20, 80k 0/20, 100k 7/20 (ball 4/10, block 3/10). Earlier 4 spot trials at
+  the newest: block 2/2 (both survived "8 limited" at the grip = cut-short fix works), ball 0/2.
+  100k training log: epch 1.21, loss 0.070 (l1 0.069, kld 0.000), 2.1 GB, ~3 step/s.
+  Read: undertrained for its data (1.2 passes) + hardest task variant (anywhere, random ball
+  colour, randomized look); checkpoints swing -> not converged. Advised: stop spending nights on
+  B; record 105 real on the spots -> real-only A-150 (~60k steps); GR00T main attempt on 150 real
+  + ~300 sim (--with-max 300); scripted demo fallback. Asked him to score B@100k on spots
+  (no --anywhere) to see if a spot-only sim model is worth one night.
+- Shadows: ~1800 of his 2108 sim demos have shadows, ~300 don't -> trials (shadows on) match;
+  shadows ruled out as the cause.
+- --ball-colour NAME|#rrggbb (add_hw_args, --mujoco): sim.World(ball_colour=...) keeps the ball
+  that colour (still shaded +-0.04 like other materials); default = random hue each layout.
+  He may use ONE real ball for the 105 demos + the live demo; then record new sim demos with the
+  same colour into a new dataset (e.g. --dataset pick_ball_mujoco_orange). 142 tests.
+
 ## 2026-10-30: --step to pick/compare checkpoints (branch claude/compare-checkpoints)
 - run_policy/run_act `--step 60k` (one), `40k,60k,80k` or `all` (needs --mujoco --trials): each
   checkpoint scored on the SAME layouts (trials seed random + world.rng with the trial index,

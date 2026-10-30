@@ -370,6 +370,8 @@ Built (Claude, 2026-10-28):
   drum, cup and mast, 60 mm apart, in the camera's picture, and the scripted pick
   works there (tried in a hidden copy of the world, ~0.1 s). The gripper collides
   with the base drum and the mast, so impossible picks don't get recorded.
+- ✅ `--ball-colour orange` (or red/yellow/blue/pink/purple/#rrggbb) keeps the simulated
+  ball one colour; default is a new colour every layout. Use it if the real demos use one ball.
 - ✅ `export_act.py` / `export_dataset.py --with pick_ball_mujoco --out pick_ball_mix`
   train on real + simulated demos together.
 - ✅ `sim.py --compare <photo>`: real webcam frame next to (and over) the

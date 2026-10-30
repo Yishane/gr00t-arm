@@ -900,7 +900,9 @@ block are ours.}
   are estimates until you check them against a real photo (below).
 \item[A little different every time.] For each new layout the light (direction, brightness),
   the colours (plate, ball, block, desk) and the camera (a few mm, 1--2\textdegree) change a
-  little. A model trained on that can't rely on one exact look, which helps it cope with the
+  little, and the ball gets a new colour. With \texttt{--ball-colour orange} (or red, yellow,
+  blue, pink, purple, or an exact \texttt{\#rrggbb}) it stays that colour: use it when the real
+  demos and the live demo use one ball, so the model doesn't have to learn every colour. A model trained on that can't rely on one exact look, which helps it cope with the
   real camera too.
 \item[Only layouts the arm can really do.] Before it uses a layout, the simulator checks that
   both objects lie on the plate clear of the drum, cup and mast, at least 60\,mm apart, and inside

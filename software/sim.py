@@ -91,6 +91,10 @@ KNOCK_MM = 15.0      # the other object moved further than this: knocked
 SHADOWS = os.environ.get("SIM_SHADOWS") != "0" and os.environ.get("MUJOCO_GL") != "egl"
 
 BLACK = "0.06 0.06 0.06 1"
+# --ball-colour: one ball colour for every layout (default: a new one each time)
+BALL_COLOURS = {"orange": (1.0, 0.42, 0.08), "red": (0.85, 0.08, 0.08),
+                "yellow": (1.0, 0.85, 0.1), "blue": (0.1, 0.3, 0.9),
+                "pink": (1.0, 0.4, 0.7), "purple": (0.5, 0.2, 0.75)}
 COLOURS = {"plate": (0.78, 0.78, 0.76), "ball": (1.0, 0.42, 0.08),
            "block": (0.10, 0.55, 0.20), "desk": (0.55, 0.45, 0.35)}
 
@@ -255,6 +259,21 @@ def clear_of_fixed_parts(xy):
             and math.hypot(dx, dy) >= CLEAR)
 
 
+def ball_rgb(colour):
+    """--ball-colour: a BALL_COLOURS name or "#rrggbb" -> (r, g, b) 0..1; None -> None."""
+    if colour is None:
+        return None
+    c = colour.strip().lower()
+    if c in BALL_COLOURS:
+        return BALL_COLOURS[c]
+    if len(c) == 7 and c.startswith("#"):
+        try:
+            return tuple(int(c[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        except ValueError:
+            pass
+    raise SystemExit(f"--ball-colour {colour!r}: use one of {', '.join(BALL_COLOURS)} or #rrggbb")
+
+
 def finger_angle(servo_deg):
     """Gripper servo degrees -> each finger's opening (degrees), through the
     calibrated open / closed angles."""
@@ -273,8 +292,11 @@ class World:
     moves when told to (advance(), or every arm.send() advances 1/30 s), which
     is faster when nothing has to wait for a model."""
 
-    def __init__(self, realtime=True, randomize=False, seed=None):
+    def __init__(self, realtime=True, randomize=False, seed=None, ball_colour=None):
+        """ball_colour: a BALL_COLOURS name or "#rrggbb" to keep the ball that
+        colour; None = a new colour every layout (with randomize)."""
         import mujoco
+        self.ball_rgb = ball_rgb(ball_colour)
         self.mj = mujoco
         self.model = mujoco.MjModel.from_xml_string(model_xml())
         self.data = mujoco.MjData(self.model)
@@ -288,6 +310,9 @@ class World:
                          "cam_quat": m.cam_quat[self.cam].copy(),
                          "light_dir": m.light_dir[0].copy(),
                          "rgba": {k: m.mat(k).rgba.copy() for k in COLOURS}}
+        if self.ball_rgb is not None:
+            self._nominal["rgba"]["ball"][:3] = self.ball_rgb
+            m.mat("ball").rgba[:3] = self.ball_rgb
         self._qadr = {j: m.joint(j).qposadr[0] for j in
                       ("base", "shoulder", "elbow", "wrist", "finger_l", "finger_r", "ball", "block")}
         self._vadr = {j: m.joint(j).dofadr[0] for j in ("ball", "block")}
@@ -441,6 +466,8 @@ class World:
         for k, rgba in n["rgba"].items():
             j = 0.15 if k == "desk" else 0.04
             m.mat(k).rgba[:3] = np.clip(rgba[:3] + [u(-j, j) for _ in range(3)], 0, 1)
+        if self.ball_rgb is not None:            # one colour, shaded a little (above)
+            return
         # a new ball colour every layout, as on the real arm: any strong colour
         # except green (the block's) - hue 170..440 deg wraps past red to 80
         hue = (u(170, 440) % 360) / 360

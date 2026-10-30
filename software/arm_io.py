@@ -171,7 +171,8 @@ def open_hardware(args, realtime=True):
     keeping pace with the clock."""
     if getattr(args, "mujoco", False):
         import sim
-        world = sim.World(realtime=realtime, randomize=True)
+        world = sim.World(realtime=realtime, randomize=True,
+                          ball_colour=getattr(args, "ball_colour", None))
         print("MuJoCo simulation" + ("" if realtime else " (runs as fast as it can)"))
         return world.arm, world.camera
     arm = SimArm() if args.sim else Arm(args.port)
@@ -188,3 +189,6 @@ def add_hw_args(parser):
     parser.add_argument("--mujoco", action="store_true",
                         help="no hardware: the MuJoCo simulation of the arm, objects "
                              "and webcam (sim.py)")
+    parser.add_argument("--ball-colour", metavar="COLOUR",
+                        help="with --mujoco: always this ball colour (orange, red, yellow, "
+                             "blue, pink, purple or #rrggbb); default: a new one every layout")

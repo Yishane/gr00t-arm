@@ -295,3 +295,30 @@ def test_checkpoints_are_compared_on_the_same_layouts(tmp_path, monkeypatch, no_
     layouts = [line for line in out.splitlines() if " at (" in line]
     assert len(layouts) == 4 and layouts[:2] == layouts[2:]   # same layouts for both
     assert "40000: ball 1/1, block 1/1  -> 2/2" in out and "60000:" in out
+
+
+def test_ball_colour_can_be_fixed_for_every_layout():
+    w = sim.World(realtime=False, randomize=True, seed=4, ball_colour="orange")
+    try:
+        for xy in ((110, 0), (135, 40), (85, 80)):
+            w.place(xy, (110, 120))
+            rgb = w.model.mat("ball").rgba[:3]
+            assert np.allclose(rgb, sim.BALL_COLOURS["orange"], atol=0.05)   # only shaded a little
+    finally:
+        w.close()
+    assert sim.ball_rgb("#ff8000") == (1.0, 128 / 255, 0.0)
+    assert sim.ball_rgb(None) is None
+    with pytest.raises(SystemExit, match="orange"):
+        sim.ball_rgb("chartreuse")
+
+
+def test_ball_colour_changes_every_layout_by_default():
+    w = sim.World(realtime=False, randomize=True, seed=4)
+    try:
+        seen = []
+        for xy in ((110, 0), (135, 40), (85, 80)):
+            w.place(xy, (110, 120))
+            seen.append(tuple(np.round(w.model.mat("ball").rgba[:3], 2)))
+        assert len(set(seen)) == 3
+    finally:
+        w.close()
