@@ -220,7 +220,8 @@ def test_run_policy_trials_score_and_record_in_the_simulator(tmp_path, monkeypat
     monkeypatch.setattr(run_policy, "open_hardware", lambda args: (w.arm, FakeCamera()))
     monkeypatch.setattr(run_policy, "ActBackend", lambda checkpoint: OraclePolicy(w))
     monkeypatch.setattr("sys.argv", ["run_policy.py", "act", "--mujoco", "--trials", "2",
-                                     "--offset", "10", "--record", "--no-pipeline"])
+                                     "--offset", "10", "--record", "--no-pipeline",
+                                     "--checkpoint", "stand-in"])
     run_policy.main()
     out = capsys.readouterr().out
     assert "ball: 1/1 ok" in out and "block: 1/1 ok" in out

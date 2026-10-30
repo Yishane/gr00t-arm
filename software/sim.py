@@ -83,10 +83,12 @@ CLEAR = 22.0        # object footprint radius (ball 20, block's half diagonal 17
 SERVO_KP, SERVO_TORQUE, ARMATURE = 3.0, 0.18, 5e-4
 TIMESTEP, TICK = 0.002, 0.010          # physics step; firmware servo update
 KNOCK_MM = 15.0      # the other object moved further than this: knocked
-# Shadows: on (clean on the laptop GPU, 2026-10-30). Off with software
-# rendering on a screenless cloud machine, where the shadow map left speckle
-# patterns on the desk and plate that a model could learn from.
-SHADOWS = os.environ.get("MUJOCO_GL") != "egl"
+# Shadows: on (clean on the laptop GPU), as the simulated demos were recorded.
+# A model must be tested with the same look it was trained on: SIM_SHADOWS=0
+# turns them off, for a model trained on demos recorded without shadows. Always
+# off with software rendering on a screenless cloud machine (MUJOCO_GL=egl),
+# where the shadow map speckles.
+SHADOWS = os.environ.get("SIM_SHADOWS") != "0" and os.environ.get("MUJOCO_GL") != "egl"
 
 BLACK = "0.06 0.06 0.06 1"
 COLOURS = {"plate": (0.78, 0.78, 0.76), "ball": (1.0, 0.42, 0.08),

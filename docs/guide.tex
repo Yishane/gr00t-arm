@@ -1009,8 +1009,9 @@ compare it with the real-only model.
 
 \begin{note}[What the simulator gets wrong]
 \begin{itemize}[leftmargin=*]
-\item \textbf{Looks.} The pictures are drawn, not photographed: simpler light and surfaces, no
-  shadows (switched off: they came out speckled; \texttt{SHADOWS} in \file{sim.py}), no blue servo
+\item \textbf{Looks.} The pictures are drawn, not photographed: simpler light and surfaces, simpler
+  shadows (on, as the simulated demos were recorded; a model has to be tested with the same look
+  it was trained on, so \texttt{SIM\_SHADOWS=0} is only for a model trained without them), no blue servo
   bodies or cables (only the printed parts are in the model), no camera noise or blur. That's why the real demos stay in the training mix, and why step 1 matters.
 \item \textbf{Servos.} SG90 dead band, gear slop and jitter aren't modelled, so the simulated
   arm moves more cleanly than the real one.
