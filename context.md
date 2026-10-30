@@ -24,6 +24,13 @@ Read this first every session. Update the "Status" and "Next" sections before st
   `uv run train_act.py --name pick_ball_mixed --batch_size=4` (extra args pass through).
   A re-run of A needs outputs/act/pick_ball renamed first (lerobot FileExistsError).
 - Untracked `cad/stl_opensource/easy_robot_arm/* - Copy.stl` (his copies) left out of git.
+- 10-29 late: `software/act/run_act.py` launcher (`uv run run_act.py [--model NAME]`, newest
+  checkpoint; newer uv picks the env from the SCRIPT's folder, so `uv run ../run_policy.py` from act/
+  ran without torch). `train_act.py --resume` continues from the newest checkpoint (tested 30->40).
+  Model A (45 demos, ckpt 16k) on the real arm: tweaks at start (start pose: demos began at
+  ~[90,90,94,90], home is now [95,91,83,92]), goes to the object, hovers without grasping, only
+  manages the ball. Checked: ball vs block label changes its commands ~10 deg (label is used).
+  Verdict: too few demos -> record ~105 more real, retrain A (rename old outputs/act/pick_ball).
 
 ## (previous) 2026-10-30 afternoon
 - NOW: away from the arm. He is recording ~1000 SIM demos (`autodemo.py --mujoco --record 770

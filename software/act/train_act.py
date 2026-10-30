@@ -2,6 +2,7 @@
 
     uv run train_act.py                          # data/act/pick_ball, 20k steps
     uv run train_act.py --name pick_ball --steps 30000
+    uv run train_act.py --resume                 # continue from the newest checkpoint
 
 ~2.3 steps/s on an RTX 5050 at batch 8, so 20k steps is about 2.5 hours.
 Checkpoints: outputs/act/<name>/checkpoints/<step>/pretrained_model
@@ -27,8 +28,18 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", default="pick_ball")
-    ap.add_argument("--steps", type=int, default=20000)
+    ap.add_argument("--steps", type=int, default=20000,
+                    help="total steps (with --resume: where to stop, counted from 0)")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue outputs/act/<name> from its newest checkpoint")
     a, extra = ap.parse_known_args()
+    if a.resume:
+        saved = sorted((ROOT / "outputs" / "act" / a.name / "checkpoints").glob(
+            "*/pretrained_model/train_config.json"))
+        if not saved:
+            raise SystemExit(f"nothing to resume: no checkpoint in outputs/act/{a.name}")
+        print(f"resuming from {saved[-1].parent.parent.name}")
+        extra = ["--resume=true", f"--config_path={saved[-1]}", *extra]
     lerobot_train.update_last_checkpoint = _no_symlink
     sys.argv = [
         "lerobot-train",
