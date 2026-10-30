@@ -393,6 +393,9 @@ You (after milestones 7–9):
   --trials 20 --checkpoint ..\..\outputs\act\<name>\checkpoints\020000\pretrained_model`
   (add `--anywhere` for objects anywhere: the score that says whether
   "put it down anywhere" works).
+- Compare a model's checkpoints in one go (same 20 layouts each, then a table):
+  `uv run run_act.py --model <name> --step all --mujoco --trials 20 --anywhere`
+  (or `--step 40k,60k,80k`).
 - ⬜ The real test: run the better one on the real arm. A simulator score
   compares models; only the real arm says whether the simulated demos helped.
 - Optional: GR00T on the mix (`uv run export_dataset.py --with pick_ball_mujoco

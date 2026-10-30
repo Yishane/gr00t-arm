@@ -276,3 +276,22 @@ def test_with_max_takes_a_spread_of_the_extra_episodes(tmp_path):
     assert [p.parent.name for p in eps] == ["real"] * 3 + ["sim"] * 4    # real ones all kept
     assert [p.name[-1] for p in eps[3:]] == ["0", "2", "5", "7"]           # spread over the set
     assert len(recorder.episodes_in([tmp_path / "real", tmp_path / "sim"], max_extra=50)) == 13
+
+
+def test_checkpoints_are_compared_on_the_same_layouts(tmp_path, monkeypatch, no_sleep, capsys):
+    for step in ("040000", "060000"):
+        (tmp_path / "act" / "m" / "checkpoints" / step / "pretrained_model").mkdir(parents=True)
+    monkeypatch.setattr(run_policy, "OUTPUTS", tmp_path)
+    w = sim.World(realtime=False, randomize=True)
+    monkeypatch.setattr(run_policy, "open_hardware", lambda args: (w.arm, FakeCamera()))
+    loaded = []
+    monkeypatch.setattr(run_policy, "ActBackend",
+                        lambda folder: loaded.append(folder.parent.name) or OraclePolicy(w))
+    monkeypatch.setattr("sys.argv", ["run_policy.py", "act", "--model", "m", "--step", "all",
+                                     "--mujoco", "--trials", "2", "--anywhere", "--no-pipeline"])
+    run_policy.main()
+    out = capsys.readouterr().out
+    assert loaded == ["040000", "060000"]
+    layouts = [line for line in out.splitlines() if " at (" in line]
+    assert len(layouts) == 4 and layouts[:2] == layouts[2:]   # same layouts for both
+    assert "40000: ball 1/1, block 1/1  -> 2/2" in out and "60000:" in out

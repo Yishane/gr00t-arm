@@ -1002,6 +1002,12 @@ model's checkpoint to compare the two; GR00T works too (\texttt{run\_policy.py g
 --trials 20}, with the server and SSH tunnel running). Without \texttt{--trials} it asks for
 instructions like on the real arm and sets up a new layout for each.
 
+A model saves a checkpoint every few thousand steps, and the last one isn't always the best.
+\texttt{--step} picks one by its step (\texttt{--step 60k}), or scores several one after another on
+the same layouts and prints a table: \texttt{run\_act.py --model pick\_ball\_mixed --step all
+--mujoco --trials 20 --anywhere}. Trial~$i$ always gets the same layout, so scores from different
+runs compare fairly too.
+
 Add \texttt{--record} and the \texttt{ok} runs are saved to \file{data/raw/pick_ball_mujoco}:
 this is the ``learn from its own runs'' loop of \cref{sec:selfrecord}, with the simulator
 answering \texttt{keep it?}, so it can run unattended (e.g.\ \texttt{--trials 200 --record}).
