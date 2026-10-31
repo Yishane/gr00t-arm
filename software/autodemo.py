@@ -40,7 +40,7 @@ CUP = (20.0, 110.0)
 # is gripped at its centre; the 25 mm block (cad/arm.py BLOCK) above its
 # centre: lower down the fingertips hit the plate at most spots and the
 # gripper tilts so far that it hits the base drum (A1) or the other object.
-OBJECTS = {"ball": 20.0, "block": 18.0}
+OBJECTS = {"ball": 20.0, "block": 21.0}
 # Real arm only (the simulator doesn't sag): grip this much higher (mm) for
 # each object at every spot, on top of SPOT_FIX.
 GRIP_FIX = {"ball": 4.0}
@@ -60,17 +60,17 @@ SPOT_FIX = {}
 OBJECT_SPOT_FIX = {
     "block": {
         
-        "C3": (0,0,0),
-        "B3": (0,0,0),
-        "A3": (0,0,0),
-        "A2": (0,0,0),
-        "C2": (0,0,0),  
-        "A1": (4.0, 0.0, 0.0),
-        "B1": (0.0, 0.0, 0.0),
-        "C1": (0.0, 0.0, 0.0),
-        "B2": (0.0, 0.0, 0.0),
+        "C3": (10.0, 2.0, 12.0),
+        "B3": (14.0, 6.0, 14.0),
+        "A3": (14.0, 6.0, 14.0),
+        "A2": (9,4,0),
+        "C2": (14.0, 6.0, 14.0), 
+        "A1": (13.0, 4.0, 0.0),
+        "B1": (12.0, 0.0, 0.0),
+        "C1": (14.0, 6.0, 14.0),
+        "B2": (8.0, 4.0, 0.0),
                 
-                },
+            },
     "ball": { 
         
         "C3": (8.0, 5.0, 15.0),
