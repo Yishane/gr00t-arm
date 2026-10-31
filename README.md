@@ -273,6 +273,9 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   the fingers. Tell Claude if it's off, and the numbers in `config.py` get tuned.
 
 ### ⬜ 7. Record demos (You)
+- ✅ **Home is turned 25°** toward the plate's front edge (`HOME_BASE`, 2026-10-31): facing
+  forward, the gripper hid row 1 (A1 completely) from the camera at the start of every run.
+  Record the 105 demos with this home (the 45 old ones started from older homes: keep them).
 - ⬜ **First: raise the camera 80 mm** (new, 2026-10-28). Print
   **`15_mast_extension`** (30 × 30 × 94 mm, lying on one of its slanted faces,
   no supports) and a **second `10_pin`**. Take the webcam mount off the mast,

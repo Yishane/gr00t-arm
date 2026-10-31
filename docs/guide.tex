@@ -622,6 +622,10 @@ shaft by hand.
 uv run teleop.py --camera 1
 \end{cmd}
   The window shows what the camera sees. Wrong camera or ``didn't open''? Try \texttt{--camera 0} or \texttt{2}.
+\item \textbf{Home is turned.} Every script starts and ends with the arm turned 25\textdegree{}
+  toward the plate's front edge (\texttt{HOME\_BASE} in \file{config.py}). Facing straight forward,
+  the forearm and gripper hid row~1 (A1 completely) from the camera, so a model couldn't see an
+  object there at the start.
 \item \textbf{Framing check.} Press \key{H} (home), then drive the gripper with
   \key{W}\key{A}\key{S}\key{D} and \key{F} down to the corner spots A1 and C3 and over the cup,
   and with \key{R} up to about $z = 95$ (shown at the bottom of the window). The \emph{fingers},

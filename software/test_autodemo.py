@@ -26,6 +26,7 @@ def test_every_spot_plans_for_both_objects(target, spot):
 def test_grip_fix_is_for_the_real_arm_only(monkeypatch):
     # named spots = the real arm; (x, y) positions = the simulator
     monkeypatch.setattr(A, "SPOT_FIX", {})
+    monkeypatch.setattr(A, "OBJECT_SPOT_FIX", {})          # test one kind of fix at a time
     monkeypatch.setattr(A, "GRIP_FIX", {"ball": 4.0})
     low = lambda spot: min(wp[2] for wp in A.plan(spot, "ball"))
     assert low("B2") == pytest.approx(A.OBJECTS["ball"] + 4)
@@ -46,6 +47,7 @@ def test_object_spot_fix_moves_only_that_object_at_that_spot(monkeypatch):
 
 def test_spot_fix_moves_only_the_grip_at_that_spot(monkeypatch):
     monkeypatch.setattr(A, "SPOT_FIX", {"A2": (-3.0, -2.0, 4.0)})
+    monkeypatch.setattr(A, "OBJECT_SPOT_FIX", {})          # test one kind of fix at a time
     monkeypatch.setattr(A, "GRIP_FIX", {})
     grip = lambda spot: min(A.plan(spot, "ball"), key=lambda wp: wp[2])[:3]
     assert grip("A2") == pytest.approx((A.SPOTS["A2"][0] - 3, A.SPOTS["A2"][1] - 2,

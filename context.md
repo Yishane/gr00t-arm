@@ -4,6 +4,22 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-10-31: HOME TURNED 25 deg (branch claude/home-turned)
+- His real webcam frame at home: the gripper + its servo hide A1 completely (worse than the sim's
+  30%: real servo bodies/cables). config.HOME_BASE = -25 (deg, toward the plate's front edge y<0);
+  arm_io.HOME = to_servo([HOME_BASE, 90, HOME_ELBOW, 0]) -> base servo 70 with his offset 95.
+  Sim: row 1 fully visible from -15 (-5: 64%, -10: 91%); -25 = margin for the real arm's bulk.
+  CAD: no collisions at the new home (assembly.collisions with the cell). Everything that uses
+  HOME follows (autodemo, run_policy, teleop H, sim, calibrate.py's start pose; calibrate's own
+  `home` command is still the level calibration pose, base 0).
+- His push c3b9b92 "hi": SPOT_FIX = {}, all old numbers moved to OBJECT_SPOT_FIX["ball"], block
+  only A1 (4, 0, 0). That broke 2 tests that clear SPOT_FIX to test one fix (ball's B2 +4 leaked
+  in): they now also clear OBJECT_SPOT_FIX. Note: the block needs ~no corrections where the ball
+  needs up to 16 mm up -> the big fixes are about the BALL (size/softness/rolling), not arm slop
+  as I had said; the sim's ball demos don't have them.
+- NEXT for him: merge, test single picks from the new home (ball + block, a few spots), re-record
+  the sim set (old one used the old home), then the 105 real demos. 144 tests.
+
 ## 2026-10-31: per-object spot fixes; home hides row 1 (branch claude/object-spot-fix)
 - autodemo.OBJECT_SPOT_FIX = {"block": {spot: (dx, dy, dz)}, "ball": {...}}: extra real-arm
   correction for ONE object at a named spot, added on top of SPOT_FIX (+ GRIP_FIX height).
