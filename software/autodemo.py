@@ -48,25 +48,41 @@ GRIP_FIX = {"ball": 4.0}
 # fine: (toward column C, toward row 3, up). Tune these by watching picks.
 #   gripper lands too far toward C3 at A2 -> make the first two negative
 #   grips too low at C3                    -> make the third positive
-SPOT_FIX = {
-    "C3": (8.0, 5.0, 15.0),
-    "B3": (9.0, 9.0, 12.0),
-    "A3": (2.0, -5.0, 12.0),
-    "A2": (-3.0, -3.0, 0.0),
-    "C2": (7.0, 7.0, 16.0),  
-    "A1": (3.0, 0.0, 0.0),
-    "B1": (7.0, 0.0, 0.0),
-    "C1": (12.0, -2.0, 9.0),
-    "B2": (3.0, 12.0, 4.0),
-    
-}
+
+
+SPOT_FIX = {}
+
+
 # Extra corrections for ONE object at a spot, added on top of SPOT_FIX (same
 # order: toward column C, toward row 3, up). For a spot where the block misses
 # but the ball is fine, e.g. the block grips 3 mm too low and 2 mm short of C3:
 #   "block": {"C3": (0.0, 2.0, 3.0)},
 OBJECT_SPOT_FIX = {
-    "block": {},
-    "ball": {},
+    "block": {
+        
+        "C3": (0,0,0),
+        "B3": (0,0,0),
+        "A3": (0,0,0),
+        "A2": (0,0,0),
+        "C2": (0,0,0),  
+        "A1": (4.0, 0.0, 0.0),
+        "B1": (0.0, 0.0, 0.0),
+        "C1": (0.0, 0.0, 0.0),
+        "B2": (0.0, 0.0, 0.0),
+                
+                },
+    "ball": { 
+        
+        "C3": (8.0, 5.0, 15.0),
+        "B3": (9.0, 9.0, 12.0),
+        "A3": (2.0, -5.0, 12.0),
+        "A2": (-3.0, -3.0, 0.0),
+        "C2": (7.0, 7.0, 16.0),  
+        "A1": (3.0, 0.0, 0.0),
+        "B1": (7.0, 0.0, 0.0),
+        "C1": (12.0, -2.0, 9.0),
+        "B2": (3.0, 12.0, 4.0),
+    }
 }
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
 # a pair in TOO_CLOSE, so the gripper can't touch the object it isn't picking
