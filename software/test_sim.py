@@ -322,3 +322,14 @@ def test_ball_colour_changes_every_layout_by_default():
         assert len(set(seen)) == 3
     finally:
         w.close()
+
+
+def test_a_single_named_spot_pick_in_the_simulator_ignores_the_real_arm_fixes(monkeypatch, no_sleep,
+                                                                              capsys):
+    # the real-arm corrections lift C3 picks by 15 mm (+4 for the ball): in the
+    # simulator that grips above the ball, so a named spot must go by its coordinates
+    monkeypatch.setitem(A.SPOT_FIX, "C3", (8.0, 5.0, 15.0))
+    monkeypatch.setitem(A.GRIP_FIX, "ball", 4.0)
+    monkeypatch.setattr("sys.argv", ["autodemo.py", "--mujoco", "--spot", "C3", "--target", "ball"])
+    A.main()
+    assert "ball: ok" in capsys.readouterr().out

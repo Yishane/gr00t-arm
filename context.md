@@ -4,6 +4,20 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-10-31: single named-spot picks missed in the sim (branch claude/sim-single-run-no-spot-fix)
+- Yishane ran `autodemo.py --mujoco --watch --spot X --target ball` per spot: only A1 + B1 ok.
+  Cause: the single-run path passed the spot NAME to plan(), which adds the REAL-arm SPOT_FIX
+  (up to 12 mm sideways, 16 mm up) + GRIP_FIX ball +4 -> the sim arm gripped beside/above the
+  ball (A1/B1 have no z fix). By coordinates all 9 spots pick ok (reproduced with his
+  calibration). Fix: in the sim the single run goes by SPOTS[spot] coordinates. Regression test
+  (fails without the fix). 143 tests.
+- NOT the cause of model B's low scores: --record and run_policy trials place objects by
+  coordinates (no SPOT_FIX) and every saved sim demo was checked "ok". His recording confirms it
+  (`--record 300 --ball-colour red --dataset pick_ball_sim`: all ok).
+- His pick_ball_sim dataset already had 428 episodes when that run started (numbering began at
+  episode_000428): check they're the same settings (ball colour, shadows) before training on it.
+  That run has no --offset -> objects exactly on the 9 spots.
+
 ## 2026-10-30 evening: model B results, one ball colour (branch claude/sim-ball-colour)
 - Model B (pick_ball_mixed, 2153 eps, 98% sim) after the merged fixes, --mujoco --trials 20
   --anywhere: 60k 3/20, 80k 0/20, 100k 7/20 (ball 4/10, block 3/10). Earlier 4 spot trials at
