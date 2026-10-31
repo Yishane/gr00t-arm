@@ -5,10 +5,13 @@
 Commands
     center              all servos to 90 (do this BEFORE gluing any horn)
     s <joint> <deg>     move one servo, joint = 0 base .. 3 wrist, 4 gripper
-    home                arm to the home pose using the current calibration
+    home                arm to the home pose every script starts and ends in (base turned
+                        25 deg off row 1, forearm resting on the elbow horn)
+    level               arm to the calibration pose: facing forward, upper arm up,
+                        forearm level, gripper in line (judge trims here)
     test                small moves to check each joint turns the right way
     flip <joint>        reverse a joint's direction (if `test` moved it backwards)
-    trim <joint> <deg>  shift a joint's zero by deg (if home is a bit off)
+    trim <joint> <deg>  shift a joint's zero by deg (if `level` is a bit off)
     grip open <deg>     set the gripper's open angle
     grip closed <deg>   set the gripper's closed angle (squeezes the block, so also the ball)
     save                write calibration.json
@@ -20,9 +23,11 @@ import time
 
 import config as C
 import kinematics as K
+import arm_io
 from arm_io import HOME, Arm, SimArm
 
-# joint angles (deg) of the home pose, where every servo sits at 90
+# joint angles (deg) of the calibration pose (`level`), where every servo
+# sits at 90 when the horns are fitted right; trims are judged here
 HOME_DEG = {"base": 0, "shoulder": 90, "elbow": -90, "wrist": 0}
 
 
@@ -59,7 +64,9 @@ def main():
                 cur = [90.0] * 5
             elif cmd == "s":
                 cur[int(parts[1])] = float(parts[2])
-            elif cmd == "home":
+            elif cmd == "home":                       # where every script starts and ends
+                cur = arm_io.home_servo() + [C.GRIPPER_OPEN]   # with any trim made just now
+            elif cmd == "level":
                 cur = K.to_servo([0, math.pi / 2, -math.pi / 2, 0]) + [C.GRIPPER_OPEN]
             elif cmd == "test":
                 base = K.to_servo([0, math.pi / 2, -math.pi / 2, 0]) + [C.GRIPPER_OPEN]

@@ -18,7 +18,12 @@ import kinematics as K
 # toward the plate's front edge (config.HOME_BASE) so row 1 stays in view,
 # upper arm up, forearm resting on the elbow horn (config.HOME_ELBOW), gripper
 # in line with it. From the calibration, so it moves with any trim.
-HOME = K.to_servo([math.radians(C.HOME_BASE), math.pi / 2, math.radians(C.HOME_ELBOW), 0.0])
+def home_servo():
+    """The home pose in servo degrees with the calibration as it is now."""
+    return K.to_servo([math.radians(C.HOME_BASE), math.pi / 2, math.radians(C.HOME_ELBOW), 0.0])
+
+
+HOME = home_servo()
 FLUSH = 2   # frames dropped by read(fresh=True)
 
 

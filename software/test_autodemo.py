@@ -4,6 +4,8 @@ import random
 import pytest
 
 import autodemo as A
+import config as C
+import kinematics as K
 import recorder
 from arm_io import FakeCamera, SimArm
 from conftest import RecordingSimArm
@@ -192,3 +194,20 @@ def test_no_servo_moves_faster_than_max_speed(target, spot):
     cmds = [c[:4] for c in A.trajectory(A.plan(spot, target), 30)]
     steps = [max(abs(a - b) for a, b in zip(c0, c1)) for c0, c1 in zip(cmds, cmds[1:])]
     assert max(steps) * 30 <= A.MAX_SPEED
+
+
+@pytest.mark.parametrize("target", sorted(A.OBJECTS))
+def test_going_home_no_servo_passes_its_home_angle(target, monkeypatch):
+    # the elbow used to swing past home (forearm pressed into the horn it rests
+    # on) and back: the last leg turns each servo straight to home instead
+    for spot, other in A.pairs():
+        cmds = list(A.trajectory(A.plan(spot, target), 30))
+        opened = max(i for i in range(1, len(cmds))
+                     if cmds[i][4] == C.GRIPPER_OPEN and cmds[i - 1][4] == C.GRIPPER_CLOSED)
+        leg = cmds[opened:]
+        for j in range(4):
+            vals = [c[j] for c in leg]
+            lo, hi = sorted((vals[0], A.HOME[j]))
+            assert all(lo - 0.01 <= v <= hi + 0.01 for v in vals), (spot, j)
+        assert cmds[-1][:4] == pytest.approx(A.HOME, abs=0.01)
+        assert all(K.servo_ok(c[:4]) for c in leg)                  # still clear of the plate
