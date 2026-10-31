@@ -261,12 +261,16 @@ def main():
             if args.other_spot and (args.spot, args.other_spot) not in pairs():
                 raise SystemExit(f"{args.spot} and {args.other_spot} are too close: "
                                  "the gripper could hit the other object")
+            spot = args.spot
             if world:
                 # both objects are always in the simulator: without --other-spot
                 # the other one waits at the back of the plate, out of the way
                 other_xy = SPOTS[args.other_spot] if args.other_spot else (165.0, 135.0)
                 world.place_for(args.target, SPOTS[args.spot], other_xy)
-            run(arm, cam, args.spot, args.target, show=show)
+                # by coordinates: SPOT_FIX / GRIP_FIX correct the REAL arm's errors,
+                # and would make the simulated arm grip beside or above the object
+                spot = SPOTS[args.spot]
+            run(arm, cam, spot, args.target, show=show)
             if world:
                 print(f"{args.target}: {world.result(args.target)}")
             return
