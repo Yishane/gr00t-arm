@@ -169,9 +169,9 @@ def test_home_uses_the_calibration(monkeypatch):
     monkeypatch.setitem(C.OFFSET, "elbow", -4.0)
     try:
         importlib.reload(arm_io)
-        assert arm_io.HOME == pytest.approx(
-            K.to_servo([0, math.pi / 2, math.radians(C.HOME_ELBOW), 0]))
-        assert arm_io.HOME[0] == pytest.approx(95.0)
+        assert arm_io.HOME == pytest.approx(K.to_servo(
+            [math.radians(C.HOME_BASE), math.pi / 2, math.radians(C.HOME_ELBOW), 0]))
+        assert arm_io.HOME[0] == pytest.approx(95.0 + C.HOME_BASE)    # turned off row 1
     finally:
         monkeypatch.undo()
         importlib.reload(arm_io)

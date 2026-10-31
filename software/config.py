@@ -64,6 +64,12 @@ JOINTS = ("base", "shoulder", "elbow", "wrist")
 # except the elbow: -83 instead of -90 (forearm 7 deg off level, servo 83 with a
 # true calibration) so the forearm sits on the elbow horn and the servo idles.
 HOME_ELBOW = -83.0      # deg
+# ...and the base, turned toward the empty front edge of the plate (y < 0):
+# facing straight forward, the forearm and gripper hide row 1 from the camera
+# (A1 completely on the real arm), so the model couldn't see an object there
+# at the start. The simulator sees all of row 1 from -15; -25 leaves room for
+# the real arm's servo bodies and cables.
+HOME_BASE = -25.0       # deg
 
 # ---------------------------------------------------------- serial / camera
 BAUD = 115200

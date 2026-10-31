@@ -14,10 +14,11 @@ import numpy as np
 import config as C
 import kinematics as K
 
-# servo degrees (base, shoulder, elbow, wrist) of the home pose: arm forward,
+# servo degrees (base, shoulder, elbow, wrist) of the home pose: base turned
+# toward the plate's front edge (config.HOME_BASE) so row 1 stays in view,
 # upper arm up, forearm resting on the elbow horn (config.HOME_ELBOW), gripper
 # in line with it. From the calibration, so it moves with any trim.
-HOME = K.to_servo([0.0, math.pi / 2, math.radians(C.HOME_ELBOW), 0.0])
+HOME = K.to_servo([math.radians(C.HOME_BASE), math.pi / 2, math.radians(C.HOME_ELBOW), 0.0])
 FLUSH = 2   # frames dropped by read(fresh=True)
 
 
