@@ -4,6 +4,19 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-10-31: per-object spot fixes; home hides row 1 (branch claude/object-spot-fix)
+- autodemo.OBJECT_SPOT_FIX = {"block": {spot: (dx, dy, dz)}, "ball": {...}}: extra real-arm
+  correction for ONE object at a named spot, added on top of SPOT_FIX (+ GRIP_FIX height).
+  Starts empty. Like SPOT_FIX: named spots only (real arm), never sim (x, y) layouts. 144 tests.
+- Occlusion at home (sim camera = fitted to his webcam, segmentation-rendered): the forearm +
+  gripper hang over ROW 1, so at home the camera sees only ~30% of an object on A1, ~50% on B1,
+  ~75% on C1; rows 2-3 fully visible. He asked if the model learns "block not visible -> A1":
+  partly yes (a shortcut by elimination; brittle), softened by partial visibility + re-planning.
+  Turning the home base -20 deg (toward the empty front edge, y<0; tool point ~(139, -53, 103),
+  base servo ~75 with his offset 95) makes every spot 100% visible. OFFERED, NOT DONE: it changes
+  home again -> do it before the 105 real demos, stop/re-record the sim set (pick_ball_sim, then
+  in progress with the current home). Waiting for his yes.
+
 ## 2026-10-31: single named-spot picks missed in the sim (branch claude/sim-single-run-no-spot-fix)
 - Yishane ran `autodemo.py --mujoco --watch --spot X --target ball` per spot: only A1 + B1 ok.
   Cause: the single-run path passed the spot NAME to plan(), which adds the REAL-arm SPOT_FIX

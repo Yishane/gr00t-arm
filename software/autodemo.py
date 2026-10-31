@@ -60,6 +60,14 @@ SPOT_FIX = {
     "B2": (3.0, 12.0, 4.0),
     
 }
+# Extra corrections for ONE object at a spot, added on top of SPOT_FIX (same
+# order: toward column C, toward row 3, up). For a spot where the block misses
+# but the ball is fine, e.g. the block grips 3 mm too low and 2 mm short of C3:
+#   "block": {"C3": (0.0, 2.0, 3.0)},
+OBJECT_SPOT_FIX = {
+    "block": {},
+    "ball": {},
+}
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
 # a pair in TOO_CLOSE, so the gripper can't touch the object it isn't picking
 # (cad/assembly.py --cell checks every pair). That leaves B2 (the middle) out.
@@ -98,7 +106,9 @@ def plan(spot, target="ball", jitter=0.0):
     spot: a marked spot ("C1"), or an (x, y) position in mm (the simulator
     puts objects anywhere; SPOT_FIX is only for the real arm's spots)."""
     if isinstance(spot, str):
-        dx, dy, dz = SPOT_FIX.get(spot, (0.0, 0.0, 0.0))
+        fixes = (SPOT_FIX.get(spot, (0.0, 0.0, 0.0)),
+                 OBJECT_SPOT_FIX.get(target, {}).get(spot, (0.0, 0.0, 0.0)))
+        dx, dy, dz = (sum(f[i] for f in fixes) for i in range(3))
         dz += GRIP_FIX.get(target, 0.0)
         sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
     else:

@@ -19,6 +19,7 @@ def test_every_spot_plans_for_both_objects(target, spot):
     assert len(steps) > 200
     grip_z = min(wp[2] for wp in wps)
     assert grip_z == pytest.approx(A.OBJECTS[target] + A.SPOT_FIX.get(spot, (0, 0, 0))[2]
+                                   + A.OBJECT_SPOT_FIX.get(target, {}).get(spot, (0, 0, 0))[2]
                                    + A.GRIP_FIX.get(target, 0.0))
 
 
@@ -29,6 +30,18 @@ def test_grip_fix_is_for_the_real_arm_only(monkeypatch):
     low = lambda spot: min(wp[2] for wp in A.plan(spot, "ball"))
     assert low("B2") == pytest.approx(A.OBJECTS["ball"] + 4)
     assert low(A.SPOTS["B2"]) == pytest.approx(A.OBJECTS["ball"])
+
+
+def test_object_spot_fix_moves_only_that_object_at_that_spot(monkeypatch):
+    monkeypatch.setattr(A, "SPOT_FIX", {"C3": (1.0, 1.0, 1.0)})
+    monkeypatch.setattr(A, "OBJECT_SPOT_FIX", {"block": {"C3": (0.0, 2.0, 3.0)}})
+    monkeypatch.setattr(A, "GRIP_FIX", {})
+    grip = lambda spot, t: min(A.plan(spot, t), key=lambda wp: wp[2])[:3]
+    x, y = A.SPOTS["C3"]
+    assert grip("C3", "block") == pytest.approx((x + 1, y + 3, A.OBJECTS["block"] + 4))
+    assert grip("C3", "ball") == pytest.approx((x + 1, y + 1, A.OBJECTS["ball"] + 1))
+    assert grip("C1", "block") == pytest.approx((*A.SPOTS["C1"], A.OBJECTS["block"]))
+    assert grip(A.SPOTS["C3"], "block")[2] == pytest.approx(A.OBJECTS["block"])   # sim: none
 
 
 def test_spot_fix_moves_only_the_grip_at_that_spot(monkeypatch):
