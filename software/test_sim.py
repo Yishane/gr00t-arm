@@ -55,6 +55,7 @@ def test_scripted_picks_work_in_the_simulator(world, no_sleep, monkeypatch, targ
                                              other_spot):
     monkeypatch.setattr(A, "SPOT_FIX", {})          # those correct the real arm's sag
     monkeypatch.setattr(A, "GRIP_FIX", {})
+    monkeypatch.setattr(A, "OBJECT_SPOT_FIX", {})
     world.place_for(target, A.SPOTS[spot], A.SPOTS[other_spot])
     A.run(world.arm, FakeCamera(), spot, target)
     assert world.result(target) == "ok"
@@ -163,6 +164,7 @@ def test_run_policy_in_the_simulator_stops_at_the_cup_and_keeps_successes(
     monkeypatch.setattr(recorder, "DATA", tmp_path)
     monkeypatch.setattr(A, "SPOT_FIX", {})            # real-arm corrections, not the sim's
     monkeypatch.setattr(A, "GRIP_FIX", {})
+    monkeypatch.setattr(A, "OBJECT_SPOT_FIX", {})
     rec = recorder.Recorder("p", fps=30, source="policy", sim=True)
     target, spot = "block", "C2"
     world.place_for(target, A.SPOTS[spot], A.SPOTS["A1"])
@@ -322,3 +324,14 @@ def test_ball_colour_changes_every_layout_by_default():
         assert len(set(seen)) == 3
     finally:
         w.close()
+
+
+def test_a_single_named_spot_pick_in_the_simulator_ignores_the_real_arm_fixes(monkeypatch, no_sleep,
+                                                                              capsys):
+    # the real-arm corrections lift C3 picks by 15 mm (+4 for the ball): in the
+    # simulator that grips above the ball, so a named spot must go by its coordinates
+    monkeypatch.setitem(A.SPOT_FIX, "C3", (8.0, 5.0, 15.0))
+    monkeypatch.setitem(A.GRIP_FIX, "ball", 4.0)
+    monkeypatch.setattr("sys.argv", ["autodemo.py", "--mujoco", "--spot", "C3", "--target", "ball"])
+    A.main()
+    assert "ball: ok" in capsys.readouterr().out

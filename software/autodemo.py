@@ -60,6 +60,14 @@ SPOT_FIX = {
     "B2": (3.0, 12.0, 4.0),
     
 }
+# Extra corrections for ONE object at a spot, added on top of SPOT_FIX (same
+# order: toward column C, toward row 3, up). For a spot where the block misses
+# but the ball is fine, e.g. the block grips 3 mm too low and 2 mm short of C3:
+#   "block": {"C3": (0.0, 2.0, 3.0)},
+OBJECT_SPOT_FIX = {
+    "block": {},
+    "ball": {},
+}
 # Both objects are on the plate. Spot centres at least MIN_GAP apart, and not
 # a pair in TOO_CLOSE, so the gripper can't touch the object it isn't picking
 # (cad/assembly.py --cell checks every pair). That leaves B2 (the middle) out.
@@ -98,7 +106,9 @@ def plan(spot, target="ball", jitter=0.0):
     spot: a marked spot ("C1"), or an (x, y) position in mm (the simulator
     puts objects anywhere; SPOT_FIX is only for the real arm's spots)."""
     if isinstance(spot, str):
-        dx, dy, dz = SPOT_FIX.get(spot, (0.0, 0.0, 0.0))
+        fixes = (SPOT_FIX.get(spot, (0.0, 0.0, 0.0)),
+                 OBJECT_SPOT_FIX.get(target, {}).get(spot, (0.0, 0.0, 0.0)))
+        dx, dy, dz = (sum(f[i] for f in fixes) for i in range(3))
         dz += GRIP_FIX.get(target, 0.0)
         sx, sy = SPOTS[spot][0] + dx, SPOTS[spot][1] + dy
     else:
@@ -261,12 +271,16 @@ def main():
             if args.other_spot and (args.spot, args.other_spot) not in pairs():
                 raise SystemExit(f"{args.spot} and {args.other_spot} are too close: "
                                  "the gripper could hit the other object")
+            spot = args.spot
             if world:
                 # both objects are always in the simulator: without --other-spot
                 # the other one waits at the back of the plate, out of the way
                 other_xy = SPOTS[args.other_spot] if args.other_spot else (165.0, 135.0)
                 world.place_for(args.target, SPOTS[args.spot], other_xy)
-            run(arm, cam, args.spot, args.target, show=show)
+                # by coordinates: SPOT_FIX / GRIP_FIX correct the REAL arm's errors,
+                # and would make the simulated arm grip beside or above the object
+                spot = SPOTS[args.spot]
+            run(arm, cam, spot, args.target, show=show)
             if world:
                 print(f"{args.target}: {world.result(args.target)}")
             return
