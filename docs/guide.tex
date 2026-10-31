@@ -647,11 +647,14 @@ joints, as in the author's photos, damp vibration.
 
 Still in \file{calibrate.py}:
 \begin{enumerate}
-\item \texttt{home} --- the arm should go to the home pose.
+\item \texttt{level} --- the arm should go to the calibration pose: facing straight forward, upper
+  arm up, forearm level, gripper in line with it (the pose the horns were fitted in).
 \item \texttt{test} --- moves each joint a little and tells you which way it should go. If one
   goes the wrong way, type \texttt{flip <joint>} (0 base, 1 shoulder, 2 elbow, 3 wrist).
-\item If a joint is a few degrees off in the home pose: \texttt{trim <joint> <degrees>}, e.g.\
-  \texttt{trim 1 -4}.
+\item If a joint is a few degrees off in that \texttt{level} pose: \texttt{trim <joint> <degrees>},
+  e.g.\ \texttt{trim 1 -4}. Then \texttt{home} goes to the pose every script starts and ends in
+  (base turned 25\textdegree{} off row~1, forearm resting on the elbow horn), with the trim
+  already in it.
 \item Gripper: \texttt{s 4 <deg>} to try angles. Find an angle that is well open, and one that
   squeezes the \emph{block} firmly (it's the smaller object, so this also grips the ball);
   set them with \texttt{grip open 125} and \texttt{grip closed 85} (your numbers). The

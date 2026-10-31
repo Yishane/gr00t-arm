@@ -167,13 +167,21 @@ def trajectory(waypoints, fps):
     """Servo commands at fps, moving in straight lines between waypoints.
     Where the exact pitch can't reach a point, the gripper tilts a little
     instead, so the arm never jumps. A move that would turn any servo faster
-    than MAX_SPEED takes longer instead."""
+    than MAX_SPEED takes longer instead. The last leg (back home) turns each
+    servo straight to its end angle instead: a straight gripper line from the
+    cup bent the elbow past its home angle and back (forearm pressed into the
+    elbow horn it rests on), this way no servo goes past where it stops."""
     cur = waypoints[0]
     last = solve_near(*cur[:4])
     limit = MAX_SPEED / fps                               # deg per step
-    for wp in waypoints[1:]:
+    for i, wp in enumerate(waypoints[1:], 1):
         n = max(1, int(wp[5] * fps))
-        leg, peak = _leg(cur, wp, n), math.inf
+        if i == len(waypoints) - 1:
+            end = solve_near(*wp[:4])
+            make = lambda n, start=last, end=end: _joint_leg(start, end, n)
+        else:
+            make = lambda n, cur=cur, wp=wp: _leg(cur, wp, n)
+        leg, peak = make(n), math.inf
         while True:
             new_peak = max(max(abs(a - b) for a, b in zip(p, q))
                            for p, q in zip([last] + leg, leg))
@@ -183,11 +191,21 @@ def trajectory(waypoints, fps):
                 break
             peak = new_peak
             n = math.ceil(n * peak / limit) + 1
-            leg = _leg(cur, wp, n)
+            leg = make(n)
         grip = C.GRIPPER_CLOSED if wp[4] else C.GRIPPER_OPEN
         for servo in leg:
             yield servo + [grip]
         last, cur = leg[-1], wp
+
+
+def _joint_leg(start, end, n):
+    """n servo commands easing every servo straight from start to end."""
+    out = []
+    for k in range(1, n + 1):
+        s = k / n
+        s = s * s * (3 - 2 * s)                          # ease in/out
+        out.append([a + (b - a) * s for a, b in zip(start, end)])
+    return out
 
 
 def _leg(cur, wp, n):

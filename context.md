@@ -4,6 +4,19 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-10-31: trip home in servo space; calibrate home/level (branch claude/return-home-joint-space)
+- He asked that the elbow (servo 2) not go past its home value on the way back. Measured (his
+  calibration): the Cartesian line cup -> home bent the elbow from 46 up to ~97 and back to 83
+  on all 48 layouts (forearm pressed into the elbow horn it rests on). autodemo.trajectory: the
+  LAST leg now eases every servo straight from the drop pose to home (_joint_leg), still
+  stretched by MAX_SPEED. Now: elbow 46 -> 83 monotonic, max 83; gripper >= 80 mm above the
+  plate on the way; trip home ~3.3 s (base turns ~105 deg at <= 60 deg/s). Sim picks still ok.
+  Test: no servo leaves [start, home] on the last leg, all servo_ok, ends at HOME.
+- calibrate.py: `home` = arm_io.home_servo() (the scripts' home: base -25, elbow -83, computed
+  with the current trims), new `level` = the calibration pose (base 0, forearm level) where trims
+  are judged; HOME_DEG unchanged. arm_io.HOME = home_servo(). Guide calibration steps updated.
+- His push 5de4ddc "commit": autodemo.py tuning (11 lines) - untouched by me. 146 tests.
+
 ## 2026-10-31: HOME TURNED 25 deg (branch claude/home-turned)
 - His real webcam frame at home: the gripper + its servo hide A1 completely (worse than the sim's
   30%: real servo bodies/cables). config.HOME_BASE = -25 (deg, toward the plate's front edge y<0);
