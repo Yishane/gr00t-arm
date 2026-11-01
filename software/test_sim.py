@@ -2,6 +2,7 @@
 kinematics say, scripted picks work in it, and autodemo / run_policy record
 and score runs in it."""
 import json
+from pathlib import Path
 import math
 
 import numpy as np
@@ -335,3 +336,9 @@ def test_a_single_named_spot_pick_in_the_simulator_ignores_the_real_arm_fixes(mo
     monkeypatch.setattr("sys.argv", ["autodemo.py", "--mujoco", "--spot", "C3", "--target", "ball"])
     A.main()
     assert "ball: ok" in capsys.readouterr().out
+
+
+def test_export_dataset_out_takes_a_name_or_a_path():
+    import export_dataset as E
+    assert E.out_folder("pick_ball_mixed") == E.ROOT / "data" / "lerobot" / "pick_ball_mixed"
+    assert E.out_folder("../data/lerobot/x") == Path("../data/lerobot/x")

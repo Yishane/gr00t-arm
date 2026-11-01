@@ -4,6 +4,16 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-11-01: data state; export_dataset --out takes a name (branch claude/export-out-name)
+- Real demos: 191 in data/raw/pick_ball = 46 from the forward/older homes + 145 with the turned
+  home (HOME_BASE -25, on main since PR #25). Keep the turn. Sim set for the mix: he records 382
+  with the turned home (he named it pick_ball_mujoco_2) -> GR00T export pick_ball_mixed (191 real
+  + 382 sim, --with-max 382) and real-only pick_ball; ACT the same via export_act.py (same
+  episodes: --with-max picks evenly, deterministic). Suggested ACT mix: --steps 80000.
+- He wrote `--out pick_ball_mixed` for export_dataset.py, whose --out was a PATH (-> software/
+  pick_ball_mixed). Now a bare name means data/lerobot/<name> like export_act.py; anything with a
+  folder in it stays a path (out_folder()). 147 tests.
+
 ## 2026-10-31: trip home in servo space; calibrate home/level (branch claude/return-home-joint-space)
 - He asked that the elbow (servo 2) not go past its home value on the way back. Measured (his
   calibration): the Cartesian line cup -> home bent the elbow from 46 up to ~97 and back to 83

@@ -5,8 +5,9 @@ LeRobot v2.1 layout + meta/modality.json, the format Isaac-GR00T fine-tunes on.
     uv run export_dataset.py --name pick_ball --out ../data/lerobot/pick_ball
     uv run export_dataset.py --with pick_ball_mujoco --out ../data/lerobot/pick_ball_mix
                                              # real demos + simulated ones in one dataset
-    uv run export_dataset.py --with pick_ball_mujoco --with-max 300 --out ../data/lerobot/pick_ball_mix300
+    uv run export_dataset.py --with pick_ball_mujoco --with-max 300 --out pick_ball_mix300
                                              # ...only 300 of the simulated ones
+--out takes a name (-> data/lerobot/NAME, like export_act.py) or a folder path.
 
 Layout written:
     meta/info.json  meta/episodes.jsonl  meta/tasks.jsonl  meta/modality.json
@@ -144,10 +145,18 @@ def main():
                     help="also take the episodes of data/raw/NAME (repeatable)")
     ap.add_argument("--with-max", type=int, metavar="N",
                     help="at most N episodes from each --with set, spread evenly over it")
-    ap.add_argument("--out", type=Path)
+    ap.add_argument("--out", metavar="NAME|PATH",
+                    help="a name (-> data/lerobot/NAME) or a folder path (default: --name)")
     a = ap.parse_args()
     raws = [a.raw or ROOT / "data" / "raw" / a.name] + [ROOT / "data" / "raw" / n for n in a.also]
-    export(raws, a.out or ROOT / "data" / "lerobot" / a.name, a.with_max)
+    export(raws, out_folder(a.out or a.name), a.with_max)
+
+
+def out_folder(out):
+    """--out: a bare name means data/lerobot/<name> (as in export_act.py); anything
+    with a folder in it is used as the path itself."""
+    p = Path(out)
+    return ROOT / "data" / "lerobot" / out if p.name == out and not p.is_absolute() else p
 
 
 if __name__ == "__main__":
