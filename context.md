@@ -4,6 +4,24 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## >>> TRAINING 2026-10-31 night (his time) - READ THIS FIRST <<<
+- Old 45-demo model renamed outputs/act/pick_ball -> outputs/act/pick_ball_og (NOT pick_ball_45).
+- Running in software/act, one after the other:
+  `uv run .\train_act.py --name pick_ball --steps 60000 --save_freq=10000;
+   uv run .\train_act.py --name pick_ball_mix2 --steps 100000 --save_freq=10000`
+  1. pick_ball = REAL ONLY, 191 demos (~61k frames). At 23:40 his time: step 16k, epoch 2.09,
+     loss 0.130 (0.146 at 13.8k -> still falling ~10% per 2k steps), 3.3 step/s, 2.1 GB.
+     ~3.7 h left -> done ~03:30 his time. Checkpoints every 10k.
+  2. pick_ball_mix2 = 191 real + 382 sim (573 eps), 100k steps, ~10.5 h after that -> mid-afternoon
+     Nov 1. Checkpoints every 10k.
+- Told him: don't compare the loss with model B's 0.070 (98% sim = clean, consistent data); real data
+  levels off higher. Watch the trend: flat (< ~0.005 per 5k) from ~30-40k = learned what 191 demos
+  can teach; then more demos, not steps.
+- NEXT (Nov 1): test pick_ball --step 40k / 60k on the REAL arm (`uv run .\run_act.py --step 40k
+  --camera 1`, same ~10 layouts each) while the mix trains (inference fits next to training).
+  GR00T cloud fine-tune on data/lerobot/pick_ball_mixed (MAX_STEPS=6000 BATCH=16) in his window.
+- main = e7834cd (his README edit on top of #29).
+
 ## >>> STATUS 2026-11-01 ~05:30 UTC (Oct 31 evening his time) - READ THIS FIRST <<<
 - main = 2170c04. Merged today: #24 OBJECT_SPOT_FIX, #25 home turned 25 deg (HOME_BASE -25),
   #26 trip home in servo space + calibrate home/level, export --out name fix (e03d408, merged by
