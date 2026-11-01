@@ -4,6 +4,18 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## 2026-11-01: block grip height -> GRIP_FIX (branch claude/block-grip-real-only)
+- His commit 4656a48 "spot fixes and settings" set OBJECTS["block"] = 27 (was 21; design 18).
+  OBJECTS is shared with the SIM: a 25 mm block gripped at 27 -> fingers close above it ->
+  test_scripted_picks_work_in_the_simulator[block-C3-A1] missed (on his laptop and here).
+  Fix: OBJECTS block back to 18 (geometry, CAD-checked), GRIP_FIX["block"] = +9 (real arm only)
+  -> real-arm block grips unchanged (27 + OBJECT_SPOT_FIX z; checked at all 9 spots). 147 tests.
+  Rule for him: tune real grip heights in GRIP_FIX / OBJECT_SPOT_FIX, never OBJECTS.
+- His sim set pick_ball_mujoco_2 (382) was likely recorded with the block at 21 or 27 in the sim:
+  only "ok" picks were kept, so it's usable; new sim demos grip the block at 18.
+- Merged on main by him: export --out fix (e03d408) + his tuning (5ca9eb3). Pushed with that one
+  failing test (he ran pytest, then pushed).
+
 ## 2026-11-01: data state; export_dataset --out takes a name (branch claude/export-out-name)
 - Real demos: 191 in data/raw/pick_ball = 46 from the forward/older homes + 145 with the turned
   home (HOME_BASE -25, on main since PR #25). Keep the turn. Sim set for the mix: he records 382
