@@ -4,6 +4,41 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
+## >>> STATUS 2026-11-01 ~05:30 UTC (Oct 31 evening his time) - READ THIS FIRST <<<
+- main = 2170c04. Merged today: #24 OBJECT_SPOT_FIX, #25 home turned 25 deg (HOME_BASE -25),
+  #26 trip home in servo space + calibrate home/level, export --out name fix (e03d408, merged by
+  him with his tuning 5ca9eb3), #27 block grip (OBJECTS block 18 + GRIP_FIX block +9). 147 tests.
+- OPEN PR for OLD branch claude/relaxed-dirac-y3xj6m (2 commits, 10-29 05:24/05:39: several ball
+  colours as separate targets "pick up the red ball"...). Conflicts in 8 files and doesn't match
+  the data ("pick up the ball"/"pick up the block"). Told him: CLOSE it, don't merge.
+- DATA (on his laptop, not in git):
+  - data/raw/pick_ball: 191 real demos = 46 from older forward homes + 145 with the turned home.
+  - data/raw/pick_ball_mujoco_2: 382 sim demos, turned home, one ball colour (block grip in the
+    sim was 21/27 then; only "ok" kept -> usable).
+  - GR00T exports: data/lerobot/pick_ball (191, real only) and data/lerobot/pick_ball_mixed
+    (573 = 191 + 382 via --with-max 382). A leftover partial copy had ended up nested inside
+    pick_ball_mixed (from an earlier --out-as-path run that wrote into software/); he deleted it.
+  - ACT exports (his other terminal): data/act/pick_ball (191) and data/act/pick_ball_mix2 (573).
+- MODELS: outputs/act/pick_ball = old 45-demo model A -> rename to pick_ball_45 before training
+  (train_act refuses an existing folder). Model name = dataset name (--name); to keep versions,
+  rename the outputs folder AFTER training (run_act --model <folder>); --resume can't continue a
+  renamed one.
+- NEXT (presentation Nov 4; nothing new after ~Nov 2):
+  1. Tonight: ACT real-only `train_act.py --steps 60000 --save_freq=10000` (~7 h), or the mix
+     `--name pick_ball_mix2 --steps 80000` (~8 h). One at a time.
+  2. GR00T cloud: copy software/gr00t + data/lerobot/pick_ball_mixed up; `MAX_STEPS=6000
+     SAVE_STEPS=1000 BATCH=16 bash ~/gr00t/finetune.sh ~/pick_ball_mixed` on a 40 GB A100
+     (~1-2.5 h training, ~3-4 h total incl. setup/upload/test, ~$6-9 at $1.99/h). Download the
+     checkpoint before terminating. Estimate only: the dry run never logged s/step.
+  3. Test checkpoints on the REAL arm with the same ~10 layouts: `run_act.py --step 40k --camera 1`
+     then 60k/80k; real-only models aren't judged in the sim. Pick the demo model; scripted
+     autodemo = guaranteed fallback.
+- HOW TO WORK WITH HIM (learned today): he runs commands from software/ OR the project root -
+  always say which folder a command is for. Don't assume he ran a command he only asked about;
+  check where things are before telling him to move/delete anything. Keep answers short. He
+  merges PRs himself on GitHub; I push branches. Tune real-arm grip in GRIP_FIX/OBJECT_SPOT_FIX,
+  never OBJECTS (shared with the sim).
+
 ## 2026-11-01: block grip height -> GRIP_FIX (branch claude/block-grip-real-only)
 - His commit 4656a48 "spot fixes and settings" set OBJECTS["block"] = 27 (was 21; design 18).
   OBJECTS is shared with the SIM: a 25 mm block gripped at 27 -> fingers close above it ->
