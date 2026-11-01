@@ -40,10 +40,13 @@ CUP = (20.0, 110.0)
 # is gripped at its centre; the 25 mm block (cad/arm.py BLOCK) above its
 # centre: lower down the fingertips hit the plate at most spots and the
 # gripper tilts so far that it hits the base drum (A1) or the other object.
-OBJECTS = {"ball": 20.0, "block": 27.0}
+# These are the objects' real geometry: the simulator uses them too, so tune
+# the real arm's grip height in GRIP_FIX below, not here.
+OBJECTS = {"ball": 20.0, "block": 18.0}
 # Real arm only (the simulator doesn't sag): grip this much higher (mm) for
-# each object at every spot, on top of SPOT_FIX.
-GRIP_FIX = {"ball": 4.0}
+# each object at every spot, on top of SPOT_FIX. The block's +9 = the real
+# arm's block grip at 27 mm (tuned 2026-10-31).
+GRIP_FIX = {"ball": 4.0, "block": 9.0}
 # Per-spot corrections (mm) for spots the real arm misses while the rest are
 # fine: (toward column C, toward row 3, up). Tune these by watching picks.
 #   gripper lands too far toward C3 at A2 -> make the first two negative
