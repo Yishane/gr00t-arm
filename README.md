@@ -305,7 +305,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
 - Optional keyboard demos: `uv run teleop.py --camera 1`, press **T** to pick
   the instruction, then pick that object.
 
-### ⬜ 8. Train ACT locally (You run it; optional but it checks the data)
+### ✅ 8. Train ACT locally (You run it; optional but it checks the data)
 - `cd software/act; uv sync; uv run export_act.py; uv run train_act.py --steps 20000`
   (about 2.5 hours on the RTX 5050).
 - Run it on the arm:
@@ -317,7 +317,7 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   `keep it? [Y/n]`: keep only clean picks of the right object, and keep ball
   and block roughly even. (`--record` alone saves to a separate
   `pick_ball_policy` set instead, to look at first.)
-- Retraining: collect a batch first (30–50 kept runs, one sitting), then export
+-  ** NOT DONE YET** Retraining: collect a batch first (30–50 kept runs, one sitting), then export
   and train once, overnight. `train_act.py` won't overwrite an earlier model
   (LeRobot stops if `outputs/act/pick_ball` exists), so rename the old one
   first and keep it to compare:
