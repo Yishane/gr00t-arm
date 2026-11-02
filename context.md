@@ -5,6 +5,18 @@ RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, 
 including small fixes. Put the note in the same commit, not a later one.
 
 ## >>> STATUS 2026-11-02 - GR00T DAY IS NOV 3, PRESENTATION THU NOV 4 - READ THIS FIRST <<<
+- DONE BY YISHANE (Nov 2 evening) - don't tell them to do it again: renamed
+  outputs\act\pick_ball -> outputs\act\pick_ball_noaug (the real-only 60k model). Run it with
+  `--model pick_ball_noaug --step 60k`. outputs\act\pick_ball = the new augmentation run.
+- Real-arm test of the 60k model (--horizon 25): bolts fast at the start to a random spot or
+  the cup, then shakes over the cup; gripper flips 50/90; no "limited"; calls ~60 ms. Camera
+  checked (teleop window vs newest demo frame 000000): same position and zoom, lighting a bit
+  cooler now. The ball was in the cup in that comparison ONLY because Yishane copied the demo
+  frame's layout for the comparison - NOT the test layout. (I wrongly blamed the ball-in-cup
+  layout; don't repeat that.) Cause still unknown. Offered: a replay check (model on recorded
+  frames vs the script's actions) to tell "didn't learn" from "live picture differs".
+- Newest folder in data\raw\pick_ball starts with the ball already in the cup: possibly not a
+  normal demo - worth checking/deleting.
 - main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
 - LIGHTING + BACKGROUND WILL DIFFER at the presentation and can't be made like the recording
   room (Yishane can't get in early either). So both models now train with image augmentation:
