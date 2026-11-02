@@ -4,7 +4,45 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
-## >>> TRAINING 2026-10-31 night (his time) - READ THIS FIRST <<<
+## >>> STATUS 2026-11-02 - GR00T DAY IS NOV 3, PRESENTATION THU NOV 4 - READ THIS FIRST <<<
+- main = 20b586f (#30 merged). No code changes since; this commit is context.md only.
+- THE REAL BALL IS RED. Sim recordings used `--ball-colour red`. Never call it orange (the sim's
+  default colour is orange; the real one isn't).
+- Results of the Oct 31 night training (software/act):
+  - pick_ball (REAL ONLY, 191 demos, 60k steps): final loss 0.055, epoch 7.83. Real-arm test
+    (`uv run .\run_act.py --step 60k --camera 1 --view`, then 50k) NOT reported yet - ask.
+  - pick_ball_mix2 (191 real + 382 sim, 100k): sim score, 12 trials per checkpoint:
+    10k 0, 20k 2, 30k 1, 40k 2, 50k 2, 60k 3, 70k 1, 80k 0, 90k 2, 100k 0 -> bad.
+- WHY THE MIX IS BAD (explained to Yishane, who agreed): the real demos carry the real arm's
+  per-spot corrections (OBJECT_SPOT_FIX + GRIP_FIX, e.g. ball C3 aims +10 toward C, +7 toward
+  row 3, +24 mm up, because the real arm sags / SG90 slop); the sim arm goes exactly where it's
+  told, so sim demos aim at the true spot. Same-looking scene -> two different sets of servo
+  angles; the model averages (2/3 sim) -> grips too low on the real arm, too high in the sim.
+  Spots with small fixes (A1, A2) agree best.
+- DECISION: GR00T on REAL-ONLY data/lerobot/pick_ball (not pick_ball_mixed, which context said
+  before). Nov 3 plan given to Yishane (commands checked against software/gr00t/*.sh):
+  1. Tonight: HF access granted to nvidia/Cosmos-Reason2-2B + nvidia/GR00T-N1.7-3B (gated), Read
+     token ready (never in chat/repo), SSH public key added to Lambda, test pick_ball on the arm.
+  2. Lambda A100 40 GB ($1.99/h; H100 if sold out). From the project root:
+     `scp -r software\gr00t data\lerobot\pick_ball ubuntu@<ip>:~/`
+  3. Cloud: `export HF_TOKEN=...; bash ~/gr00t/setup_cloud.sh` (~20-30 min).
+  4. Dry run first: `MAX_STEPS=200 SAVE_STEPS=100 bash ~/gr00t/finetune.sh ~/gr00t/dryrun/pick_ball_sim`
+  5. In tmux: `MAX_STEPS=6000 SAVE_STEPS=1000 BATCH=16 bash ~/gr00t/finetune.sh ~/pick_ball`
+     (~1-2.5 h); open-loop plot in /tmp/open_loop_eval.
+  6. `bash ~/gr00t/serve.sh`; laptop: `ssh -N -L 5555:localhost:5555 ubuntu@<ip>` and (software/)
+     `uv run run_policy.py gr00t --host localhost --camera 1 --view --record`.
+  7. Film every good run. 8. Download the checkpoint (several GB) BEFORE terminating:
+     `scp -r ubuntu@<ip>:~/gr00t_arm_ckpt/checkpoint-6000 outputs\gr00t\`. ~3-4 h, ~$6-9.
+- THURSDAY: show the GR00T video; run ACT or scripted autodemo.py LIVE (whichever is more
+  reliable). Don't plan on GR00T live (needs a rented GPU + re-upload the morning of).
+- Yishane thought GR00T "just watches". Explained: training = learning from the recorded demos (no
+  arm); running = GR00T drives - camera frame + servo angles + sentence in, 16 servo commands
+  out, laptop safety-checks and sends them. Same job as ACT, on the cloud GPU.
+- CANCELLED by Yishane (Nov 2): a sim "real spots" mode (sim arm lands off by the real fixes so sim
+  demos would carry the real arm's angles, ~382 in minutes). Nothing was written; the local
+  branch claude/sim-real-spots was deleted. Don't restart it unless Yishane asks.
+
+## 2026-10-31 night: training (done - results in the Nov 2 section above)
 - Old 45-demo model renamed outputs/act/pick_ball -> outputs/act/pick_ball_og (NOT pick_ball_45).
 - Running in software/act, one after the other:
   `uv run .\train_act.py --name pick_ball --steps 60000 --save_freq=10000;
@@ -22,7 +60,7 @@ including small fixes. Put the note in the same commit, not a later one.
   GR00T cloud fine-tune on data/lerobot/pick_ball_mixed (MAX_STEPS=6000 BATCH=16) in his window.
 - main = e7834cd (his README edit on top of #29).
 
-## >>> STATUS 2026-11-01 ~05:30 UTC (Oct 31 evening his time) - READ THIS FIRST <<<
+## STATUS 2026-11-01 ~05:30 UTC (older - see Nov 2 above)
 - main = 2170c04. Merged today: #24 OBJECT_SPOT_FIX, #25 home turned 25 deg (HOME_BASE -25),
   #26 trip home in servo space + calibrate home/level, export --out name fix (e03d408, merged by
   him with his tuning 5ca9eb3), #27 block grip (OBJECTS block 18 + GRIP_FIX block +9). 147 tests.
