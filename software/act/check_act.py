@@ -187,8 +187,10 @@ def live_check(policy, camera, target, recorded_start, demo=None):
         print("  -> THE LIVE PICTURE throws it (light, layout or view differ from the demos).")
     elif by_angles and by_picture:
         print("  -> BOTH the home angles and the live picture throw it.")
-    else:
+    elif moves["live picture + home now (the live run)"] > calm:
         print("  -> neither alone: only the two together (or the layout on the plate).")
+    else:
+        print("  -> CALM on all four: neither this picture nor today's home angles throw it.")
 
 
 def main():
