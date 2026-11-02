@@ -15,8 +15,9 @@ How to read it:
 - "gripper ends": how far (mm) the model would put the gripper after those
   25 moves from where the script put it.
 - --live: how far the model wants to move in its first 25 steps from home, on
-  the live picture vs on the recorded start pictures. Much more on the live
-  picture = the live picture looks different to it (light, layout, view).
+  the live picture vs on the recorded start pictures; then the same with the
+  inputs swapped (live picture + a demo's start angles, the demo's picture +
+  today's home angles), which says whether the picture or the angles throw it.
 """
 import argparse
 import json
@@ -131,7 +132,14 @@ def report(policy, episodes, every=15):
     return float(np.mean(starts)) if starts else None
 
 
-def live_check(policy, camera, target, recorded_start):
+def angles(servo):
+    return "  ".join(f"{n} {a:5.1f}" for n, a in zip(JOINTS + ["gripper"], servo))
+
+
+def live_check(policy, camera, target, recorded_start, demo=None):
+    """demo: a recorded episode to swap inputs with (its first picture and the
+    angles it started from), to tell whether the live picture or today's home
+    angles throw the model."""
     from arm_io import Camera
     cam = Camera(camera)
     try:
@@ -140,10 +148,11 @@ def live_check(policy, camera, target, recorded_start):
         cam.close()
     out = DATA.parent / "check_live.jpg"
     cv2.imwrite(str(out), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-    servo = HOME + [C.GRIPPER_OPEN]
-    pred = np.asarray(policy.chunk(img, servo, TASKS[target]), float)
-    move = first_move(pred, servo)
-    print(f'\nLIVE picture (saved to {out}), "{TASKS[target]}", arm at home:')
+    home = HOME + [C.GRIPPER_OPEN]
+    task = TASKS[target]
+    pred = np.asarray(policy.chunk(img, home, task), float)
+    move = first_move(pred, home)
+    print(f'\nLIVE picture (saved to {out}), "{task}", arm at home:')
     print(f"  first {HORIZON} moves change a servo by up to {move:.0f}°"
           + (f" (recorded start pictures: {recorded_start:.0f}° on average)"
              if recorded_start is not None else ""))
@@ -151,6 +160,35 @@ def live_check(policy, camera, target, recorded_start):
         xyz = gripper_xyz(pred[k])
         print(f"  after {k + 1:3d} moves the gripper would be at ({xyz[0]:.0f}, {xyz[1]:.0f}, "
               f"{xyz[2]:.0f}) mm, nearest {place_name(xyz)}")
+    if demo is None:
+        return
+    demo_task, state, _ = load(demo)
+    demo_img = picture(demo, 0)
+    print(f"\nWHICH INPUT? (swapped with {demo.name}, \"{demo_task}\")")
+    print(f"  home now (servo deg):       {angles(home)}")
+    print(f"  that demo started at:       {angles(state[0])}")
+    swaps = {
+        "demo picture + demo angles (as recorded)": (demo_img, list(state[0]), demo_task),
+        "demo picture + home now":                  (demo_img, home, demo_task),
+        "live picture + demo angles":               (img, list(state[0]), task),
+        "live picture + home now (the live run)":   (img, home, task),
+    }
+    moves = {}
+    for name, (pic, servo, t) in swaps.items():
+        moves[name] = first_move(policy.chunk(pic, servo, t), servo)
+        print(f"  {name:42s} first {HORIZON} moves up to {moves[name]:4.0f}°")
+    calm = max(2 * moves["demo picture + demo angles (as recorded)"], 35.0)
+    by_angles = moves["demo picture + home now"] > calm
+    by_picture = moves["live picture + demo angles"] > calm
+    if by_angles and not by_picture:
+        print("  -> TODAY'S HOME ANGLES throw it: the arm starts from different servo numbers than "
+              "in the demos (calibration or home changed since recording).")
+    elif by_picture and not by_angles:
+        print("  -> THE LIVE PICTURE throws it (light, layout or view differ from the demos).")
+    elif by_angles and by_picture:
+        print("  -> BOTH the home angles and the live picture throw it.")
+    else:
+        print("  -> neither alone: only the two together (or the layout on the plate).")
 
 
 def main():
@@ -170,7 +208,7 @@ def main():
     episodes = spread(episodes_in(DATA / a.dataset), a.episodes)
     recorded_start = report(policy, episodes)
     if a.live:
-        live_check(policy, a.camera, a.target, recorded_start)
+        live_check(policy, a.camera, a.target, recorded_start, demo=episodes[-1])
 
 
 if __name__ == "__main__":
