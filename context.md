@@ -30,6 +30,11 @@ including small fixes. Put the note in the same commit, not a later one.
   25 moves (recorded start pictures 23), heads to the cup then C1 = the bolting, reproduced
   offline. Added a swap test to --live (live picture + a demo's start angles; the demo's
   picture + today's home angles; demo = episode_000176) to say which input throws it.
+- SWAP RESULT (second --live run, objects on spots): CALM - 27 deg live vs 23 recorded, heads
+  to C1 then C3; home now == demo 000176's start angles exactly (70/91/83/92/50). So angles
+  and model are fine; the first --live run (96 deg, to the cup) differed only in what the
+  camera saw then. Fixed the verdict wording (said "neither alone: only the two together"
+  when all four were calm). Next: real-arm run with the exact setup the check called calm.
 - Newest folder in data\raw\pick_ball starts with the ball already in the cup: possibly not a
   normal demo - worth checking/deleting.
 - main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
