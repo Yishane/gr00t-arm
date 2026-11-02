@@ -4,7 +4,107 @@ Read this first every session. Update the "Status" and "Next" sections before st
 RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, what's next) -
 including small fixes. Put the note in the same commit, not a later one.
 
-## >>> STATUS 2026-11-02 - GR00T DAY IS NOV 3, PRESENTATION THU NOV 4 - READ THIS FIRST <<<
+## >>> HANDOFF 2026-11-02 NIGHT - READ THIS FIRST (everything current is here) <<<
+Yishane is switching to another agent session. This section is the whole current state; the
+sections below are older, chronological detail.
+
+### Dates
+- Mon Nov 3: GR00T fine-tune in the cloud (the only day with a rented GPU).
+- Thu Nov 4: PRESENTATION. The point of the talk is GR00T. Nothing big and new after Nov 3.
+
+### Setup (Yishane's laptop)
+- Windows, PowerShell, repo C:\Users\yskao\Projects\gr00t-arm, RTX 5050 8 GB. Camera = Yishane's
+  phone on the mast, index 1 (`--camera 1`). ACT commands run from software\act; most others
+  from software; exports/renames from the project root. ALWAYS say which folder.
+- THE REAL BALL IS RED (block green). Never say orange.
+- Calibrated home (servo deg): base 70, shoulder 91, elbow 83, wrist 92; gripper open 50,
+  closed 90. Identical to the demos' start angles (checked with check_act).
+
+### Git state
+- main = 1c7a405: includes #32 GR00T colour jitter, #33/#34 check_act.py, #35 claude/act-lift
+  (run_policy --lift, merged by Yishane although I said not to; UNTESTED but off unless
+  `--lift` is passed - harmless).
+- OPEN: branch claude/policy-speed (this commit; main merged in, conflicts resolved: keeps both
+  --speed and --lift). Policy runs turn servos at most 60 deg/s instead of the firmware's 180
+  (Yishane: "every run starts way too fast, it shakes the entire thing"). Yishane must merge
+  it on GitHub, then `git pull --no-rebase origin main` (project root) BEFORE driving the arm
+  with GR00T. 157+ tests pass.
+- Obsolete: claude/context-models (its last commit is already in main via #35). Old PR for
+  claude/relaxed-dirac-y3xj6m: close it, don't merge.
+- Never force-push; push claude/* branches; Yishane merges PRs on GitHub.
+
+### Data and models (on the laptop, not in git)
+- data/raw/pick_ball: 191 REAL demos (46 from older homes + 145 with the turned home).
+  data/raw/pick_ball_mujoco_2: 382 sim demos (red ball). The newest pick_ball folder starts with
+  the ball already in the cup - maybe not a normal demo, worth checking.
+- GR00T exports: data/lerobot/pick_ball (real only, USE THIS) and data/lerobot/pick_ball_mixed.
+- ACT models (outputs\act): pick_ball_og (45 demos), pick_ball_noaug (REAL ONLY 60k - renamed
+  by Yishane, don't tell them to rename again), pick_ball_mix2 (real+sim 100k, bad: 0-3/12 in
+  the sim), pick_ball = an ACT run with image augmentation
+  (`--dataset.image_transforms.enable=true`) if Yishane started it - status unknown, low priority.
+
+### ACT: stopped (Yishane's decision, Nov 2)
+- check_act.py on pick_ball_noaug 60k: LEARNED the demos (1.2-1.5 deg error vs 6-8 for standing
+  still, gripper ends ~5 mm from the script's, open/close 99%). Live check with objects on spots:
+  calm (27 deg in 25 moves vs 23 on recorded pictures), heads to the right spot.
+- Real arm: moves calmly to the ball but grips TOO LOW at B3/C3 every time; misses at A1/B1/C1
+  too (A1 worked once by luck); at B1 it folded in on itself. The scripted autodemo picks B3
+  and C3 perfectly, so the arm is fine: ACT just isn't precise enough with ~10 demos per
+  object+spot. An earlier "bolting" run: the first --live check (96 deg, toward the cup)
+  differed from the calm one only in what the camera saw.
+- Use for the talk: "a small model trained from scratch learns the demos (numbers above) but
+  isn't precise enough on the real arm" -> why a pretrained model like GR00T.
+- Why the real+sim mix failed: the real demos carry the real arm's per-spot corrections
+  (OBJECT_SPOT_FIX + GRIP_FIX, e.g. ball C3 +24 mm up); the sim's do not -> conflicting angles.
+
+### GR00T plan for Nov 3 (commands checked against software/gr00t/*.sh)
+- Tonight (Yishane): HF access granted to nvidia/Cosmos-Reason2-2B and nvidia/GR00T-N1.7-3B
+  (gated), a Read token ready (NEVER in chat or the repo), Lambda payment method + SSH key
+  (`ssh-keygen -t ed25519`, `type $HOME\.ssh\id_ed25519.pub`). Claude never buys anything.
+- finetune.sh now passes colour jitter (`--color-jitter-params brightness 0.3 contrast 0.4
+  saturation 0.5 hue 0.08`, NVIDIA's values; COLOR_JITTER= turns it off) because the
+  presentation room's light/background will differ and can't be matched. Without the flag
+  NVIDIA's launch_finetune.py uses NO jitter. Verified with NVIDIA's own config parser.
+1. Lambda A100 40 GB (~$1.99/h; H100 if sold out). Project root:
+   `scp -r software\gr00t data\lerobot\pick_ball ubuntu@<ip>:~/`
+2. Cloud: `export HF_TOKEN=...` then `bash ~/gr00t/setup_cloud.sh` (~20-30 min).
+3. Dry run (catches setup problems): `MAX_STEPS=200 SAVE_STEPS=100 bash ~/gr00t/finetune.sh
+   ~/gr00t/dryrun/pick_ball_sim`
+4. In tmux: `MAX_STEPS=6000 SAVE_STEPS=1000 BATCH=16 bash ~/gr00t/finetune.sh ~/pick_ball`
+   (~1-2.5 h). Open-loop plot in /tmp/open_loop_eval (lines should overlap).
+5. `bash ~/gr00t/serve.sh`; laptop PowerShell 1: `ssh -N -L 5555:localhost:5555 ubuntu@<ip>`;
+   PowerShell 2 (software): `uv run run_policy.py gr00t --host localhost --camera 1 --view --record`.
+   Objects on marked spots, both on the plate, like the demos.
+6. FILM every good run (phone + --record). 7. Download the checkpoint BEFORE terminating
+   (terminating deletes everything): `mkdir outputs\gr00t` then
+   `scp -r ubuntu@<ip>:~/gr00t_arm_ckpt/checkpoint-6000 outputs\gr00t\`. Total ~3-4 h, ~$6-9.
+- GR00T at run time DRIVES the arm (camera frame + servo angles + sentence -> 16 servo
+  commands; the laptop safety-checks and sends them). It needs a cloud GPU (~16-24 GB); the
+  laptop can't run it. Same 191 demos as ACT, so it may hit the same precision limit.
+
+### Thursday
+- Live: scripted `uv run autodemo.py --target ball --spot C1 --other-spot A3` (software) - it
+  doesn't use the camera, so light/background can't break it. Show GR00T (and ACT) as videos /
+  a live attempt. Bring a lamp and a plain sheet under the plate; keep clutter out of frame.
+
+### Tools added this session
+- software/act/check_act.py: `uv run .\check_act.py --model pick_ball_noaug --step 60k --live
+  --target ball` (software\act; close teleop/run_act first). Compares the model with the
+  script on 12 recorded demos (LEARNED / PARTLY / did NOT learn) and, with --live, one live
+  frame plus a swap test (live picture vs today's home angles).
+- run_policy --speed (default 60, branch claude/policy-speed), --lift (in main, untested).
+
+### How to work with Yishane (learned the hard way)
+- Short answers. Say which folder every command runs in. Explain a command (e.g. a rename)
+  the first time instead of just giving it.
+- Don't assume a command was run or what a setup was - ask or check. Don't repeat steps
+  Yishane already did (the rename). Don't invent explanations (I wrongly blamed a ball-in-cup
+  layout that was only for a camera comparison).
+- "don't do anything / just answer" = answer only, no tools, no commits.
+- Every commit updates context.md. Use "Yishane"/they in notes.
+- Yishane cancels work mid-way sometimes: stop, delete if asked, don't restart unless asked.
+
+## 2026-11-02 details (chronological; the HANDOFF above is current)
 - DONE BY YISHANE (Nov 2 evening) - don't tell them to do it again: renamed
   outputs\act\pick_ball -> outputs\act\pick_ball_noaug (the real-only 60k model). Run it with
   `--model pick_ball_noaug --step 60k`. outputs\act\pick_ball = the new augmentation run.
@@ -25,6 +125,18 @@ including small fixes. Put the note in the same commit, not a later one.
   `uv run .\check_act.py --model pick_ball_noaug --step 60k --live --target ball`
   LEARNED + live jump >> recorded = live picture is the problem (augmentation run helps);
   did NOT learn = export/training problem, fix before training more.
+- REAL ARM, pick_ball_noaug 60k (Nov 2 night): check_act said LEARNED (1.2-1.5 deg vs 6-8
+  stand-still, gripper ends 5 mm off, open/close 99%); the swap test: CALM, home angles == the
+  demos' start angles (70/91/83/92/50). On the arm it moves calmly to the ball but grips too low
+  at B3/C3 every time (scripted autodemo picks B3 and C3 perfectly -> arm fine); A1 picked once
+  ("a miracle"), B1 and C1 miss, at B1 it folded in on itself. DECISION (Yishane): stop on ACT,
+  focus on GR00T (the point of the talk). Live Thursday = scripted autodemo; ACT/GR00T as
+  attempts/videos. Branch claude/act-lift (--lift, untested) is parked: don't merge.
+- Branch claude/policy-speed: policy runs held to 60 deg/s (POLICY_SPEED = autodemo MAX_SPEED;
+  firmware default 180). Yishane: "every run starts way too fast, shakes the entire thing" -
+  jumps in model commands / the trip home went at 180. --speed changes it. go_home now waits
+  for the whole trip (far/speed + 0.3 s, >= 1 s); main waits 180/speed at start (unknown pose).
+  Arm/SimArm/MujocoArm remember deg_per_s. 157 tests. Applies to GR00T runs too.
 - RESULT (pick_ball_noaug 60k): LEARNED - 1.2-1.5 deg vs 6-8 stand-still, gripper ends 5 mm
   from the script's, open/close 99%. LIVE (arm home, ball task): wants up to 96 deg in the first
   25 moves (recorded start pictures 23), heads to the cup then C1 = the bolting, reproduced

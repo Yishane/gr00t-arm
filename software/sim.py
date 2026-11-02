@@ -528,6 +528,10 @@ class MujocoArm:
     def speed(self, deg_per_s):
         self.world.speed = float(deg_per_s)
 
+    @property
+    def deg_per_s(self):
+        return self.world.speed
+
     def wait(self, seconds):
         """Let this much time pass (a real sleep, or sim time in lockstep)."""
         if self.lockstep:

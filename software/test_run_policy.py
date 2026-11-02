@@ -180,3 +180,45 @@ def test_viewer_draws_a_frame_windowed_and_full_screen(monkeypatch):
     for full in (False, True):
         show = run_policy.viewer(full)
         show(np.zeros((480, 640, 3), np.uint8), "pick up the ball")
+
+
+class TimedSimArm(RecordingSimArm):
+    """Keeps the speed it was set to and the waits it was asked for."""
+
+    def __init__(self):
+        super().__init__()
+        self.speeds, self.waits = [], []
+
+    def speed(self, deg_per_s):
+        super().speed(deg_per_s)
+        self.speeds.append(deg_per_s)
+
+    def wait(self, seconds):
+        self.waits.append(seconds)
+
+
+class HoldHome:
+    def chunk(self, frame, servo, task):
+        return [list(HOME5)] * 8
+
+
+def test_policy_runs_turn_servos_no_faster_than_the_demos(monkeypatch):
+    arm = TimedSimArm()
+    monkeypatch.setattr(run_policy, "open_hardware", lambda args: (arm, FakeCamera()))
+    monkeypatch.setattr(run_policy, "ActBackend", lambda checkpoint: HoldHome())
+    monkeypatch.setattr("sys.argv", ["run_policy.py", "act", "--checkpoint", "x",
+                                     "--task", "pick up the ball", "--seconds", "0.05"])
+    run_policy.main()
+    assert arm.speeds[0] == run_policy.POLICY_SPEED == A.MAX_SPEED
+    assert sum(arm.waits[:2]) >= 180 / run_policy.POLICY_SPEED   # start: time for any trip home
+
+
+def test_go_home_waits_for_the_whole_trip():
+    arm = TimedSimArm()
+    arm.speed(60)
+    arm.send([HOME5[0] + 90, *HOME5[1:]])               # base 90 deg away
+    run_policy.go_home(arm)
+    assert arm.last == HOME5
+    assert arm.waits[-1] >= 90 / 60                     # 1.5 s at 60 deg/s
+    run_policy.go_home(arm)                             # already home: the 1 s minimum
+    assert arm.waits[-1] == 1.0

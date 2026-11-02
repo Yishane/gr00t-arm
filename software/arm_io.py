@@ -94,6 +94,8 @@ class Arm:
         self.last = angles
 
     def speed(self, deg_per_s):
+        """Fastest the firmware turns any servo, deg/s (it starts at 180)."""
+        self.deg_per_s = float(deg_per_s)
         self.ser.write(f"S {deg_per_s:.0f}\n".encode())
 
     def close(self):
@@ -105,13 +107,14 @@ class SimArm:
 
     def __init__(self, port=None):
         self.last = HOME + [C.GRIPPER_OPEN]
+        self.deg_per_s = 180.0
         print("simulated arm")
 
     def send(self, angles):
         self.last = [float(a) for a in angles]
 
     def speed(self, deg_per_s):
-        pass
+        self.deg_per_s = float(deg_per_s)
 
     def close(self):
         pass

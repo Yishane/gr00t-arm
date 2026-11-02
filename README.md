@@ -208,6 +208,9 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   prints `N limited` (2026-10-30: it used to hold still, and a model then asked
   for the same move forever). The gripper always follows, snapped fully open or
   fully closed.
+- ✅ Policy runs turn the servos at most 60°/s, as fast as the demos ever went
+  (the firmware's own limit is 180°/s): a jump in a model's commands is a smooth
+  move, not a jolt that shakes the arm (2026-11-02). `--speed` changes it.
 - ✅ A GR00T timeout, server error or empty answer is retried. After 3 in a
   row the run stops and asks for the next instruction, instead of quitting.
 - ✅ The policy gets a fresh camera frame each time (old buffered frames are dropped),
