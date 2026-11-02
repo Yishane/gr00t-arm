@@ -35,6 +35,16 @@ including small fixes. Put the note in the same commit, not a later one.
   and model are fine; the first --live run (96 deg, to the cup) differed only in what the
   camera saw then. Fixed the verdict wording (said "neither alone: only the two together"
   when all four were calm). Next: real-arm run with the exact setup the check called calm.
+- REAL ARM, pick_ball_noaug 60k, calm setup: moves CALMLY to the ball now (no bolting) but grips
+  TOO LOW at B3/C3 every time. Scripted autodemo picks B3 and C3 perfectly (arm is fine). A1
+  picked once ("a miracle"), then not; B1 and C1 miss too. How it misses there: asked, unknown.
+- Branch claude/act-lift (NOT for merging yet): run_policy --lift MM (everywhere) or
+  --lift C3=8,B3=6 (round those spots): raises the gripper near the plate (full below z 50,
+  none above 70) at the same x, y, tilt; the model is fed its own unlifted move (mine) so it
+  doesn't push lower. Existing run_policy tests pass; the lift itself is NOT tested yet - the
+  sim test (stand-in model gripping 6-10 mm low at C3, with/without lift) was stopped by
+  Yishane before it ran. Only useful if the miss is a consistent LOW bias, not random.
+- Thursday: scripted autodemo = the live demo that's sure to work; ACT as a live attempt or video.
 - Newest folder in data\raw\pick_ball starts with the ball already in the cup: possibly not a
   normal demo - worth checking/deleting.
 - main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
