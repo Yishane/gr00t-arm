@@ -77,3 +77,38 @@ def test_live_check_reads_one_frame_and_says_where_the_model_heads(tmp_path, mon
     out = capsys.readouterr().out
     assert "up to 0°" in out and "recorded start pictures: 20°" in out
     assert (tmp_path / "check_live.jpg").exists()
+
+
+class BoltsOnLivePictures:
+    """Calm on recorded pictures, swings 90 degrees on a live camera picture."""
+
+    def chunk(self, frame, servo, task):
+        if isinstance(frame, np.ndarray):                   # the (fake) live camera
+            return [[servo[0] + 90, *servo[1:]]] * 100
+        return [list(servo)] * 100
+
+
+def test_swapping_inputs_blames_the_live_picture(tmp_path, monkeypatch, capsys):
+    import arm_io
+    eps = record(tmp_path, monkeypatch, n=1)
+    monkeypatch.setattr(arm_io, "Camera", lambda index: FakeCamera())
+    check_act.live_check(BoltsOnLivePictures(), 1, "ball", recorded_start=20.0, demo=eps[0])
+    out = capsys.readouterr().out
+    assert "THE LIVE PICTURE throws it" in out
+    assert "home now (servo deg)" in out and "that demo started at" in out
+
+
+def test_swapping_inputs_blames_the_home_angles(tmp_path, monkeypatch, capsys):
+    import arm_io
+    eps = record(tmp_path, monkeypatch, n=1)
+    start = list(check_act.load(eps[0])[1][0])
+    monkeypatch.setattr(check_act, "HOME", [a + 20 for a in start[:4]])   # home moved since
+    monkeypatch.setattr(arm_io, "Camera", lambda index: FakeCamera())
+
+    class BoltsOffTheDemoAngles:
+        def chunk(self, frame, servo, task):
+            off = max(abs(a - b) for a, b in zip(servo[:4], start[:4]))
+            return [[servo[0] + (90 if off > 5 else 0), *servo[1:]]] * 100
+
+    check_act.live_check(BoltsOffTheDemoAngles(), 1, "ball", recorded_start=20.0, demo=eps[0])
+    assert "TODAY'S HOME ANGLES throw it" in capsys.readouterr().out

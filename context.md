@@ -25,6 +25,11 @@ including small fixes. Put the note in the same commit, not a later one.
   `uv run .\check_act.py --model pick_ball_noaug --step 60k --live --target ball`
   LEARNED + live jump >> recorded = live picture is the problem (augmentation run helps);
   did NOT learn = export/training problem, fix before training more.
+- RESULT (pick_ball_noaug 60k): LEARNED - 1.2-1.5 deg vs 6-8 stand-still, gripper ends 5 mm
+  from the script's, open/close 99%. LIVE (arm home, ball task): wants up to 96 deg in the first
+  25 moves (recorded start pictures 23), heads to the cup then C1 = the bolting, reproduced
+  offline. Added a swap test to --live (live picture + a demo's start angles; the demo's
+  picture + today's home angles; demo = episode_000176) to say which input throws it.
 - Newest folder in data\raw\pick_ball starts with the ball already in the cup: possibly not a
   normal demo - worth checking/deleting.
 - main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
