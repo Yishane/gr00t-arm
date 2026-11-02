@@ -112,3 +112,11 @@ def test_swapping_inputs_blames_the_home_angles(tmp_path, monkeypatch, capsys):
 
     check_act.live_check(BoltsOffTheDemoAngles(), 1, "ball", recorded_start=20.0, demo=eps[0])
     assert "TODAY'S HOME ANGLES throw it" in capsys.readouterr().out
+
+
+def test_a_calm_model_is_called_calm(tmp_path, monkeypatch, capsys):
+    import arm_io
+    eps = record(tmp_path, monkeypatch, n=1)
+    monkeypatch.setattr(arm_io, "Camera", lambda index: FakeCamera())
+    check_act.live_check(StandStill(), 1, "ball", recorded_start=20.0, demo=eps[0])
+    assert "CALM on all four" in capsys.readouterr().out
