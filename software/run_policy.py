@@ -208,20 +208,21 @@ def _result(future):
 
 
 def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None,
-        done=None, show=None):
+        done=None, show=None, lifts=None):
     """Run one instruction until the time is up or Ctrl+C.
     pipeline: ask for the next chunk while the current one plays, so the arm
     doesn't stop for the length of each policy call.
     rec: a Recorder; every step played is saved (frame, last command, command).
     keep: asked once the arm is home whether to save the episode (default: save).
     done: checked after every step; the run ends when it returns True.
-    show: called as show(frame, task) with a camera frame every step (the live view)."""
+    show: called as show(frame, task) with a camera frame every step (the live view).
+    lifts: --lift (parse_lift): raise the gripper near the plate there."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
     if rec:
         rec.start(task=task)
     try:
-        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done, show)
+        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done, show, lifts)
         go_home(arm)
         if rec:
             rec.stop(keep=keep() if keep else True)
@@ -231,8 +232,11 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
 
 
 def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=None,
-           show=None):
-    """The policy loop of run(); servo = the command the arm holds now."""
+           show=None, lifts=None):
+    """The policy loop of run(); servo = the command the arm holds now.
+    With lifts the arm gets the raised command, but the model is told the move
+    it asked for (mine), so it doesn't push lower to make up for the lift."""
+    mine = servo
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
     fails = 0
@@ -254,7 +258,7 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                     t0 = time.perf_counter()
                     frame = cam.read(fresh=True)
                     rd = time.perf_counter() - t0
-                    steps, ms = _timed_chunk(policy, frame, servo, task)
+                    steps, ms = _timed_chunk(policy, frame, mine, task)
                 steps = steps[:horizon]
                 if not steps:
                     raise RuntimeError("empty action chunk")
@@ -269,8 +273,11 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
             lat = ms / 1000
             sent, limited = [], 0
             t_next = time.perf_counter()
-            for i, cmd in enumerate(steps):
-                cmd, ok = make_safe(cmd, servo)
+            for i, asked in enumerate(steps):
+                asked, ok = make_safe(asked, mine)
+                cmd = asked
+                if lifts:
+                    cmd, ok = make_safe(lift(asked, lifts), servo)
                 if rec or show:                           # what the camera sees at this step
                     seen = cam.read()
                     if rec:                               # ...then what was sent
@@ -278,7 +285,7 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                     if show:
                         show(seen, task)
                 arm.send(cmd)
-                servo = cmd
+                servo, mine = cmd, asked
                 sent.append(cmd)
                 limited += not ok
                 if pipeline and pending is None and (len(steps) - i) * dt <= lat + rd:
@@ -289,7 +296,7 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                     frame = cam.read(fresh=True)
                     t_req = time.perf_counter()
                     rd = t_req - t0
-                    pending = pool.submit(_timed_chunk, policy, frame, servo, task)
+                    pending = pool.submit(_timed_chunk, policy, frame, mine, task)
                 t_next += dt
                 time.sleep(max(0.0, t_next - time.perf_counter()))
                 if done and done():
@@ -308,6 +315,66 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
 def snap_gripper(value):
     """Fully open or fully closed, whichever the value is nearer."""
     return min((C.GRIPPER_OPEN, C.GRIPPER_CLOSED), key=lambda g: abs(g - float(value)))
+
+
+# --lift: a model can grip a little low at some spots (ACT on the real arm did at
+# B3 / C3, the far spots where the script lifts its grip the most). Its commands
+# near the plate are raised there; hover, carry and drop heights stay as planned.
+LIFT_BELOW = 50.0   # mm: the gripper below this gets the full lift...
+LIFT_ABOVE = 70.0   # ...fading to none here (autodemo hovers at 75)
+LIFT_NEAR = 20.0    # mm from a named spot: the full lift...
+LIFT_FAR = 40.0     # ...fading to none here (spots are 25-40 mm apart)
+
+
+def parse_lift(text):
+    """--lift value -> {spot: mm}, or {None: mm} for everywhere.
+    "5" = 5 mm everywhere; "C3=8,B3=6" = 8 mm round C3, 6 mm round B3."""
+    from autodemo import SPOTS
+    out = {}
+    for item in text.split(","):
+        spot, _, mm = item.strip().rpartition("=")
+        spot = spot.strip().upper() or None
+        if spot is not None and spot not in SPOTS:
+            raise argparse.ArgumentTypeError(f"{spot!r} isn't a spot ({', '.join(sorted(SPOTS))})")
+        try:
+            out[spot] = float(mm)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{item.strip()!r}: give mm, e.g. 5 or C3=8")
+        if not -15 <= out[spot] <= 25:
+            raise argparse.ArgumentTypeError(f"{item.strip()!r}: keep it between -15 and 25 mm")
+    if None in out and len(out) > 1:
+        raise argparse.ArgumentTypeError("use one number for everywhere, or SPOT=MM pairs, not both")
+    return out
+
+
+def lift_at(xy, lifts):
+    """How much (mm) to raise a grip at xy: the nearest named spot's lift,
+    fading out between spots."""
+    if None in lifts:
+        return lifts[None]
+    from autodemo import SPOTS
+    best = 0.0
+    for spot, mm in lifts.items():
+        d = math.dist(xy, SPOTS[spot])
+        w = 1.0 if d <= LIFT_NEAR else max(0.0, (LIFT_FAR - d) / (LIFT_FAR - LIFT_NEAR))
+        if abs(mm * w) > abs(best):
+            best = mm * w
+    return best
+
+
+def lift(cmd, lifts):
+    """cmd with the gripper raised by --lift (same x, y and tilt) when it's
+    near the plate; anything else unchanged."""
+    if not lifts or len(cmd) != 5 or not all(math.isfinite(float(a)) for a in cmd):
+        return cmd
+    x, y, z, pitch = K.fk(*K.from_servo([float(a) for a in cmd[:4]]))
+    fade = min(1.0, max(0.0, (LIFT_ABOVE - z) / (LIFT_ABOVE - LIFT_BELOW)))
+    dz = lift_at((x, y), lifts) * fade
+    if abs(dz) < 0.1:
+        return cmd
+    from autodemo import solve_near
+    servo = solve_near(x, y, z + dz, pitch)
+    return list(servo) + [cmd[4]] if servo else cmd
 
 
 def make_safe(cmd, last):
@@ -424,6 +491,10 @@ def main():
     ap.add_argument("--speed", type=float, default=POLICY_SPEED, metavar="DEG_PER_S",
                     help=f"fastest any servo turns (default {POLICY_SPEED:g}, as in the demos; "
                          "the firmware's own is 180)")
+    ap.add_argument("--lift", type=parse_lift, metavar="MM | SPOT=MM,...",
+                    help="raise the gripper near the plate (same x, y): MM everywhere, or "
+                         "only round named spots, e.g. --lift C3=8,B3=6, for a model that "
+                         "grips a little low there (negative = lower)")
     ap.add_argument("--view", action="store_true",
                     help="show the camera live, with the instruction on top")
     ap.add_argument("--fullscreen", action="store_true",
@@ -466,7 +537,7 @@ def main():
     def one(policy, task):
         """One instruction. In the simulator: lay the objects out, keep only
         clean picks, and return the result."""
-        opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show)
+        opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show, lifts=args.lift)
         if not world:
             run(policy, arm, cam, task, args.horizon, args.seconds,
                 keep=ask_keep if rec else None, **opts)
