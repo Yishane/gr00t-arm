@@ -25,6 +25,18 @@ including small fixes. Put the note in the same commit, not a later one.
   `uv run .\check_act.py --model pick_ball_noaug --step 60k --live --target ball`
   LEARNED + live jump >> recorded = live picture is the problem (augmentation run helps);
   did NOT learn = export/training problem, fix before training more.
+- REAL ARM, pick_ball_noaug 60k (Nov 2 night): check_act said LEARNED (1.2-1.5 deg vs 6-8
+  stand-still, gripper ends 5 mm off, open/close 99%); the swap test: CALM, home angles == the
+  demos' start angles (70/91/83/92/50). On the arm it moves calmly to the ball but grips too low
+  at B3/C3 every time (scripted autodemo picks B3 and C3 perfectly -> arm fine); A1 picked once
+  ("a miracle"), B1 and C1 miss, at B1 it folded in on itself. DECISION (Yishane): stop on ACT,
+  focus on GR00T (the point of the talk). Live Thursday = scripted autodemo; ACT/GR00T as
+  attempts/videos. Branch claude/act-lift (--lift, untested) is parked: don't merge.
+- Branch claude/policy-speed: policy runs held to 60 deg/s (POLICY_SPEED = autodemo MAX_SPEED;
+  firmware default 180). Yishane: "every run starts way too fast, shakes the entire thing" -
+  jumps in model commands / the trip home went at 180. --speed changes it. go_home now waits
+  for the whole trip (far/speed + 0.3 s, >= 1 s); main waits 180/speed at start (unknown pose).
+  Arm/SimArm/MujocoArm remember deg_per_s. 157 tests. Applies to GR00T runs too.
 - RESULT (pick_ball_noaug 60k): LEARNED - 1.2-1.5 deg vs 6-8 stand-still, gripper ends 5 mm
   from the script's, open/close 99%. LIVE (arm home, ball task): wants up to 96 deg in the first
   25 moves (recorded start pictures 23), heads to the cup then C1 = the bolting, reproduced

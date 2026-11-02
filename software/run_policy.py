@@ -61,6 +61,12 @@ import kinematics as K
 from arm_io import HOME, add_hw_args, open_hardware
 from recorder import TASKS, Recorder, ask_keep, target_of
 
+# The firmware turns each servo toward its newest command at up to this many
+# deg/s (its default is 180). The demos never went faster than 60 (autodemo
+# MAX_SPEED), so a policy is held to that too: a jump in its commands (between
+# two plans, the trip home) becomes a smooth move instead of a jolt that shakes
+# the whole arm, and normal moves aren't slowed.
+POLICY_SPEED = 60.0
 MAX_FAILS = 3   # policy failures in a row before a run gives up
 OUTPUTS = Path(__file__).resolve().parent.parent / "outputs"   # trained models: OUTPUTS/act/<name>
 # one policy call at a time: the GR00T client has one socket, and a call left
@@ -171,9 +177,13 @@ def ask():
 
 
 def go_home(arm):
+    """Send the arm home, gripper open, and wait until it's there: the
+    farthest servo's turn at the arm's speed (at least 1 s)."""
     servo = HOME + [C.GRIPPER_OPEN]
+    far = max(abs(float(a) - b) for a, b in zip(arm.last[:4], servo[:4]))
     arm.send(servo)
-    getattr(arm, "wait", time.sleep)(1.0)     # the simulator's arm has its own clock
+    wait = max(1.0, far / getattr(arm, "deg_per_s", 180.0) + 0.3)
+    getattr(arm, "wait", time.sleep)(wait)     # the simulator's arm has its own clock
     return servo
 
 
@@ -411,6 +421,9 @@ def main():
     ap.add_argument("--anywhere", action="store_true",
                     help="with --mujoco: put the objects anywhere the arm can pick "
                          "and the camera can see")
+    ap.add_argument("--speed", type=float, default=POLICY_SPEED, metavar="DEG_PER_S",
+                    help=f"fastest any servo turns (default {POLICY_SPEED:g}, as in the demos; "
+                         "the firmware's own is 180)")
     ap.add_argument("--view", action="store_true",
                     help="show the camera live, with the instruction on top")
     ap.add_argument("--fullscreen", action="store_true",
@@ -420,6 +433,8 @@ def main():
         raise SystemExit("--trials, --offset and --anywhere are for the simulator (--mujoco)")
     if args.offset and args.anywhere:
         raise SystemExit("use --offset or --anywhere, not both")
+    if not 10 <= args.speed <= 180:
+        raise SystemExit("--speed: between 10 and 180 deg/s")
     if args.step and (args.backend != "act" or args.checkpoint):
         raise SystemExit("--step picks a checkpoint of an ACT --model (not with --checkpoint)")
     chosen = ([(None, Path(args.checkpoint))] if args.checkpoint
@@ -482,7 +497,11 @@ def main():
                   + (f" ({others})" if others else ""))
         return score
 
+    arm.speed(args.speed)
     go_home(arm)
+    # where the arm was before this program started is unknown (go_home assumes
+    # home): give the longest trip home, 180 deg at this speed, time to finish
+    getattr(arm, "wait", time.sleep)(max(0.0, 180.0 / args.speed - 1.0))
     try:
         if args.trials:
             table = []
