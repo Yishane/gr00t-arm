@@ -2,6 +2,7 @@
 # Fine-tune GR00T N1.7 on the arm's dataset (run on the cloud GPU machine).
 #   bash finetune.sh ~/pick_ball            # dataset folder copied from data/lerobot/pick_ball
 # Optional: MAX_STEPS=3000 BATCH=32 bash finetune.sh ~/pick_ball
+# Colour jitter is on (see COLOR_JITTER below); COLOR_JITTER= bash finetune.sh ... turns it off.
 # Dry run on the fake dataset (checks the setup, learns nothing useful):
 #   MAX_STEPS=200 SAVE_STEPS=100 bash finetune.sh ~/gr00t/dryrun/pick_ball_sim
 # Checkpoints land in ~/gr00t_arm_ckpt/checkpoint-<step>.
@@ -12,6 +13,10 @@ MAX_STEPS="${MAX_STEPS:-3000}"
 BATCH="${BATCH:-32}"
 SAVE_STEPS="${SAVE_STEPS:-1000}"
 OUT="${OUT:-$HOME/gr00t_arm_ckpt}"
+# Every training image gets a random brightness / contrast / colour change, so
+# the model copes with a room lit differently from where the demos were
+# recorded (values from NVIDIA's new-embodiment fine-tune guide).
+COLOR_JITTER="${COLOR_JITTER-brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08}"
 export PATH="$HOME/.local/bin:$PATH"
 
 cd "$HOME/Isaac-GR00T"
@@ -25,6 +30,7 @@ CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}" uv run python gr00t/experiment
   --max-steps "$MAX_STEPS" \
   --save-steps "$SAVE_STEPS" \
   --global-batch-size "$BATCH" \
+  ${COLOR_JITTER:+--color-jitter-params $COLOR_JITTER} \
   --dataloader-num-workers 4
 
 # checkpoints are saved every 1000 steps, so checkpoint-$MAX_STEPS may not exist

@@ -818,6 +818,9 @@ bash ~/gr00t/setup_cloud.sh
 tmux
 bash ~/gr00t/finetune.sh ~/pick_ball
 \end{cmd}
+  Every training image gets a random brightness, contrast and colour change (colour jitter,
+  NVIDIA's values), so the model copes with a room lit differently from where the demos were
+  recorded; \texttt{COLOR\_JITTER= bash ...} turns it off.
   At the end it plots predicted vs.\ recorded actions for episode 0 in \file{/tmp/open_loop_eval}.
   The lines should overlap. Flat predicted lines mean something is wrong with the data.
 \item Serve the model:
