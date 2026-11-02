@@ -5,7 +5,22 @@ RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, 
 including small fixes. Put the note in the same commit, not a later one.
 
 ## >>> STATUS 2026-11-02 - GR00T DAY IS NOV 3, PRESENTATION THU NOV 4 - READ THIS FIRST <<<
-- main = 20b586f (#30 merged). No code changes since; this commit is context.md only.
+- main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
+- LIGHTING + BACKGROUND WILL DIFFER at the presentation and can't be made like the recording
+  room (Yishane can't get in early either). So both models now train with image augmentation:
+  - GR00T: software/gr00t/finetune.sh passes `--color-jitter-params brightness 0.3 contrast 0.4
+    saturation 0.5 hue 0.08` (NVIDIA's new-embodiment guide values; COLOR_JITTER= turns it off).
+    Without the flag launch_finetune.py sets color_jitter_params None -> NO jitter (despite its
+    docstring). Tested: the script's args parsed by NVIDIA's real FinetuneConfig via tyro
+    (Isaac-GR00T c56f541) -> {'brightness': 0.3, ...}; off -> None. The dry run uses it too.
+  - ACT (no code change, LeRobot 0.6.1 flag checked in the wheel): from the project root
+    `Rename-Item outputs\act\pick_ball pick_ball_noaug` (keeps the 60k model; run it with
+    --model pick_ball_noaug), then in software\act `uv run .\train_act.py --name pick_ball
+    --steps 60000 --save_freq=10000 --dataset.image_transforms.enable=true` (brightness,
+    contrast, saturation, hue, sharpness, small affine; up to 3 per image). Loss ends higher.
+  - Demo plan unchanged: scripted autodemo (doesn't use the camera) + videos are the safe part.
+  - Explain renames/commands fully the first time (Yishane asked "how would the old model's name be
+    changed??" after a bare Rename-Item).
 - THE REAL BALL IS RED. Sim recordings used `--ball-colour red`. Never call it orange (the sim's
   default colour is orange; the real one isn't).
 - Results of the Oct 31 night training (software/act):

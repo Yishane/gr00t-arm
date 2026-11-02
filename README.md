@@ -347,6 +347,8 @@ Legend: ✅ done · 🔄 in progress · ⬜ to do. "Claude" = done by Claude Cod
   box, copy `software/gr00t` + `data/lerobot/pick_ball` up with `scp`.
 - On the cloud box: `bash ~/gr00t/setup_cloud.sh` (needs `HF_TOKEN`), then
   `bash ~/gr00t/finetune.sh ~/pick_ball` (1–2 h, in `tmux`), then `bash ~/gr00t/serve.sh`.
+  Training uses colour jitter (random brightness / contrast / colour on every
+  image) so the model copes with different lighting; `COLOR_JITTER=` in front turns it off.
 - On the laptop: SSH tunnel `ssh -p <port> -L 5555:localhost:5555 root@<ip>`, then
   `uv run run_policy.py gr00t --host localhost --camera 1` and type the instruction.
 - Stop the cloud machine afterwards (it bills by the hour; budget about $10–20).
