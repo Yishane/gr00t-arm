@@ -13,8 +13,18 @@ including small fixes. Put the note in the same commit, not a later one.
   checked (teleop window vs newest demo frame 000000): same position and zoom, lighting a bit
   cooler now. The ball was in the cup in that comparison ONLY because Yishane copied the demo
   frame's layout for the comparison - NOT the test layout. (I wrongly blamed the ball-in-cup
-  layout; don't repeat that.) Cause still unknown. Offered: a replay check (model on recorded
-  frames vs the script's actions) to tell "didn't learn" from "live picture differs".
+  layout; don't repeat that.) Cause still unknown.
+- NEW software/act/check_act.py (Yishane said ok): runs an ACT checkpoint on frames of recorded
+  demos (data/raw/pick_ball, 12 spread out, every 15th frame) and compares its next 25 moves
+  with the script's: error vs "stand still" (verdict LEARNED / PARTLY / did NOT learn),
+  gripper end mm, open/close agreement. --live: one live camera frame at home -> how far it
+  wants to move in 25 moves vs on the recorded start frames, and where it heads (nearest
+  spot/cup); saves data/check_live.jpg. Uses run_policy.ActBackend (same path as run_act).
+  Tested with fake models (test_check_act.py, 5 tests; 152 total). Not run on a real model
+  here (no torch/GPU). Command (software\act, close teleop/run_act first for --live):
+  `uv run .\check_act.py --model pick_ball_noaug --step 60k --live --target ball`
+  LEARNED + live jump >> recorded = live picture is the problem (augmentation run helps);
+  did NOT learn = export/training problem, fix before training more.
 - Newest folder in data\raw\pick_ball starts with the ball already in the cup: possibly not a
   normal demo - worth checking/deleting.
 - main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
