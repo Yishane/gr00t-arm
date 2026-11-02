@@ -5,6 +5,28 @@ RULE (Yishane, 2026-10-30): EVERY commit updates context.md (what changed, why, 
 including small fixes. Put the note in the same commit, not a later one.
 
 ## >>> STATUS 2026-11-02 - GR00T DAY IS NOV 3, PRESENTATION THU NOV 4 - READ THIS FIRST <<<
+- DONE BY YISHANE (Nov 2 evening) - don't tell them to do it again: renamed
+  outputs\act\pick_ball -> outputs\act\pick_ball_noaug (the real-only 60k model). Run it with
+  `--model pick_ball_noaug --step 60k`. outputs\act\pick_ball = the new augmentation run.
+- Real-arm test of the 60k model (--horizon 25): bolts fast at the start to a random spot or
+  the cup, then shakes over the cup; gripper flips 50/90; no "limited"; calls ~60 ms. Camera
+  checked (teleop window vs newest demo frame 000000): same position and zoom, lighting a bit
+  cooler now. The ball was in the cup in that comparison ONLY because Yishane copied the demo
+  frame's layout for the comparison - NOT the test layout. (I wrongly blamed the ball-in-cup
+  layout; don't repeat that.) Cause still unknown.
+- NEW software/act/check_act.py (Yishane said ok): runs an ACT checkpoint on frames of recorded
+  demos (data/raw/pick_ball, 12 spread out, every 15th frame) and compares its next 25 moves
+  with the script's: error vs "stand still" (verdict LEARNED / PARTLY / did NOT learn),
+  gripper end mm, open/close agreement. --live: one live camera frame at home -> how far it
+  wants to move in 25 moves vs on the recorded start frames, and where it heads (nearest
+  spot/cup); saves data/check_live.jpg. Uses run_policy.ActBackend (same path as run_act).
+  Tested with fake models (test_check_act.py, 5 tests; 152 total). Not run on a real model
+  here (no torch/GPU). Command (software\act, close teleop/run_act first for --live):
+  `uv run .\check_act.py --model pick_ball_noaug --step 60k --live --target ball`
+  LEARNED + live jump >> recorded = live picture is the problem (augmentation run helps);
+  did NOT learn = export/training problem, fix before training more.
+- Newest folder in data\raw\pick_ball starts with the ball already in the cup: possibly not a
+  normal demo - worth checking/deleting.
 - main = 857ef48 (#31 + Yishane's README edit). Branch claude/gr00t-color-jitter: colour jitter on.
 - LIGHTING + BACKGROUND WILL DIFFER at the presentation and can't be made like the recording
   room (Yishane can't get in early either). So both models now train with image augmentation:
