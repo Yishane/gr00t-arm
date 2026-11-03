@@ -55,8 +55,9 @@ def export(raw, out: Path, max_extra=None):
     for ep in episodes:
         task = json.loads((ep / "meta.json").read_text())["task"]
         target = target_of(task)
-        if target is None:
-            raise SystemExit(f"{ep.name}: can't tell ball or block from task {task!r}")
+        if target is None:   # e.g. a GR00T run told "grab the sphere": ACT needs the target
+            print(f"skipping {ep.name}: can't tell ball or block from task {task!r}")
+            continue
         steps = pd.read_csv(ep / "steps.csv")
         state = steps[[f"state_{i}" for i in range(5)]].to_numpy(np.float32)
         state = np.hstack([state, np.full((len(state), 1), TARGETS.index(target), np.float32)])

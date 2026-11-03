@@ -12,6 +12,10 @@ if [ -z "${HF_TOKEN:-}" ]; then
 fi
 
 SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"   # cloud pods often run as root, no sudo
+# archive.ubuntu.com hung apt-get update for 20+ min on Lambda (2026-11-03): use the
+# kernel.org mirror and give up on a dead server after 15 s instead of waiting forever
+[ -f /etc/apt/sources.list ] && $SUDO sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu|g' /etc/apt/sources.list
+echo 'Acquire::http::Timeout "15"; Acquire::Retries "2";' | $SUDO tee /etc/apt/apt.conf.d/99timeout >/dev/null
 $SUDO apt-get update -y
 # GR00T's video decoder (torchcodec) needs FFmpeg 4-7; Ubuntu 22.04/24.04 ship 4.4 / 6.1
 DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y git git-lfs ffmpeg tmux curl

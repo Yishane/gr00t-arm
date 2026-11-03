@@ -8,6 +8,29 @@ including small fixes. Put the note in the same commit, not a later one.
 Yishane is switching to another agent session. This section is the whole current state; the
 sections below are older, chronological detail.
 
+### STATUS 2026-11-03 ~noon (GR00T day)
+- Lambda instance RUNNING at 192.222.53.163 (still billing). apt hung on archive.ubuntu.com;
+  fixed by switching sources.list to mirrors.edge.kernel.org + apt timeout (not in setup_cloud.sh).
+- Setup done, 100-step test on ~/pick_ball OK, then the 6000-step run FINISHED - but Yishane
+  TERMINATED the instance before downloading, so checkpoint-6000 is GONE. Redo in the afternoon.
+- setup_cloud.sh now applies the mirror + timeout fix itself (local edit, uncommitted).
+- Next (afternoon): new instance -> scp up -> setup -> train 6000 (skip the test run; the
+  pipeline is proven) -> scp checkpoint-6000 DOWN immediately -> serve + test on the arm ->
+  terminate only after `dir outputs\gr00t\checkpoint-6000` shows .safetensors files.
+
+### STATUS evening (laptop clock Nov 2, ~7 pm)
+- Second run DONE on a new A100 instance at **150.136.45.132** (still running/billing, kept up
+  for the arm test). checkpoint-6000 DOWNLOADED to outputs\gr00t\checkpoint-6000.
+- Open-loop plot (outputs\gr00t\open_loop_eval\traj_0.jpeg, a training demo): base ~perfect;
+  shoulder/elbow/wrist follow except steps ~80-130 (reach + grip), off up to ~10 deg; gripper
+  timing right, a few frames of flicker at the close.
+- Arm test planned ~9 pm (Part C2 of docs/GR00T_day_plan, with the IP above). Then terminate.
+- run_policy: GR00T on the real arm now takes ANY wording ("grab the sphere"; `free` in
+  instruction()/ask()); ACT and --mujoco still need ball/block. export_act skips episodes it
+  can't label instead of stopping. 158 tests.
+- Cosmos Transfer 2.5 (sim -> realistic video) discussed: NOT now. The real+sim problem is
+  the actions (per-spot fixes), not the look; use it as "future work" in the talk.
+
 ### Dates
 - Mon Nov 3: GR00T fine-tune in the cloud (the only day with a rented GPU).
 - Thu Nov 4: PRESENTATION. The point of the talk is GR00T. Nothing big and new after Nov 3.
