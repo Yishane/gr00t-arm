@@ -263,11 +263,12 @@ def test_grip_guard_ignores_one_frame_flicker():
 def test_grip_guard_stops_the_arm_then_closes():
     O, X = C.GRIPPER_OPEN, C.GRIPPER_CLOSED
     g = run_policy.GripGuard(O)
-    down = [[90, 90 + i, 90, 90, X] for i in range(1, 30)]   # still moving while closing
-    out = _feed(g, down, [90, 90, 90, 90, O])
+    low = _grip_at("B2")[:4]                                   # near the plate
+    down = [[low[0] + i * 0.2] + low[1:] + [X] for i in range(1, 30)]  # still moving
+    out = _feed(g, down, low + [O])
     n = run_policy.GRIP_HOLD + run_policy.GRIP_ARRIVE
     held = out[:n + run_policy.GRIP_SETTLE]
-    assert all(o[:4] == [90, 90, 90, 90] for o in held)       # arm still the whole close
+    assert all(o[:4] == low for o in held)                    # arm still the whole close
     assert [o[4] for o in out[:n]] == [O] * n                 # open until the arm is there
     assert out[n][4] == X
     assert out[-1][:4] == down[-1][:4]                        # then follows the model again
@@ -280,3 +281,17 @@ def test_grip_guard_opens_after_hold():
     out = _feed(g, [[90, 91, 90, 90, O]] * 6, [90, 90, 90, 90, X])
     assert [o[4] for o in out] == [X] * (run_policy.GRIP_HOLD - 1) + [O] * (7 - run_policy.GRIP_HOLD)
     assert all(o[:4] == [90, 91, 90, 90] for o in out)        # opening never holds the arm
+
+
+def test_grip_guard_ignores_a_close_at_home():
+    O, X = C.GRIPPER_OPEN, C.GRIPPER_CLOSED
+    g = run_policy.GripGuard(O)
+    out = _feed(g, [HOME5[:4] + [X]] * 10, HOME5)
+    assert all(o[4] == O for o in out)
+
+
+def test_make_safe_clamps_one_joint_instead_of_freezing():
+    last = [91.28, 106.99, 34.25, 177.0, C.GRIPPER_OPEN]       # wrist at its limit
+    cmd, ok = run_policy.make_safe([95, 115, 30, 179, C.GRIPPER_OPEN], last)
+    assert cmd[:3] == [95, 115, 30]                            # the other joints still move
+    assert cmd[3] == pytest.approx(run_policy.servo_limits("wrist")[1])

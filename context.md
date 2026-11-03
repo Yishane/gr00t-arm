@@ -23,6 +23,14 @@ sections below are older, chronological detail.
   only after 4 frames in a row; on a close the arm holds still, fingers stay open 9 more
   frames (0.3 s), then close, arm still 12 frames more. 165 tests.
 - Suggested run: `--reach 8 --lift 10` (z 19 vs the demos' 30 = ~10 mm low).
+- Runs 1-17 (data/raw/pick_ball_policy, guard on): FULL pick + carry + drop at the cup in
+  runs 1 (C1), 3 (B1), 13 (C1). Misses 15-35 mm came with the ball OFF the crosses / far
+  spots and NO block on the plate (runs 4-12); block put back from run 13 on.
+- BUG FIXED: make_safe cut the whole move short when one joint asked past its soft limit;
+  the wrist sits at its limit (177) a lot, so the arm FROZE (run 14: same command 360
+  frames; run 2 likely too). Now each joint is clamped to its own limit first.
+- GripGuard now ignores a close asked above 70 mm (model asked to close at home in runs
+  6/8/10 and the guard froze the arm there). 167 tests.
 
 ### STATUS 2026-11-03 ~noon (GR00T day)
 - Lambda instance RUNNING at 192.222.53.163 (still billing). apt hung on archive.ubuntu.com;

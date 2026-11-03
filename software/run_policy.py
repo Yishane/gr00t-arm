@@ -334,6 +334,13 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
 GRIP_HOLD = 4       # frames (~0.13 s at 30 fps)
 GRIP_ARRIVE = 9     # frames (~0.3 s): let the arm get there before closing
 GRIP_SETTLE = 12    # frames (~0.4 s): the fingers close on a still arm
+GRIP_MAX_Z = 70.0   # mm: a close asked for higher than this is ignored (the model
+                    # sometimes asks for one at home, 105 mm; demos close at ~30)
+
+
+def _height(servo):
+    """Gripper height above the plate (mm) for these servo degrees."""
+    return K.fk(*K.from_servo([float(a) for a in servo[:4]]))[2]
 
 
 class GripGuard:
@@ -356,6 +363,8 @@ class GripGuard:
                 self.at = None
             return out
         want = snap_gripper(cmd[4])
+        if want == C.GRIPPER_CLOSED and self.grip != want and _height(servo) > GRIP_MAX_Z:
+            want = self.grip
         if want == self.grip:
             self.streak, self.at = 0, None          # a flicker: forget it
             return list(cmd[:4]) + [self.grip]
@@ -442,6 +451,12 @@ def lift(cmd, lifts, reach=0.0):
     return list(servo) + [cmd[4]] if servo else cmd
 
 
+def servo_limits(name):
+    """(low, high) servo degrees for this joint's soft limit."""
+    ends = [C.OFFSET[name] + C.SIGN[name] * d for d in C.LIMITS[name]]
+    return min(ends), max(ends)
+
+
 def make_safe(cmd, last):
     """(command to send, whether it is the one asked for). last is the
     command sent before, which passed this check. An arm move that breaks a
@@ -452,6 +467,9 @@ def make_safe(cmd, last):
     if len(cmd) != 5 or not all(math.isfinite(float(a)) for a in cmd):
         return list(last), False
     cmd = [float(np.clip(a, C.SERVO_MIN, C.SERVO_MAX)) for a in cmd[:4]] + [snap_gripper(cmd[4])]
+    # each joint to its own soft limit first: cutting the whole move short instead
+    # froze the arm when one joint (the wrist, at 177) kept asking a hair past it
+    cmd = [float(np.clip(a, *servo_limits(name))) for name, a in zip(C.JOINTS, cmd[:4])] + [cmd[4]]
     if K.servo_ok(cmd[:4]):
         return cmd, True
     lo, hi = 0.0, 1.0                                     # last is safe, cmd isn't
