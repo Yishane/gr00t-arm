@@ -67,7 +67,7 @@ sections below are older, chronological detail.
 
 ### Setup (Yishane's laptop)
 - Windows, PowerShell, repo C:\Users\yskao\Projects\gr00t-arm, RTX 5050 8 GB. Camera = Yishane's
-  phone on the mast, index 1 (`--camera 1`). ACT commands run from software\act; most others
+  CAMERA on the mast (NOT a phone - Yishane corrected this several times), index 1 (`--camera 1`). ACT commands run from software\act; most others
   from software; exports/renames from the project root. ALWAYS say which folder.
 - THE REAL BALL IS RED (block green). Never say orange.
 - Calibrated home (servo deg): base 70, shoulder 91, elbow 83, wrist 92; gripper open 50,
@@ -128,7 +128,7 @@ sections below are older, chronological detail.
 5. `bash ~/gr00t/serve.sh`; laptop PowerShell 1: `ssh -N -L 5555:localhost:5555 ubuntu@<ip>`;
    PowerShell 2 (software): `uv run run_policy.py gr00t --host localhost --camera 1 --view --record`.
    Objects on marked spots, both on the plate, like the demos.
-6. FILM every good run (phone + --record). 7. Download the checkpoint BEFORE terminating
+6. FILM every good run (a separate phone video + --record). 7. Download the checkpoint BEFORE terminating
    (terminating deletes everything): `mkdir outputs\gr00t` then
    `scp -r ubuntu@<ip>:~/gr00t_arm_ckpt/checkpoint-6000 outputs\gr00t\`. Total ~3-4 h, ~$6-9.
 - GR00T at run time DRIVES the arm (camera frame + servo angles + sentence -> 16 servo
