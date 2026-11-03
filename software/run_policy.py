@@ -214,7 +214,7 @@ def _result(future):
 
 
 def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None,
-        done=None, show=None, lifts=None, reach=0.0):
+        done=None, show=None, lifts=None, reach=0.0, steady=True):
     """Run one instruction until the time is up or Ctrl+C.
     pipeline: ask for the next chunk while the current one plays, so the arm
     doesn't stop for the length of each policy call.
@@ -223,14 +223,15 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
     done: checked after every step; the run ends when it returns True.
     show: called as show(frame, task) with a camera frame every step (the live view).
     lifts: --lift (parse_lift): raise the gripper near the plate there.
-    reach: --reach mm: push the gripper that far out from the base near the plate."""
+    reach: --reach mm: push the gripper that far out from the base near the plate.
+    steady: GripGuard (stop before closing, ignore gripper flicker); off = --no-steady."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
     if rec:
         rec.start(task=task)
     try:
         _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done, show, lifts,
-               reach)
+               reach, steady)
         go_home(arm)
         if rec:
             rec.stop(keep=keep() if keep else True)
@@ -240,11 +241,12 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
 
 
 def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=None,
-           show=None, lifts=None, reach=0.0):
+           show=None, lifts=None, reach=0.0, steady=True):
     """The policy loop of run(); servo = the command the arm holds now.
     With lifts the arm gets the raised command, but the model is told the move
     it asked for (mine), so it doesn't push lower to make up for the lift."""
     mine = servo
+    guard = GripGuard(servo[4]) if steady else None
     dt = 1.0 / C.FPS
     t_end = time.time() + seconds
     fails = 0
@@ -286,6 +288,8 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
                 cmd = asked
                 if lifts or reach:
                     cmd, ok = make_safe(lift(asked, lifts, reach), servo)
+                if guard:
+                    cmd = guard(cmd, servo)
                 if rec or show:                           # what the camera sees at this step
                     seen = cam.read()
                     if rec:                               # ...then what was sent
@@ -318,6 +322,55 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
         print("stopped")
     finally:
         pool.shutdown(wait=False, cancel_futures=True)   # never wait for a slow call
+
+
+# The demos come down, STOP, then close. GR00T on the real arm closed while still
+# coming down (~80 mm/s) and flickered closed/open/closed for a frame or two, which
+# knocked the ball away. GripGuard: the gripper changes only after the model asks
+# for it GRIP_HOLD frames in a row. From the first frame a close is asked for the
+# arm holds still where it was; the fingers stay open GRIP_ARRIVE more frames (the
+# real arm trails its commands at --speed), then close, and the arm stays still
+# GRIP_SETTLE frames after that.
+GRIP_HOLD = 4       # frames (~0.13 s at 30 fps)
+GRIP_ARRIVE = 9     # frames (~0.3 s): let the arm get there before closing
+GRIP_SETTLE = 12    # frames (~0.4 s): the fingers close on a still arm
+
+
+class GripGuard:
+    def __init__(self, grip):
+        self.grip = snap_gripper(grip)
+        self.streak = 0         # frames in a row the model asked for the other grip
+        self.arrive = 0         # frames left with the fingers open, arm held
+        self.settle = 0         # frames left with the fingers closed, arm held
+        self.at = None          # arm angles held still while closing
+
+    def __call__(self, cmd, servo):
+        """cmd (already safe) -> what to send; servo = the command sent last."""
+        if self.arrive:
+            self.arrive -= 1
+            return self.at + [C.GRIPPER_OPEN]
+        if self.settle:
+            self.settle -= 1
+            out = self.at + [self.grip]
+            if not self.settle:
+                self.at = None
+            return out
+        want = snap_gripper(cmd[4])
+        if want == self.grip:
+            self.streak, self.at = 0, None          # a flicker: forget it
+            return list(cmd[:4]) + [self.grip]
+        self.streak += 1
+        closing = want == C.GRIPPER_CLOSED
+        if closing and self.at is None:
+            self.at = list(servo[:4])
+        if self.streak >= GRIP_HOLD:
+            self.grip, self.streak = want, 0
+            if closing:
+                self.arrive, self.settle = GRIP_ARRIVE, GRIP_SETTLE
+                return self.at + [C.GRIPPER_OPEN]
+        if self.at is not None:
+            return self.at + [C.GRIPPER_OPEN]
+        return list(cmd[:4]) + [self.grip]
 
 
 def snap_gripper(value):
@@ -510,6 +563,9 @@ def main():
     ap.add_argument("--reach", type=float, default=0.0, metavar="MM",
                     help="push the gripper MM farther out from the base near the plate, "
                          "for a model that grips short (toward itself); negative = closer")
+    ap.add_argument("--no-steady", dest="steady", action="store_false",
+                    help="send the gripper as the model asks, every frame (default: stop "
+                         "the arm before closing and ignore one-frame gripper flips)")
     ap.add_argument("--view", action="store_true",
                     help="show the camera live, with the instruction on top")
     ap.add_argument("--fullscreen", action="store_true",
@@ -557,7 +613,7 @@ def main():
         """One instruction. In the simulator: lay the objects out, keep only
         clean picks, and return the result."""
         opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show, lifts=args.lift,
-                    reach=args.reach)
+                    reach=args.reach, steady=args.steady)
         if not world:
             run(policy, arm, cam, task, args.horizon, args.seconds,
                 keep=ask_keep if rec else None, **opts)

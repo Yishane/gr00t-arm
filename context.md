@@ -14,6 +14,15 @@ sections below are older, chronological detail.
 - NEW run_policy --reach MM (branch claude/gr00t-reach): pushes the gripper MM farther out
   from the base near the plate (same height fade as --lift; the model is told its own
   command). Try `--reach 10`, then adjust. Can combine with --lift. 162 tests.
+- Then: "it keeps knocking the ball out before it can pick it up". The one saved run
+  (data/raw/pick_ball_policy/episode_000000, ball A1, before --reach) shows why: GR00T
+  closes at z=19 mm (demos stop at ~30 mm, THEN close) right as it arrives, and the
+  gripper flickers closed/open/closed (and opens for a frame later). The real arm trails
+  its commands at 60 deg/s, so it was still moving when the fingers closed.
+- NEW GripGuard in run_policy (ON by default, --no-steady turns it off): gripper changes
+  only after 4 frames in a row; on a close the arm holds still, fingers stay open 9 more
+  frames (0.3 s), then close, arm still 12 frames more. 165 tests.
+- Suggested run: `--reach 8 --lift 10` (z 19 vs the demos' 30 = ~10 mm low).
 
 ### STATUS 2026-11-03 ~noon (GR00T day)
 - Lambda instance RUNNING at 192.222.53.163 (still billing). apt hung on archive.ubuntu.com;

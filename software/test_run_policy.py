@@ -243,3 +243,40 @@ def test_reach_pushes_grip_out_from_base(spot):
 def test_reach_leaves_high_moves_alone():
     cmd = _grip_at("B2", z=90.0)
     assert run_policy.lift(cmd, None, 10.0) == cmd
+
+
+def _feed(guard, cmds, start):
+    servo, out = start, []
+    for c in cmds:
+        servo = guard(c, servo)
+        out.append(servo)
+    return out
+
+
+def test_grip_guard_ignores_one_frame_flicker():
+    O, X = C.GRIPPER_OPEN, C.GRIPPER_CLOSED
+    g = run_policy.GripGuard(O)
+    cmds = [[90, 90, 90, 90, O]] * 3 + [[90, 90, 90, 90, X]] + [[90, 90, 90, 90, O]] * 3
+    assert all(o[4] == O for o in _feed(g, cmds, [90, 90, 90, 90, O]))
+
+
+def test_grip_guard_stops_the_arm_then_closes():
+    O, X = C.GRIPPER_OPEN, C.GRIPPER_CLOSED
+    g = run_policy.GripGuard(O)
+    down = [[90, 90 + i, 90, 90, X] for i in range(1, 30)]   # still moving while closing
+    out = _feed(g, down, [90, 90, 90, 90, O])
+    n = run_policy.GRIP_HOLD + run_policy.GRIP_ARRIVE
+    held = out[:n + run_policy.GRIP_SETTLE]
+    assert all(o[:4] == [90, 90, 90, 90] for o in held)       # arm still the whole close
+    assert [o[4] for o in out[:n]] == [O] * n                 # open until the arm is there
+    assert out[n][4] == X
+    assert out[-1][:4] == down[-1][:4]                        # then follows the model again
+    assert out[-1][4] == X
+
+
+def test_grip_guard_opens_after_hold():
+    O, X = C.GRIPPER_OPEN, C.GRIPPER_CLOSED
+    g = run_policy.GripGuard(X)
+    out = _feed(g, [[90, 91, 90, 90, O]] * 6, [90, 90, 90, 90, X])
+    assert [o[4] for o in out] == [X] * (run_policy.GRIP_HOLD - 1) + [O] * (7 - run_policy.GRIP_HOLD)
+    assert all(o[:4] == [90, 91, 90, 90] for o in out)        # opening never holds the arm
