@@ -85,6 +85,14 @@ def test_instruction_expands_short_words():
     assert instruction("hello") is None
 
 
+def test_free_instruction_lets_any_wording_through_for_gr00t():
+    assert instruction("grab the sphere", free=True) == "grab the sphere"
+    assert instruction("ball and block", free=True) == "ball and block"
+    assert instruction(" ball ", free=True) == TASKS["ball"]      # short words still expand
+    assert instruction("   ", free=True) is None
+    assert instruction("grab the sphere") is None                 # ACT / sim: still checked
+
+
 def test_recorded_episode_saves_its_instruction(tmp_path, monkeypatch):
     import json
     import numpy as np

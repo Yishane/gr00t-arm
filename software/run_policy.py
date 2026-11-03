@@ -5,6 +5,8 @@ plate, then type what to do:
 
 The arm runs the policy for --seconds (or until Ctrl+C), goes home, and asks
 again. Type just "ball" or "block" for short, or q / an empty line to quit.
+With GR00T on the real arm any wording goes through as typed ("grab the
+sphere"); ACT and --mujoco need the words ball or block.
 
 GR00T (model running on the cloud GPU, see gr00t/README.md):
     uv run run_policy.py gr00t --host <cloud-ip> --server-port 5555
@@ -152,17 +154,21 @@ class ActBackend:
         return [list(map(float, a)) for a in actions[0].cpu().numpy()]
 
 
-def instruction(text):
+def instruction(text, free=False):
     """What was typed -> the instruction to send, or None if it isn't usable.
-    "ball" / "block" expand to the exact wording the demos were recorded with."""
+    "ball" / "block" expand to the exact wording the demos were recorded with.
+    free: any wording goes through as typed ("grab the sphere"), for GR00T,
+    which reads the words itself. Without it the text has to name exactly one
+    of ball / block: ACT gets the target as a number, and the simulator has to
+    know which object to lay out and score."""
     text = text.strip()
     target = target_of(text)
     if target is None:
-        return None
+        return text if free and text else None
     return TASKS[target] if text.lower() in (target, TASKS[target]) else text
 
 
-def ask():
+def ask(free=False):
     while True:
         try:
             text = input('\ninstruction> ').strip()
@@ -170,7 +176,7 @@ def ask():
             return None
         if text.lower() in ("", "q", "quit", "exit"):
             return None
-        task = instruction(text)
+        task = instruction(text, free)
         if task:
             return task
         print(f'say which object: "{TASKS["ball"]}" or "{TASKS["block"]}"')
@@ -513,9 +519,11 @@ def main():
     if len(chosen) > 1 and not args.trials:
         raise SystemExit("several checkpoints are compared with --mujoco --trials N")
 
+    # GR00T on the real arm takes any wording; ACT and the simulator need ball / block
+    free = args.backend == "gr00t" and not args.mujoco
     task = None
     if args.task:
-        task = instruction(args.task)
+        task = instruction(args.task, free)
         if task is None:
             raise SystemExit(f"--task must name the ball or the block: {args.task!r}")
     rec = None
@@ -594,8 +602,8 @@ def main():
             one(policy, task)
             return
         print(f'type an instruction, e.g. "{TASKS["ball"]}" or "{TASKS["block"]}" '
-              f"(q to quit)")
-        while (task := ask()) is not None:
+              + ("- any wording works with GR00T " if free else "") + "(q to quit)")
+        while (task := ask(free)) is not None:
             one(policy, task)
     finally:
         go_home(arm)
