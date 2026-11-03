@@ -31,6 +31,12 @@ sections below are older, chronological detail.
   frames; run 2 likely too). Now each joint is clamped to its own limit first.
 - GripGuard now ignores a close asked above 70 mm (model asked to close at home in runs
   6/8/10 and the guard froze the arm there). 167 tests.
+- Yishane STOPPED GR00T testing here (Nov 2 ~11 pm). Talk plan: explain how it should
+  work, then "this is what happened when I let Timothy (the arm) control himself" -> chaos
+  clip. NEW software/freakout.py makes the arm "bug out" on purpose: random twitch / whip /
+  chomp / headbang / freeze / lunge / spin at 180 deg/s, all through make_safe; gripper
+  stays >= 80 mm except lunges to 45 mm over a spot (clear the plate). `uv run freakout.py
+  [--seconds 20] [--speed 120] [--sim]`. Remind: terminate the Lambda instance.
 
 ### STATUS 2026-11-03 ~noon (GR00T day)
 - Lambda instance RUNNING at 192.222.53.163 (still billing). apt hung on archive.ubuntu.com;
