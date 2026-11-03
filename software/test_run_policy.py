@@ -1,3 +1,4 @@
+import math
 import pytest
 
 import arm_io
@@ -222,3 +223,23 @@ def test_go_home_waits_for_the_whole_trip():
     assert arm.waits[-1] >= 90 / 60                     # 1.5 s at 60 deg/s
     run_policy.go_home(arm)                             # already home: the 1 s minimum
     assert arm.waits[-1] == 1.0
+
+
+def _grip_at(spot, z=25.0):
+    x, y = A.SPOTS[spot]
+    return list(A.solve_near(x, y, z, math.radians(-60))) + [C.GRIPPER_OPEN]
+
+
+@pytest.mark.parametrize("spot", ["A1", "B2", "C3"])
+def test_reach_pushes_grip_out_from_base(spot):
+    cmd = _grip_at(spot)
+    x0, y0, z0, _ = K.fk(*K.from_servo(cmd[:4]))
+    x1, y1, z1, _ = K.fk(*K.from_servo(run_policy.lift(cmd, None, 10.0)[:4]))
+    assert math.hypot(x1, y1) - math.hypot(x0, y0) == pytest.approx(10.0, abs=0.5)
+    assert z1 == pytest.approx(z0, abs=0.5)
+    assert math.atan2(y1, x1) == pytest.approx(math.atan2(y0, x0), abs=0.01)
+
+
+def test_reach_leaves_high_moves_alone():
+    cmd = _grip_at("B2", z=90.0)
+    assert run_policy.lift(cmd, None, 10.0) == cmd

@@ -214,7 +214,7 @@ def _result(future):
 
 
 def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=None,
-        done=None, show=None, lifts=None):
+        done=None, show=None, lifts=None, reach=0.0):
     """Run one instruction until the time is up or Ctrl+C.
     pipeline: ask for the next chunk while the current one plays, so the arm
     doesn't stop for the length of each policy call.
@@ -222,13 +222,15 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
     keep: asked once the arm is home whether to save the episode (default: save).
     done: checked after every step; the run ends when it returns True.
     show: called as show(frame, task) with a camera frame every step (the live view).
-    lifts: --lift (parse_lift): raise the gripper near the plate there."""
+    lifts: --lift (parse_lift): raise the gripper near the plate there.
+    reach: --reach mm: push the gripper that far out from the base near the plate."""
     print(f'running "{task}" for {seconds:.0f} s (Ctrl+C stops it)')
     servo = go_home(arm)
     if rec:
         rec.start(task=task)
     try:
-        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done, show, lifts)
+        _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done, show, lifts,
+               reach)
         go_home(arm)
         if rec:
             rec.stop(keep=keep() if keep else True)
@@ -238,7 +240,7 @@ def run(policy, arm, cam, task, horizon, seconds, pipeline=True, rec=None, keep=
 
 
 def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=None,
-           show=None, lifts=None):
+           show=None, lifts=None, reach=0.0):
     """The policy loop of run(); servo = the command the arm holds now.
     With lifts the arm gets the raised command, but the model is told the move
     it asked for (mine), so it doesn't push lower to make up for the lift."""
@@ -282,8 +284,8 @@ def _drive(policy, arm, cam, task, horizon, seconds, pipeline, rec, servo, done=
             for i, asked in enumerate(steps):
                 asked, ok = make_safe(asked, mine)
                 cmd = asked
-                if lifts:
-                    cmd, ok = make_safe(lift(asked, lifts), servo)
+                if lifts or reach:
+                    cmd, ok = make_safe(lift(asked, lifts, reach), servo)
                 if rec or show:                           # what the camera sees at this step
                     seen = cam.read()
                     if rec:                               # ...then what was sent
@@ -368,16 +370,20 @@ def lift_at(xy, lifts):
     return best
 
 
-def lift(cmd, lifts):
-    """cmd with the gripper raised by --lift (same x, y and tilt) when it's
-    near the plate; anything else unchanged."""
-    if not lifts or len(cmd) != 5 or not all(math.isfinite(float(a)) for a in cmd):
+def lift(cmd, lifts, reach=0.0):
+    """cmd with the gripper raised by --lift and pushed out from the base by
+    --reach (same tilt) when it's near the plate; anything else unchanged."""
+    if (not lifts and not reach) or len(cmd) != 5 or not all(math.isfinite(float(a)) for a in cmd):
         return cmd
     x, y, z, pitch = K.fk(*K.from_servo([float(a) for a in cmd[:4]]))
     fade = min(1.0, max(0.0, (LIFT_ABOVE - z) / (LIFT_ABOVE - LIFT_BELOW)))
-    dz = lift_at((x, y), lifts) * fade
-    if abs(dz) < 0.1:
+    dz = (lift_at((x, y), lifts) if lifts else 0.0) * fade
+    dr = reach * fade
+    if abs(dz) < 0.1 and abs(dr) < 0.1:
         return cmd
+    r = math.hypot(x, y)
+    if r > 1.0:                     # out along the line from the base axis
+        x, y = x * (r + dr) / r, y * (r + dr) / r
     from autodemo import solve_near
     servo = solve_near(x, y, z + dz, pitch)
     return list(servo) + [cmd[4]] if servo else cmd
@@ -501,6 +507,9 @@ def main():
                     help="raise the gripper near the plate (same x, y): MM everywhere, or "
                          "only round named spots, e.g. --lift C3=8,B3=6, for a model that "
                          "grips a little low there (negative = lower)")
+    ap.add_argument("--reach", type=float, default=0.0, metavar="MM",
+                    help="push the gripper MM farther out from the base near the plate, "
+                         "for a model that grips short (toward itself); negative = closer")
     ap.add_argument("--view", action="store_true",
                     help="show the camera live, with the instruction on top")
     ap.add_argument("--fullscreen", action="store_true",
@@ -510,6 +519,8 @@ def main():
         raise SystemExit("--trials, --offset and --anywhere are for the simulator (--mujoco)")
     if args.offset and args.anywhere:
         raise SystemExit("use --offset or --anywhere, not both")
+    if not -15 <= args.reach <= 30:
+        raise SystemExit("--reach: between -15 and 30 mm")
     if not 10 <= args.speed <= 180:
         raise SystemExit("--speed: between 10 and 180 deg/s")
     if args.step and (args.backend != "act" or args.checkpoint):
@@ -545,7 +556,8 @@ def main():
     def one(policy, task):
         """One instruction. In the simulator: lay the objects out, keep only
         clean picks, and return the result."""
-        opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show, lifts=args.lift)
+        opts = dict(pipeline=not args.no_pipeline, rec=rec, show=show, lifts=args.lift,
+                    reach=args.reach)
         if not world:
             run(policy, arm, cam, task, args.horizon, args.seconds,
                 keep=ask_keep if rec else None, **opts)

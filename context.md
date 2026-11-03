@@ -8,6 +8,13 @@ including small fixes. Put the note in the same commit, not a later one.
 Yishane is switching to another agent session. This section is the whole current state; the
 sections below are older, chronological detail.
 
+### STATUS night (Nov 2, arm test with GR00T checkpoint-6000)
+- GR00T on the real arm is "really really close": goes to the ball/block but grips TOO CLOSE
+  TO THE BASE (short) every time, just under/in front of the object.
+- NEW run_policy --reach MM (branch claude/gr00t-reach): pushes the gripper MM farther out
+  from the base near the plate (same height fade as --lift; the model is told its own
+  command). Try `--reach 10`, then adjust. Can combine with --lift. 162 tests.
+
 ### STATUS 2026-11-03 ~noon (GR00T day)
 - Lambda instance RUNNING at 192.222.53.163 (still billing). apt hung on archive.ubuntu.com;
   fixed by switching sources.list to mirrors.edge.kernel.org + apt timeout (not in setup_cloud.sh).
