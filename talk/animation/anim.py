@@ -1040,7 +1040,7 @@ def sc_versus(t):
     put(cheese(t), 1430, 580, pc, wig(t, 0.9, 2, 1))
     txt(t, 13.28, "ACTION HEAD", 1430, 220, 100, tilt=2)
     txt(t, 14.24, "about as intelligent", 1430, 900, 70, kind="hand", tilt=-2)
-    txt(t, 15.32, "as a block|of cheese", 1430, 900, 70, RED, kind="hand", tilt=-2)
+    txt(t, 15.32, "as...|a block|of cheese", 1430, 900, 70, RED, kind="hand", tilt=-2)
     if t >= 13.3:                       # a fly buzzing around the cheese
         a = t * 5
         fx, fy = 1430 + 260 * math.cos(a), 500 + 120 * math.sin(a * 1.3)
