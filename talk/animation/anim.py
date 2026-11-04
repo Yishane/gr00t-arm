@@ -920,11 +920,36 @@ def sc_jam(t):
     txt(t, 9.3, "(2 systems??)", 1450, 860, 80, kind="hand", tilt=-2)
 
 
+def vlm_merge(t):
+    """'VISION' 'LANGUAGE' 'MODEL' pop in as they're said, then squish into 'VLM'."""
+    f, fv = font("comic", 90), font("comic", 110)
+    words = [("VISION", 10.6, 360, BLUE), ("LANGUAGE", 10.86, 960, RED), ("MODEL", 11.24, 1540, GREEN)]
+    vw = fv.getlength("VLM")
+    u = ramp(t, 11.5, 11.8)
+    if u >= 1:
+        put(sprite("text", "VLM", 110, BLACK, "comic", 0, WHITE, 0.0), 480, 150)
+        return
+    for i, (wd, t0, cx, col) in enumerate(words):
+        p = pop(t, t0)
+        if not p:
+            continue
+        left = cx - f.getlength(wd) / 2
+        w1 = f.getlength(wd[0])
+        rest = wd[1:]
+        # the first letter flies to its spot in "VLM" and grows; the rest shrinks away
+        fx = lerp(left + w1 / 2, 480 - vw / 2 + fv.getlength("VLM"[:i]) + fv.getlength("VLM"[i]) / 2, ease(u))
+        fy = lerp(150, 150, u)
+        put(sprite("text", wd[0], 90, col if u < 0.6 else BLACK, "comic", 0, WHITE, 0.0), fx, fy,
+            p * lerp(1, 110 / 90, u))
+        rx = lerp(left + w1 + f.getlength(rest) / 2, fx, u)
+        put(sprite("text", rest, 90, col, "comic", 0, WHITE, 0.0), rx, 150, p * (1 - u))
+
+
 def sc_versus(t):
     p = pop(t, 10.5)
     look_g = (1, 0.1) if t > 15.3 else None
     put(gpt(t, look_g, eye_s=1.0), 480, 560, p, wig(t, 0.7, 3))
-    txt(t, 10.6, "VLM", 480, 150, 110, tilt=-2)
+    vlm_merge(t)
     if t >= 11.74:
         put(sprite("gradcap"), 450, 345, pop(t, 11.74), -14)
         sparkles(t, [(250, 380), (700, 330), (720, 720), (240, 760)])
@@ -1234,11 +1259,10 @@ def sc_understand(t):
 
 
 def sc_problem(t):
-    fill(RED if int((t - 86.32) / 0.12) % 2 == 0 and t < 87.2 else WHITE)
-    put(sprite("warn"), 960, 470, pop(t, 86.32, 0.15) * 1.3, wig(t, 6, 5))
+    put(sprite("warn"), 960, 470, pop(t, 86.32, 0.15) * 1.3, wig(t, 1.5, 4))
     txt(t, 86.7, "PROBLEM", 960, 880, 170, BLACK, stroke=7, tilt=-2)
     if not any(sh[0] == 86.32 for sh in SHAKES):
-        shake(86.32, 0.8, 26)
+        shake(86.32, 0.3, 14)
 
 
 def sc_stranger(t):
@@ -1433,7 +1457,8 @@ SCENES = [
 
 
 ZOOMS = [  # (time, how much, x, y): punch in on that point, hold, ease back
-    (5.6, .10, 700, 560), (6.42, .16, 880, 560), (9.3, .10, 1450, 800), (12.0, .12, 480, 560),
+    (5.6, .10, 700, 560), (6.42, .16, 880, 560), (9.3, .10, 1450, 800), (11.8, .10, 480, 150),
+    (12.0, .12, 480, 560),
     (16.38, .16, 1430, 600), (19.0, .06, 960, 560), (22.0, .14, 1450, 700), (22.88, .12, 1300, 520),
     (25.28, .14, 430, 520), (26.7, .08, 1260, 820), (30.2, .10, 600, 400), (32.46, .12, 1150, 350),
     (34.84, .08, 960, 600), (37.22, .10, 500, 800), (39.12, .10, 960, 420), (40.64, .10, 960, 400),
@@ -1502,7 +1527,7 @@ def _register_shakes():
     """Shakes are added the first time a scene reaches them; pre-run each scene's
     shake times so every worker process knows them from frame 0."""
     for t0, dur, amp in [(6.42, 0.45, 28), (21.0, 0.35, 18), (22.0, 0.3, 24), (55.35, 0.4, 26),
-                         (86.32, 0.8, 26), (104.42, 0.5, 26)]:
+                         (86.32, 0.3, 14), (104.42, 0.5, 26)]:
         if not any(s[0] == t0 for s in SHAKES):
             SHAKES.append((t0, dur, amp))
 
