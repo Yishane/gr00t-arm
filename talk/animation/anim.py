@@ -1123,10 +1123,9 @@ def sc_nothing(t):
     proud = t >= 49.48
     put_tim(820, 1050, 1.08, rot, t, look=(0.2, -1) if proud else None)
     txt(t, 48.86, "absolutely", 600, 140, 80, kind="hand", tilt=-3)
-    txt(t, 49.3, "NOTHING", 600, 260, 140, RED, stroke=5, tilt=-3)
+    txt(t, 49.4, "NOTHING", 600, 260, 140, RED, stroke=5, tilt=-3)
     if t >= 49.48:
         sparkles(t, [(330, 220), (880, 170), (900, 330)])
-    txt(t, 49.9, "*proud*", 1250, 230, 60, kind="hand", tilt=8)
 
 
 def sc_supposed(t):
