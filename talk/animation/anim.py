@@ -277,18 +277,19 @@ def cheese_body(rng):
 
 @S
 def groot_body(rng):
+    """GR00T as a goofy green duck (facing right) with its name on its belly."""
     im, d = new(500, 500)
-    dark, lite = (88, 145, 0, 255), (160, 215, 50, 255)
-    poly(d, [(110, 70), (40, 130), (5, 75), (80, 25)], rng, fill=lite)          # flaps
-    poly(d, [(380, 130), (450, 70), (495, 115), (425, 175)], rng, fill=lite)
-    poly(d, [(40, 130), (380, 130), (450, 70), (110, 70)], rng, fill=lite)
-    poly(d, [(380, 130), (450, 70), (450, 410), (380, 470)], rng, fill=dark)
-    poly(d, [(40, 130), (380, 130), (380, 470), (40, 470)], rng, fill=NVG)
-    d.text((210, 300), "ISAAC", font=font("comic", 52), fill=WHITE, anchor="mm", stroke_width=3,
+    dark, beak = (80, 140, 0, 255), (255, 150, 30, 255)
+    for x in (190, 290):                                                       # feet
+        poly(d, [(x - 10, 430), (x + 10, 430), (x + 45, 485), (x - 35, 485)], rng, fill=beak, w=5)
+    poly(d, [(80, 300), (15, 215), (125, 255)], rng, fill=NVG)                # tail
+    ell(d, 235, 330, 190, 125, rng, fill=NVG)                                 # body
+    ell(d, 205, 320, 95, 55, rng, fill=dark, rot=-12)                         # wing
+    ell(d, 360, 165, 95, 92, rng, fill=NVG)                                   # head
+    poly(d, [(435, 160), (495, 175), (490, 200), (435, 210)], rng, fill=beak, w=6)  # beak
+    line(d, [(440, 190), (488, 188)], rng, 4)
+    d.text((240, 390), "GR00T", font=font("comic", 62), fill=WHITE, anchor="mm", stroke_width=4,
            stroke_fill=BLACK)
-    d.text((210, 368), "GR00T", font=font("comic", 70), fill=WHITE, anchor="mm", stroke_width=4,
-           stroke_fill=BLACK)
-    d.text((330, 440), "N1.7", font=font("hand", 30), fill=BLACK, anchor="mm")
     return im
 
 
@@ -813,7 +814,7 @@ def cheese(t, look=None, mode="normal", eye_s=1.0):
 
 
 def groot(t, look=None, mode="normal", eye_s=1.0):
-    return char_img(sprite("groot_body"), [(150, 200, 40), (270, 195, 48)], t, look, mode, eye_s, 3)
+    return char_img(sprite("groot_body"), [(335, 150, 36), (402, 143, 42)], t, look, mode, eye_s, 3)
 
 
 def me(t, tired=False, look=None):
@@ -1229,7 +1230,7 @@ def sc_cosmos(t):
         up = pop(t, 58.0, 0.3)
         gy = lerp(500, 270, up)
         d = D()
-        zz = [(960 + (25 if i % 2 else -25), lerp(430, gy + 90, i / 8)) for i in range(9)]
+        zz = [(960 + (25 if i % 2 else -25), lerp(590, gy + 90, i / 8)) for i in range(9)]
         line(d, zz, vrng("spring"), 7, col=DGREY)
         put(gpt(t, (0, 0.3) if t < 61.5 else None), 960, gy, 0.55, wig(t, 1.2, 4))
         if t >= 61.5:
@@ -1283,7 +1284,7 @@ def panel_img(kind, t):
 def sc_ez(t):
     put(groot(t, (0, 0.5)), 960, 300, 0.65, wig(t, 0.7, 3))
     if t >= 70.3:
-        put(sprite("shades"), 960 - 18, 300 - 80, pop(t, 70.3) * 0.62, -4)
+        put(sprite("shades"), 960 + 76, 300 - 68, pop(t, 70.3) * 0.42, -4)
     txt(t, 70.3, "no problem", 1340, 230, 90, tilt=6)
     if t < 73.54:
         txt(t, 71.62, "the more|common issues", 960, 640, 90, kind="hand", tilt=-2)
