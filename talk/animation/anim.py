@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 W, H, FPS = 1920, 1080, 30
 DURATION = 148.0
-BOIL = 4          # frames per wobble pose (~7 poses a second)
+BOIL = 3          # frames per wobble pose (10 poses a second)
 NVAR = 3          # wobble poses per sprite
 
 FONTS = {"hand": r"C:\Windows\Fonts\Inkfree.ttf", "comic": r"C:\Windows\Fonts\comicbd.ttf"}
@@ -82,7 +82,7 @@ def lerp(a, b, u):
     return a + (b - a) * u
 
 
-def pop(t, t0, d=0.22):
+def pop(t, t0, d=0.14):
     """0 before t0, then springs up to 1 with an overshoot."""
     if t < t0:
         return 0.0
@@ -688,6 +688,28 @@ def bubble(rng, full, k, w, h, tail):
 
 
 @S
+def note(rng, k):
+    """A sticky note with pictures: me -> wants -> ball -> in -> cup (first k parts)."""
+    im, d = new(980, 330)
+    poly(d, [(15, 20), (965, 12), (958, 315), (22, 320)], rng, fill=(255, 245, 150, 255), w=7)
+    if k >= 1:
+        m = sprite("me_body", False).resize((120, 224))
+        im.alpha_composite(m, (90, 30))
+        d.text((150, 285), "unemployed", font=font("hand", 34), fill=BLACK, anchor="mm")
+    if k >= 2:
+        arrow(d, (270, 160), (380, 160), rng, w=8)
+    if k >= 3:
+        b = sprite("ball", RED, 50)
+        im.alpha_composite(b, (480 - b.width // 2, 160 - b.height // 2))
+    if k >= 4:
+        arrow(d, (580, 160), (690, 160), rng, w=8)
+    if k >= 5:
+        c = sprite("cup").resize((180, 180))
+        im.alpha_composite(c, (720, 70))
+    return im
+
+
+@S
 def halo(rng):
     im, d = new(300, 110)
     ell(d, 150, 55, 125, 32, rng, w=12, col=GOLD)
@@ -889,8 +911,6 @@ def sc_jam(t):
             eye_s=1.25 if t >= 7.4 else 1.0)
     if t < 6.42:
         put(groot(t, look=(0.3, 1)), hx, by, bs, wig(t, 1.5, 4))
-    if 6.42 <= t < 7.3:
-        put(sprite("boom", "CRAMMED"), hx, hy - 60, pop(t, 6.42, 0.15) * 0.8, -6)
     if t >= 6.42 and not any(sh[0] == 6.42 for sh in SHAKES):
         shake(6.42, 0.45, 28)
     txt(t, 7.22, "VISION", 1450, 260, 110, BLUE, tilt=-2)
@@ -941,8 +961,6 @@ def sc_fusion(t):
         a = (t - 21.0) * 14
         put(gpt(t, mode="spiral"), cx + 60 * math.cos(a), cy + 60 * math.sin(a), sc, a * 50)
         put(cheese(t, mode="spiral"), cx - 60 * math.cos(a), cy - 60 * math.sin(a), sc, -a * 50)
-        if t < 21.5:
-            put(sprite("boom", "FUSION!!"), 960, 560, pop(t, 21.0, 0.12) * 0.85, 5)
     if t >= 21.0 and not any(sh[0] == 21.0 for sh in SHAKES):
         shake(21.0, 0.35, 18)
         shake(22.0, 0.3, 24)
@@ -989,19 +1007,19 @@ def sc_whisper(t):
     cx = lerp(2300, 1480, ramp(t, 27.4, 27.85))
     put(cheese(t, [(-1, -0.4), (-1, 0.2)] if t < 31 else None), cx, 760, 0.9, wig(t, 0.8, 2))
     if t >= 29.16:
-        k = sum(1 for w in BUM_T if t >= w)
-        put(sprite("bubble", BUM, k, 1300, 300, (220, 420)), 870, 380, pop(t, 29.16))
+        k = sum(1 for w in [29.58, 30.64, 31.52, 32.0, 32.46] if t >= w)
+        u = ramp(t, 29.16, 29.45)
+        put(sprite("note", k), lerp(420, 900, u), lerp(700, 330, u), lerp(0.2, 1.0, u), wig(t, 0.7, 2) - 2)
     if t >= 30.2:
-        put(me(t), 960, 800, pop(t, 30.2) * 0.62)
-        txt(t, 30.4, "(me)", 1110, 640, 60, kind="hand", tilt=6)
+        txt(t, 30.2, "(me)", 300, 200, 64, kind="hand", tilt=-6)
+        arrow(D(), (330, 240), (470, 300), vrng("me_ar"), w=8)
     txt(t, 31.0, "?", 1580, 520, 120, tilt=10)
 
 
 def sc_think(t):
     if t < 33.95:
         u = ramp(t, 33.3, 33.9)
-        put(sprite("bubble", BUM, 10, 1300, 300, (220, 420)), lerp(870, 960, u), lerp(380, 600, u),
-            lerp(0.6, 0.02, u))
+        put(sprite("note", 5), lerp(900, 960, u), lerp(330, 600, u), lerp(1.0, 0.02, u), u * 360)
     mode = "spiral" if 39.4 <= t else "normal"
     put(cheese(t, mode=mode), 960, 640, 1.1, wig(t, 3 if t > 39.3 else 0.8, 3 if t > 39.3 else 2))
     if t < 38.5:
@@ -1048,7 +1066,6 @@ def sc_moves(t):
     txt(t, 40.64, "16 MOVES", 960, 450, 120, tilt=-2)
     txt(t, 43.4, "(only the first 8 lol)", 960, 570, 60, kind="hand", tilt=2)
     put(cheese(t), 1650, 930, 0.5, wig(t, 0.8, 3))
-    txt(t, 41.2, "nailed it", 1360, 1000, 56, kind="hand", tilt=-4)
     if t >= 42.02:
         n = sum(1 for i in range(8) if t >= 42.94 + 0.08 * i)
         rot = 7 * (1 if n % 2 else -1) if 0 < n < 8 or t < 43.7 and n else 0
@@ -1171,6 +1188,8 @@ def sc_ez(t):
     if t >= 70.3:
         put(sprite("shades"), 960 - 18, 300 - 80, pop(t, 70.3) * 0.62, -4)
     txt(t, 70.56, "ez", 1260, 230, 110, tilt=10)
+    if t < 73.54:
+        txt(t, 71.96, "common issues:", 960, 640, 90, kind="hand", tilt=-2)
     for k, (t0, label) in enumerate([(73.54, "new background"), (74.84, "new lighting"),
                                      (75.88, "new ball colour")]):
         x = 360 + 600 * k
@@ -1202,10 +1221,10 @@ def sc_understand(t):
     put(sprite("ground", 1300), 1300, 860)
     if 82.86 <= t < 84.2:
         k = sum(1 for w in [82.86, 83.3, 83.44, 83.56, 83.76] if t >= w)
-        put(sprite("bubble", "pick up the round thing", k, 900, 220, (700, -40)), 1150, 260, pop(t, 82.86))
+        put(sprite("prompt_box", "pick up the round thing", 820), 1150, 230, pop(t, 82.86))
     elif t >= 84.2:
         k = sum(1 for w in [84.36, 84.64, 84.84, 85.04] if t >= w)
-        put(sprite("bubble", "get that red one", k, 800, 220, (650, -40)), 1150, 260, pop(t, 84.2))
+        put(sprite("prompt_box", "get that red one", 820), 1150, 230, pop(t, 84.2))
     if t >= 83.9:
         arrow(D(), (600, 640), (1110, 760), vrng("a2"), w=10, col=TEAL)
         put(sprite("check", GREEN, 110), 1240, 640, pop(t, 83.95))
@@ -1230,9 +1249,8 @@ def sc_stranger(t):
     else:
         put_tim(1380, 1050, pop(t, 87.74) * 0.85, 0, t, mode="spiral" if t >= 92.9 else "normal",
                 look=(-1, 0) if t < 90 else None)
-    if 89.9 <= t < 91.04:
-        k = sum(1 for w in [89.9, 90.1, 90.3, 90.5] if t >= w)
-        put(sprite("bubble", "who is this guy??", k, 640, 190, (-120, 230)), 760, 200, pop(t, 89.9))
+    if t < 91.04:
+        txt(t, 89.66, "never seen\nhim before", 960, 200, 70, kind="hand", tilt=-3)
     for i, (x, y, t0) in enumerate([(380, 230, 91.5), (640, 260, 91.8), (520, 160, 92.1), (300, 380, 92.4)]):
         txt(t, t0, "?", x, y, 120 + 20 * (i % 2), RED if i % 2 else BLACK, tilt=15 - i * 10)
     txt(t, 92.04, "no idea.", 500, 960, 90, tilt=-3)
@@ -1389,8 +1407,10 @@ def sc_smug(t):
     txt(t, 145.2, "an arm GR00T already knows", 1150, 1010, 58, kind="hand")
     put(groot(t, mode="heart"), 1700, 760, pop(t, 145.72) * 0.45, wig(t, 1.3, 5))
     if t >= 146.12:
-        k = sum(1 for w in [146.12, 146.3, 146.5, 146.7, 146.85] if t >= w)
-        put(sprite("bubble", "oh I know this guy", k, 720, 170, (600, 465)), 1450, 300, pop(t, 146.12))
+        d = D()
+        for i in range(4):
+            ph = ((t - 146.12) * 0.7 + i / 4) % 1
+            heart(d, 1660 - 380 * ph, 640 - 300 * ph + 30 * math.sin(ph * 9 + i), 26, vrng("hh", i))
     tear = t >= 147.0
     put_tim(330, 1070, 0.6, 0, t, look=(1, -0.3))
     if tear:
@@ -1412,6 +1432,42 @@ SCENES = [
 ]
 
 
+ZOOMS = [  # (time, how much, x, y): punch in on that point, hold, ease back
+    (5.6, .10, 700, 560), (6.42, .16, 880, 560), (9.3, .10, 1450, 800), (12.0, .12, 480, 560),
+    (16.38, .16, 1430, 600), (19.0, .06, 960, 560), (22.0, .14, 1450, 700), (22.88, .12, 1300, 520),
+    (25.28, .14, 430, 520), (26.7, .08, 1260, 820), (30.2, .10, 600, 400), (32.46, .12, 1150, 350),
+    (34.84, .08, 960, 600), (37.22, .10, 500, 800), (39.12, .10, 960, 420), (40.64, .10, 960, 400),
+    (43.32, .10, 700, 400), (46.14, .08, 960, 540), (48.02, .10, 1400, 900), (49.48, .16, 600, 300),
+    (51.2, .12, 960, 520), (52.7, .06, 960, 500), (54.84, .10, 960, 500), (55.35, .08, 900, 800),
+    (57.6, .08, 960, 690), (59.24, .12, 960, 300), (62.34, .12, 400, 480), (64.02, .06, 1560, 600),
+    (67.8, .10, 1350, 700), (68.92, .08, 1350, 300), (70.3, .14, 960, 300), (74.14, .08, 360, 760),
+    (75.28, .08, 960, 760), (77.1, .08, 1560, 760), (79.68, .08, 1300, 400), (80.4, .16, 700, 540),
+    (83.76, .10, 1200, 760), (84.84, .10, 1200, 760), (86.32, .12, 960, 540), (89.66, .10, 600, 600),
+    (92.04, .10, 500, 800), (94.78, .08, 400, 500), (95.54, .08, 960, 700), (97.58, .10, 1580, 500),
+    (99.12, .08, 1520, 950), (101.76, .06, 1300, 300), (102.94, .06, 1300, 600), (104.42, .14, 900, 540),
+    (106.76, .12, 430, 560), (108.46, .08, 1290, 530), (111.34, .10, 1300, 900), (112.64, .08, 960, 300),
+    (114.8, .12, 900, 260), (116.88, .08, 1450, 900), (117.8, .10, 1100, 860), (120.58, .12, 960, 420),
+    (121.72, .10, 960, 650), (125.04, .10, 900, 200), (127.08, .10, 380, 600), (130.78, .06, 900, 560),
+    (134.66, .10, 1100, 850), (137.54, .08, 1000, 900), (138.42, .08, 760, 950), (141.32, .14, 700, 520),
+    (143.36, .10, 1450, 600), (145.32, .10, 1150, 600), (146.12, .10, 1600, 650), (147.2, .35, 380, 850),
+]
+
+
+def zoom_now(t):
+    """Punch-in zoom: the latest zoom started in the last second (and not before this scene's cut)."""
+    cut = max(t0 for t0, t1, _ in SCENES if t0 <= t)
+    best = None
+    for z in ZOOMS:
+        if cut <= z[0] <= t < z[0] + 1.0:
+            best = z
+    if not best:
+        return 1.0, W / 2, H / 2
+    t0, amp, x, y = best
+    u = t - t0
+    e = u / 0.06 if u < 0.06 else (1.0 if u < 0.45 else 1 - ease((u - 0.45) / 0.5))
+    return 1 + amp * e, x, y
+
+
 def render(f):
     """Frame f -> raw RGB bytes."""
     global FR, CAN
@@ -1422,6 +1478,12 @@ def render(f):
         if t0 <= t < t1:
             fn(t)
             break
+    z, zx, zy = zoom_now(t)
+    if z > 1.001:
+        cw, ch = W / z, H / z
+        x0 = clamp(zx - cw / 2, 0, W - cw)
+        y0 = clamp(zy - ch / 2, 0, H - ch)
+        CAN = CAN.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch))
     dx = dy = 0.0
     for t0, dur, amp in SHAKES:
         if t0 <= t < t0 + dur:
