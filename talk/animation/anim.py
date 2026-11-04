@@ -1211,7 +1211,7 @@ def sc_ez(t):
     if t < 73.54:
         txt(t, 71.96, "common issues:", 960, 640, 90, kind="hand", tilt=-2)
     for k, (t0, label) in enumerate([(73.54, "changing the background"), (74.84, "changing the lighting"),
-                                     (75.88, "changing the colour\nof the ball")]):
+                                     (75.88, "changing the colour of the ball")]):
         x = 360 + 600 * k
         p = pop(t, t0)
         if p:
