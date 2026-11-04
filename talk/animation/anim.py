@@ -604,6 +604,32 @@ def sign(rng, s, col=BROWN):
 
 
 @S
+def sign_icon(rng, k):
+    """Wooden sign with a picture: $ / computer / grass / white flag / camera."""
+    im, d = new(220, 170)
+    poly(d, [(10, 10), (210, 10), (210, 160), (10, 160)], rng, fill=(235, 200, 140, 255), w=6, col=BROWN)
+    if k == 0:
+        d.text((110, 88), "$$", font=font("comic", 80), fill=(40, 130, 40, 255), anchor="mm")
+    elif k == 1:
+        poly(d, [(50, 35), (170, 35), (170, 115), (50, 115)], rng, fill=LBLUE, w=6)
+        line(d, [(110, 115), (110, 140)], rng, 6)
+        line(d, [(80, 142), (140, 142)], rng, 6)
+    elif k == 2:
+        for x in range(40, 190, 22):
+            line(d, [(x, 140), (x - 8, 70 + (x * 7) % 30)], rng, 6, col=GREEN)
+            line(d, [(x, 140), (x + 9, 80 + (x * 5) % 25)], rng, 6, col=(30, 140, 50, 255))
+    elif k == 3:
+        line(d, [(70, 145), (70, 30)], rng, 7, col=BROWN)
+        poly(d, [(72, 32), (170, 45), (165, 95), (72, 85)], rng, fill=WHITE, w=5)
+    else:
+        poly(d, [(40, 55), (150, 55), (150, 135), (40, 135)], rng, fill=(40, 40, 40, 255), w=5)
+        poly(d, [(150, 75), (190, 55), (190, 135), (150, 115)], rng, fill=(40, 40, 40, 255), w=5)
+        ell(d, 95, 95, 25, 25, rng, fill=GREY, w=4)
+        ell(d, 60, 38, 12, 12, rng, fill=RED, w=0)
+    return im
+
+
+@S
 def loop_arrow(rng):
     im, d = new(640, 640)
     pts = [(320 + 260 * math.cos(math.radians(a)), 320 + 260 * math.sin(math.radians(a)))
@@ -637,8 +663,7 @@ def scene_frame(rng):
                         ((330, 330), sprite("block", GREEN))]:
         bb = b.resize((int(b.width * 0.7), int(b.height * 0.7)))
         im.alpha_composite(bb, (int(bx - bb.width / 2), int(by - bb.height / 2)))
-    d.text((80, 50), "the scene", font=font("hand", 32), fill=RED, anchor="lm")
-    ell(d, 50, 50, 10, 10, rng, fill=RED, w=0)
+        ell(d, 50, 50, 10, 10, rng, fill=RED, w=0)
     return im
 
 
@@ -696,13 +721,15 @@ def note(rng, k):
     if k >= 1:
         m = sprite("me_body", False).resize((120, 224))
         im.alpha_composite(m, (165, 25))
-        d.text((225, 300), "this unemployed bum", font=f, fill=BLACK, anchor="mm")
+        if k <= 2:
+            d.text((225, 300), "this unemployed bum", font=f, fill=BLACK, anchor="mm")
     if k >= 2:
         arrow(d, (400, 150), (500, 150), rng, w=8)
     if k >= 3:
         b = sprite("ball", RED, 50)
         im.alpha_composite(b, (620 - b.width // 2, 150 - b.height // 2))
-        d.text((620, 300), "the round thing", font=f, fill=BLACK, anchor="mm")
+        if k <= 4:
+            d.text((620, 300), "the round thing", font=f, fill=BLACK, anchor="mm")
     if k >= 4:
         arrow(d, (750, 150), (850, 150), rng, w=8)
     if k >= 5:
@@ -818,10 +845,61 @@ def put(im, x, y, s=1.0, rot=0.0, pivot=(0.5, 0.5), alpha=1.0):
     CAN.paste(im, (int(round(x - px)), int(round(y - py))), im)
 
 
-def txt(t, t0, s, x, y, size=80, col=BLACK, kind="comic", stroke=0, tilt=0.0, scol=WHITE, rot=0.0):
+PENDING = []      # captions asked for while drawing this scene
+
+
+@lru_cache(None)
+def spoken_words():
+    import json
+    return json.load(open(os.path.join(HERE, "words.json"), encoding="utf-8"))["words"]
+
+
+def txt(t, t0, s, x, y, size=80, col=BLACK, kind="comic", stroke=0, tilt=0.0, scol=WHITE, rot=0.0,
+        group=None, label=False):
+    """On-screen words. Captions (the default) say what's being spoken: at most 3 words show at a
+    time; "a b|c d" shows "a b", then "c d" from the moment its first word is said; and only the
+    newest caption (or captions sharing its group) is on screen. label=True draws it as-is."""
+    args = (s, x, y, size, col, kind, stroke, tilt, scol, rot)
+    if label:
+        _draw_txt(t, t0, *args)
+    else:
+        PENDING.append((t0, group or (t0, s), args))
+
+
+def _draw_txt(t, t0, s, x, y, size, col, kind, stroke, tilt, scol, rot):
     p = pop(t, t0, 0.08)
     if p:
         put(sprite("text", s, size, col, kind, stroke, scol, tilt), x, y, p, rot)
+
+
+def chunk_now(t, t0, s):
+    """The chunk of 'a b|c d' being said at time t, and when it started."""
+    parts = s.split("|")
+    if len(parts) == 1:
+        return (s, t0) if t >= t0 else (None, None)
+    words = spoken_words()
+    i0 = min(range(len(words)), key=lambda i: abs(words[i]["t0"] - t0))
+    cur = start = None
+    n = 0
+    for part in parts:
+        ts = words[min(i0 + n, len(words) - 1)]["t0"] if n else t0
+        if t >= ts:
+            cur, start = part, ts
+        n += len(part.split())
+    return cur, start
+
+
+def flush_captions(t):
+    live = [c for c in PENDING if c[0] <= t]
+    PENDING.clear()
+    if not live:
+        return
+    newest = max(live, key=lambda c: c[0])[1]
+    for t0, g, args in live:
+        if g == newest:
+            cur, start = chunk_now(t, t0, args[0])
+            if cur:
+                _draw_txt(t, start, cur, *args[1:])
 
 
 def D():
@@ -891,7 +969,7 @@ def clock_hands(cx, cy, s, t, speed=1.0):
 # ---------------------------------------------------------------- scenes
 def sc_title(t):
     put_tim(700, 1030, 1.0, wig(t, 0.5, 3), t)
-    txt(t, 0.5, "THIS IS TIMOTHY", 1380, 280, 104, tilt=-3)
+    txt(t, 0.5, "THIS IS TIMOTHY", 1380, 280, 104, tilt=-3, label=True)
     if t >= 1.5:
         arrow(D(), (1200, 560), (980, 530), vrng("a0"), w=11)
 
@@ -915,36 +993,37 @@ def sc_jam(t):
         put(groot(t, look=(0.3, 1)), hx, by, bs, wig(t, 1.5, 4))
     if t >= 6.42 and not any(sh[0] == 6.42 for sh in SHAKES):
         shake(6.42, 0.45, 28)
-    txt(t, 7.22, "VISION", 1450, 260, 110, BLUE, tilt=-2)
-    txt(t, 7.46, "LANGUAGE", 1450, 390, 110, RED, tilt=1)
-    txt(t, 7.82, "ACTION", 1450, 520, 110, GREEN, tilt=-1)
-    txt(t, 8.26, "= VLA", 1450, 680, 140, tilt=3)
+    merge(t, [("VISION", 7.22, 1450, 260, BLUE), ("LANGUAGE", 7.46, 1450, 390, RED),
+              ("ACTION", 7.82, 1450, 520, GREEN)], "VLA", 1450, 420, 8.26, 8.56, 110, 160)
     txt(t, 9.3, "two systems", 1450, 860, 80, kind="hand", tilt=-2)
 
 
-def vlm_merge(t):
-    """'VISION' 'LANGUAGE' 'MODEL' pop in as they're said, then squish into 'VLM'."""
-    f, fv = font("comic", 90), font("comic", 110)
-    words = [("VISION", 10.6, 360, BLUE), ("LANGUAGE", 10.86, 960, RED), ("MODEL", 11.24, 1540, GREEN)]
-    vw = fv.getlength("VLM")
-    u = ramp(t, 11.5, 11.8)
+def merge(t, words, target, tx, ty, ua, ub, fs=90, ts=110):
+    """Words pop in as they're said, then squish into their first letters (e.g. VLM)."""
+    f, fv = font("comic", fs), font("comic", ts)
+    tw = fv.getlength(target)
+    u = ramp(t, ua, ub)
     if u >= 1:
-        put(sprite("text", "VLM", 110, BLACK, "comic", 0, WHITE, 0.0), 480, 150)
+        put(sprite("text", target, ts, BLACK, "comic", 0, WHITE, 0.0), tx, ty)
         return
-    for i, (wd, t0, cx, col) in enumerate(words):
-        p = pop(t, t0)
+    for i, (wd, t0, cx, cy, col) in enumerate(words):
+        p = pop(t, t0, 0.08)
         if not p:
             continue
         left = cx - f.getlength(wd) / 2
         w1 = f.getlength(wd[0])
         rest = wd[1:]
-        # the first letter flies to its spot in "VLM" and grows; the rest shrinks away
-        fx = lerp(left + w1 / 2, 480 - vw / 2 + fv.getlength("VLM"[:i]) + fv.getlength("VLM"[i]) / 2, ease(u))
-        fy = lerp(150, 150, u)
-        put(sprite("text", wd[0], 90, col if u < 0.6 else BLACK, "comic", 0, WHITE, 0.0), fx, fy,
-            p * lerp(1, 110 / 90, u))
-        rx = lerp(left + w1 + f.getlength(rest) / 2, fx, u)
-        put(sprite("text", rest, 90, col, "comic", 0, WHITE, 0.0), rx, 150, p * (1 - u))
+        fx = lerp(left + w1 / 2, tx - tw / 2 + fv.getlength(target[:i]) + fv.getlength(target[i]) / 2, ease(u))
+        fy = lerp(cy, ty, ease(u))
+        put(sprite("text", wd[0], fs, col if u < 0.6 else BLACK, "comic", 0, WHITE, 0.0), fx, fy,
+            p * lerp(1, ts / fs, u))
+        put(sprite("text", rest, fs, col, "comic", 0, WHITE, 0.0), lerp(left + w1 + f.getlength(rest) / 2, fx, u),
+            lerp(cy, fy, u), p * (1 - u))
+
+
+def vlm_merge(t):
+    merge(t, [("VISION", 10.6, 360, 150, BLUE), ("LANGUAGE", 10.86, 960, 150, RED),
+              ("MODEL", 11.24, 1540, 150, GREEN)], "VLM", 480, 150, 11.5, 11.8)
 
 
 def sc_versus(t):
@@ -959,8 +1038,8 @@ def sc_versus(t):
     pc = pop(t, 13.1)
     put(cheese(t), 1430, 580, pc, wig(t, 0.9, 2, 1))
     txt(t, 13.28, "ACTION HEAD", 1430, 220, 100, tilt=2)
-    txt(t, 14.24, "about as intelligent", 1430, 870, 66, kind="hand", tilt=-2)
-    txt(t, 15.32, "as a block of cheese", 1430, 960, 66, RED, kind="hand", tilt=-2)
+    txt(t, 14.24, "about as intelligent", 1430, 900, 70, kind="hand", tilt=-2)
+    txt(t, 15.32, "as a block|of cheese", 1430, 900, 70, RED, kind="hand", tilt=-2)
     if t >= 13.3:                       # a fly buzzing around the cheese
         a = t * 5
         fx, fy = 1430 + 260 * math.cos(a), 500 + 120 * math.sin(a * 1.3)
@@ -971,7 +1050,7 @@ def sc_versus(t):
 
 
 def sc_fusion(t):
-    txt(t, 18.18, "how do the VLM and the block of cheese work together on Timothy?", 960, 100, 58, kind="hand", tilt=-1)
+    txt(t, 18.18, "how do|the VLM|and the block|of cheese|work together|on Timothy?", 960, 110, 90, kind="hand", tilt=-1)
     u = ramp(t, 20.42, 21.0)
     if t < 21.0:
         j1 = thud(t, 18.92, 12, 8, 5)
@@ -994,7 +1073,7 @@ def sc_fusion(t):
         big = t >= 22.0
         put_tim(1350, 1060, pop(t, 21.24) * 0.8, thud(t, 22.0, 8), t, "tiny" if big else "normal",
                 None if big else (-1, -0.5), 1.4 if big else 1.0)
-        txt(t, 22.05, "?!", 1560, 380, 130, RED, tilt=8)
+        txt(t, 22.05, "?!", 1560, 380, 130, RED, tilt=8, label=True)
 
 
 def sc_timer(t):
@@ -1018,8 +1097,8 @@ def sc_look(t):
                 x0, y0 = lerp(ex, 940, u0), lerp(ey, 420 + (i - 0.5) * 120, u0)
                 x1, y1 = lerp(ex, 940, u1), lerp(ey, 420 + (i - 0.5) * 120, u1)
                 line(d, [(x0, y0), (x1, y1)], vrng("beam", i, k), 8, col=YEL)
-    txt(t, 24.76, "takes a look at the scene", 700, 120, 64, kind="hand")
-    put(sprite("prompt_box", "pick up the ball"), 1260, 820, pop(t, 25.92))
+    txt(t, 24.76, "takes a look|at the scene", 700, 120, 80, kind="hand")
+    put(sprite("prompt_box", "grab the ball"), 1260, 820, pop(t, 25.92))
     txt(t, 25.92, "reads my prompt", 1260, 960, 64, kind="hand", tilt=3)
 
 
@@ -1035,7 +1114,7 @@ def sc_whisper(t):
         k = sum(1 for w in [29.16, 30.64, 31.32, 32.0, 32.34] if t >= w)
         u = ramp(t, 29.16, 29.45)
         put(sprite("note", k), lerp(420, 900, u), lerp(700, 330, u), lerp(0.2, 1.0, u), wig(t, 0.7, 2) - 2)
-    txt(t, 31.0, "?", 1580, 520, 120, tilt=10)
+    txt(t, 31.0, "?", 1580, 520, 120, tilt=10, label=True)
 
 
 def sc_think(t):
@@ -1055,10 +1134,10 @@ def sc_think(t):
             u = ease((t - t0) / 0.7)
             x, y = lerp(hx, 960, u), lerp(hy, 620, u) - 200 * math.sin(math.pi * u)
             put(sprite("text", s, 64, col, "comic", 0, WHITE, 0.0), x, y, lerp(1, 0.3, u))
-    txt(t, 36.36, "Timothy's current\nservo angles", 330, 360, 56, kind="hand")
+    txt(t, 36.36, "Timothy's current|servo angles", 330, 380, 64, kind="hand")
     if t >= 39.12:
         put(sprite("nn"), 960, 290, pop(t, 39.12) * 0.9, wig(t, 4, 4))
-        txt(t, 38.56, "uses a neural network", 960, 110, 60, kind="hand", tilt=-1)
+        txt(t, 38.56, "uses a|neural network", 960, 110, 80, kind="hand", tilt=-1)
         sweat(t, 1240, 470, 2)
     if t >= 39.6:
         d = D()
@@ -1085,8 +1164,8 @@ def sc_moves(t):
             put(sprite("check", GREEN, 80), x + 10, y + 10, pop(t, 42.94 + 0.08 * i, 0.15))
         if i >= 8 and t >= 43.55:
             put(sprite("xmark", 90), x, y, pop(t, 43.55, 0.12), rot)
-    txt(t, 40.2, "the next 16 moves", 960, 450, 110, tilt=-2)
-    txt(t, 42.02, "Timothy then does the first 8", 960, 570, 64, kind="hand", tilt=2)
+    txt(t, 40.2, "the next|16 moves", 960, 450, 110, tilt=-2)
+    txt(t, 42.02, "Timothy then|does the|first 8", 960, 470, 100, kind="hand", tilt=2)
     put(cheese(t), 1650, 930, 0.5, wig(t, 0.8, 3))
     if t >= 42.02:
         n = sum(1 for i in range(8) if t >= 42.94 + 0.08 * i)
@@ -1118,8 +1197,8 @@ def sc_nothing(t):
         eye(d, 1678, 972, 11, vrng("be2"), (-0.6, -1))
     proud = t >= 49.48
     put_tim(820, 1050, 1.08, rot, t, look=(0.2, -1) if proud else None)
-    txt(t, 48.86, "absolutely", 600, 140, 80, kind="hand", tilt=-3)
-    txt(t, 49.55, "NOTHING", 600, 260, 140, RED, stroke=5, tilt=-3)
+    txt(t, 48.86, "absolutely", 600, 140, 80, kind="hand", tilt=-3, group="nothing")
+    txt(t, 49.55, "NOTHING", 600, 260, 140, RED, stroke=5, tilt=-3, group="nothing")
     if t >= 49.48:
         sparkles(t, [(330, 220), (880, 170), (900, 330)])
 
@@ -1137,9 +1216,9 @@ def sc_supposed(t):
         hx, hy = tim_head(960, 1050, 0.95)
         put(sprite("halo"), hx, hy - 150, pop(t, 52.1))
         sparkles(t, [(620, 500), (1350, 380), (1380, 760), (560, 820)], 34)
-        txt(t, 52.5, "how Timothy was supposed to work", 960, 120, 76, kind="hand")
+        txt(t, 52.5, "how Timothy|was supposed|to work", 960, 120, 100, kind="hand")
     else:
-        txt(t, 54.84, "why he didn't work", 960, 140, 130, RED, stroke=5, tilt=-3)
+        txt(t, 54.84, "why he|didn't work", 960, 140, 130, RED, stroke=5, tilt=-3)
     if t >= 55.35 and not any(sh[0] == 55.35 for sh in SHAKES):
         shake(55.35, 0.4, 26)
 
@@ -1157,8 +1236,8 @@ def sc_cosmos(t):
             put(sprite("crown"), 960, gy - 125, pop(t, 61.5) * 0.6, wig(t, 1.2, 4))
     txt(t, 59.24, "COSMOS REASON 2", 960, 75, 84, WHITE, stroke=6, scol=BLACK)
     put(sprite("trophy"), 1560, 600, pop(t, 60.78) * 0.95, wig(t, 0.9, 4))
-    txt(t, 62.34, "#1", 380, 470, 220, GOLD, stroke=8, scol=BLACK, tilt=-6)
-    txt(t, 61.96, "the best reasoning VLM\nthat currently exists", 380, 700, 54, kind="hand")
+    txt(t, 62.34, "#1", 380, 470, 220, GOLD, stroke=8, scol=BLACK, tilt=-6, label=True)
+    txt(t, 61.96, "the best|reasoning VLM|that currently exists", 380, 700, 64, kind="hand")
     confetti(t, 62.34)
 
 
@@ -1207,9 +1286,9 @@ def sc_ez(t):
         put(sprite("shades"), 960 - 18, 300 - 80, pop(t, 70.3) * 0.62, -4)
     txt(t, 70.3, "no problem", 1340, 230, 90, tilt=6)
     if t < 73.54:
-        txt(t, 71.62, "the more common issues", 960, 640, 90, kind="hand", tilt=-2)
+        txt(t, 71.62, "the more|common issues", 960, 640, 90, kind="hand", tilt=-2)
     for k, (t0, label) in enumerate([(73.54, "changing the background"), (74.84, "changing the lighting"),
-                                     (76.08, "changing the colour of the ball")]):
+                                     (76.08, "changing the colour|of the ball")]):
         x = 360 + 600 * k
         p = pop(t, t0)
         if p:
@@ -1237,12 +1316,8 @@ def sc_understand(t):
     put(sprite("ball", RED, 55), 1200, 780)
     put(sprite("block", GREEN), 1600, 780)
     put(sprite("ground", 1300), 1300, 860)
-    if 82.86 <= t < 84.2:
-        k = sum(1 for w in [82.86, 83.3, 83.44, 83.56, 83.76] if t >= w)
-        put(sprite("prompt_box", "pick up the round thing", 820), 1150, 230, pop(t, 82.86))
-    elif t >= 84.36:
-        k = sum(1 for w in [84.36, 84.64, 84.84, 85.04] if t >= w)
-        put(sprite("prompt_box", "get that red one", 820), 1150, 230, pop(t, 84.36))
+    txt(t, 82.86, "pick up|the round thing", 1150, 230, 100, TEAL)
+    txt(t, 84.36, "get that|red one", 1150, 230, 100, RED)
     if t >= 83.9:
         arrow(D(), (600, 640), (1110, 760), vrng("a2"), w=10, col=TEAL)
         put(sprite("check", GREEN, 110), 1240, 640, pop(t, 83.95))
@@ -1253,7 +1328,7 @@ def sc_understand(t):
 
 def sc_problem(t):
     put(sprite("warn"), 960, 470, pop(t, 86.32, 0.15) * 1.3, wig(t, 1.5, 4))
-    txt(t, 86.32, "here comes the problem", 960, 880, 120, BLACK, stroke=6, tilt=-2)
+    txt(t, 86.32, "here comes|the problem", 960, 880, 130, BLACK, stroke=6, tilt=-2)
     if not any(sh[0] == 86.32 for sh in SHAKES):
         shake(86.32, 0.3, 14)
 
@@ -1269,8 +1344,8 @@ def sc_stranger(t):
     if t < 91.04:
         txt(t, 89.66, "never seen before", 960, 200, 70, kind="hand", tilt=-3)
     for i, (x, y, t0) in enumerate([(380, 230, 91.5), (640, 260, 91.8), (520, 160, 92.1), (300, 380, 92.4)]):
-        txt(t, t0, "?", x, y, 120 + 20 * (i % 2), RED if i % 2 else BLACK, tilt=15 - i * 10)
-    txt(t, 91.7, "no idea how Timothy works", 600, 960, 80, tilt=-3)
+        txt(t, t0, "?", x, y, 120 + 20 * (i % 2), RED if i % 2 else BLACK, tilt=15 - i * 10, label=True)
+    txt(t, 91.7, "no idea|how Timothy works", 600, 960, 90, tilt=-3)
 
 
 def sc_demos(t):
@@ -1289,20 +1364,20 @@ def sc_demos(t):
         arrow(D(), (1110, 640), (1400, 650), vrng("a3"), w=11)
     if t >= 97.6:
         put(sprite("bulb"), 1580, 330, pop(t, 97.6) * 0.75, wig(t, 1, 5))
-    put(sprite("prompt_box", "pick up the ball", 620), 1520, 990, pop(t, 99.12) * 0.85)
+    put(sprite("prompt_box", "grab the ball", 620), 1520, 990, pop(t, 99.12) * 0.85)
 
 
 def sc_two(t):
     if t < 104.42:
         put(me(t), 500, 640, pop(t, 100.88) * 0.9)
-        txt(t, 101.76, "ACTUAL.", 1300, 300, 120, BLUE, tilt=-3)
-        txt(t, 102.46, "PHYSICAL.", 1300, 450, 120, RED, tilt=2)
-        txt(t, 102.94, "LIVE.", 1300, 600, 120, GREEN, tilt=-2)
+        txt(t, 101.76, "ACTUAL.", 1300, 300, 120, BLUE, tilt=-3, group="apl")
+        txt(t, 102.46, "PHYSICAL.", 1300, 450, 120, RED, tilt=2, group="apl")
+        txt(t, 102.94, "LIVE.", 1300, 600, 120, GREEN, tilt=-2, group="apl")
         return
     put(sprite("warn"), 260, 230, pop(t, 104.5) * 0.6, wig(t, 4, 6))
     put(sprite("warn"), 1680, 860, pop(t, 104.6) * 0.6, wig(t, 4, 6, 1))
-    txt(t, 104.42, "2", 700, 520, 420, RED, stroke=10, tilt=-8)
-    txt(t, 104.68, "MORE\nPROBLEMS", 1250, 540, 120, tilt=3)
+    txt(t, 104.42, "2", 700, 520, 420, RED, stroke=10, tilt=-8, group="2mp")
+    txt(t, 104.68, "MORE\nPROBLEMS", 1250, 540, 120, tilt=3, group="2mp")
     if not any(sh[0] == 104.42 for sh in SHAKES):
         shake(104.42, 0.5, 26)
 
@@ -1320,7 +1395,7 @@ def sc_claude(t):
             put(sprite("text", s, 54, [BLUE, RED, GREEN, PURPLE, BLACK, ORANGE][i], "comic", 0, WHITE, 0.0),
                 430 + 270 * math.cos(a), 560 + 185 * math.sin(a), pop(t, 108.12 + 0.07 * i))
     if t >= 110.94:
-        put(sprite("text", "GOOD DATA", 100, GREEN, "comic", 6, WHITE, -8.0), 1250, 920, pop(t, 111.34, 0.1))
+        txt(t, 111.34, "GOOD DATA", 1250, 920, 100, GREEN, stroke=6, tilt=-8)
         put(sprite("check", GREEN, 110), 1620, 900, pop(t, 111.2))
         sparkles(t, [(900, 870), (1700, 990)], 30, GOLD)
 
@@ -1333,17 +1408,16 @@ def sc_calibrate(t):
         put(sprite("watch", True), 1520, 330, pop(t, 114.16) * 0.7, wig(t, 5, 4))
         clock_hands(1520, 330 + 30 * 0.7, 0.7, t - 114.16, 6.0)
     txt(t, 114.8, "2-3 HOURS", 900, 260, 120, RED, stroke=5, tilt=-4)
-    txt(t, 115.66, "on top of assembling Timothy", 900, 400, 66, kind="hand")
+    txt(t, 115.66, "on top of|assembling Timothy", 900, 400, 80, kind="hand")
     jit = wig(t, 9, 3) if t >= 117.8 else 0
     put_tim(1450, 1060, pop(t, 116.5) * 0.6, jit, t)
     if t >= 117.8:
         put(sprite("protractor"), 1090, 860, pop(t, 117.8) * 0.9, wig(t, 1, 8))
-        dots = "." * (1 + int((t - 117.8) * 3) % 3)
-        put(sprite("text", "calibrate" + dots, 62, BLACK, "hand", 0, WHITE, 0.0), 820, 990)
+        txt(t, 117.8, "calibrate", 820, 990, 70, kind="hand")
 
 
 def sc_ohwait(t):
-    txt(t, 120.58, "oh, and I forgot\nto mention", 960, 500, 130, kind="hand", tilt=-4)
+    txt(t, 120.58, "oh, and|I forgot|to mention", 960, 500, 150, kind="hand", tilt=-4)
 
 
 def sc_record(t):
@@ -1355,7 +1429,7 @@ def sc_record(t):
     rot = -22 * (0.5 - 0.5 * math.cos(2 * math.pi * (t - 122.84) * 0.9))
     put_tim(1150, 1060, 0.8, rot, t)
     cnt = 1 + int(max(0, t - 122.84) * 21)
-    put(sprite("text", f"demo #{min(cnt, 150)}", 74, BLACK, "comic", 0, WHITE, 0.0), 1600, 480)
+    put(sprite("text", f"#{min(cnt, 150)}", 74, BLACK, "comic", 0, WHITE, 0.0), 1600, 480)
     put(sprite("watch", True), 1690, 290, pop(t, 123.0) * 0.55, wig(t, 5, 4))
     clock_hands(1690, 290 + 30 * 0.55, 0.55, t - 123.0, 8.0)
     txt(t, 124.36, "ANOTHER 2-3 HOURS", 900, 140, 100, RED, stroke=5, tilt=-2)
@@ -1387,7 +1461,7 @@ def sc_paths(t):
         bad = k == 4
         col = RED if (bad and chosen) else ((200, 200, 200, 255) if chosen else BLACK)
         line(d, path_pts(k), vrng("path", k), 14 if (bad and chosen) else 8, col=col)
-        put(sprite("sign", PATHS[k][1]), *PATHS[k][2], pop(t, 130.78 + 0.3 * k) * (1.1 if bad and chosen else 0.9))
+        put(sprite("sign_icon", k), *PATHS[k][2], pop(t, 130.78 + 0.3 * k) * (1.1 if bad and chosen else 0.9))
     if chosen:
         pts = path_pts(4)
         for u, kind in [(0.35, "skull"), (0.55, "clock"), (0.75, "skull")]:
@@ -1404,12 +1478,12 @@ def sc_paths(t):
         put(me(t, tired=u > 0.5), lerp(x0, x1, f), lerp(y0, y1, f) - 90, 0.38, wig(t, 2, 5))
     else:
         put(me(t), 230, 470, pop(t, 129.88) * 0.55)
-    txt(t, 131.74, "all the possible paths", 620, 90, 70, kind="hand")
-    txt(t, 136.98, "actual time out of my daily life", 760, 1000, 64, kind="hand", tilt=-3)
+    txt(t, 131.74, "all the|possible paths", 620, 90, 80, kind="hand")
+    txt(t, 136.98, "actual time|out of my|daily life", 760, 1000, 76, kind="hand", tilt=-3)
 
 
 def sc_twenty(t):
-    txt(t, 140.82, "could have spent $20", 700, 200, 70, kind="hand")
+    txt(t, 140.82, "could have|spent $20", 700, 200, 80, kind="hand")
     put(sprite("bill"), 700, 520 + wig(t, 0.7, 15), pop(t, 141.32) * 1.15, wig(t, 0.5, 5))
     if t >= 141.32:
         sparkles(t, [(400, 380), (1010, 400), (960, 690), (420, 700)], 30, GREEN)
@@ -1420,7 +1494,7 @@ def sc_twenty(t):
 
 def sc_smug(t):
     put(sprite("smug_arm"), 1150, 600, pop(t, 144.84) * 1.0, wig(t, 0.6, 3))
-    txt(t, 145.06, "an arm GR00T has already been trained on", 1050, 1010, 58, kind="hand")
+    txt(t, 145.06, "an arm|GR00T has|already been|trained on", 1150, 1010, 72, kind="hand")
     put(groot(t, mode="heart"), 1700, 760, pop(t, 145.72) * 0.45, wig(t, 1.3, 5))
     if t >= 146.12:
         d = D()
@@ -1433,7 +1507,7 @@ def sc_smug(t):
         hx, hy = tim_head(330, 1070, 0.6)
         ph = ((t - 147.0) % 0.8) / 0.8
         ell(D(), hx - 20, hy + 40 + 80 * ph, 9, 14, vrng("tear"), fill=LBLUE, w=3)
-    txt(t, 147.2, "...", 470, 640, 90)
+    txt(t, 147.2, "...", 470, 640, 90, label=True)
 
 
 SCENES = [
@@ -1475,7 +1549,9 @@ SWIPE = 0.28   # seconds for the swipe into a new scene
 def draw_scene(fn, t):
     global CAN
     CAN = Image.new("RGB", (W, H), (255, 255, 255))
+    PENDING.clear()
     fn(t)
+    flush_captions(t)
     return CAN
 
 
