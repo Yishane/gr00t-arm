@@ -8,6 +8,16 @@ including small fixes. Put the note in the same commit, not a later one.
 Yishane is switching to another agent session. This section is the whole current state; the
 sections below are older, chronological detail.
 
+### STATUS 2026-11-04 ~1 am (talk animation)
+- NEW talk/animation/: Michael-Reeves-ish doodle explainer for the talk's "how GR00T works /
+  why Timothy didn't" part (his script + 2:28 voice recording). anim.py draws everything in
+  code (wobbly MS Paint style, never shows drawing), Timothy = his real cut-out photo with
+  googly eyes, no plate. words.json (faster-whisper) times every scene. Output
+  timothy_explainer.mp4 (1080p30, renders in ~1 min). Media (mp4/m4a/png) is gitignored.
+- Talk facts checked: VLM looks every ~300 ms (8 of 16 steps at 30 Hz, call ~280 ms + read
+  ~50 ms); GR00T N1.7's VLM = Cosmos Reason 2; VLM frozen, action head fine-tuned.
+- Next: his feedback on the video (scene tweaks = edit SCENES/sc_* in anim.py, re-render).
+
 ### STATUS night (Nov 2, arm test with GR00T checkpoint-6000)
 - GR00T on the real arm is "really really close": goes to the ball/block but grips TOO CLOSE
   TO THE BASE (short) every time, just under/in front of the object.

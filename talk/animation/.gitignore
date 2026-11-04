@@ -1,0 +1,8 @@
+# big or personal media stays out of git
+*.mp4
+*.m4a
+*.wav
+timothy.png
+stills/
+.venv/
+__pycache__/
