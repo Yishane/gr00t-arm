@@ -819,7 +819,7 @@ def put(im, x, y, s=1.0, rot=0.0, pivot=(0.5, 0.5), alpha=1.0):
 
 
 def txt(t, t0, s, x, y, size=80, col=BLACK, kind="comic", stroke=0, tilt=0.0, scol=WHITE, rot=0.0):
-    p = pop(t, t0)
+    p = pop(t, t0, 0.08)
     if p:
         put(sprite("text", s, size, col, kind, stroke, scol, tilt), x, y, p, rot)
 
@@ -955,12 +955,12 @@ def sc_versus(t):
     if t >= 11.74:
         put(sprite("gradcap"), 450, 345, pop(t, 11.74), -14)
         sparkles(t, [(250, 380), (700, 330), (720, 720), (240, 760)])
-    txt(t, 11.9, "knows everything", 480, 870, 70, kind="hand", tilt=-2)
+    txt(t, 11.74, "knows everything", 480, 870, 70, kind="hand", tilt=-2)
     pc = pop(t, 13.1)
     put(cheese(t), 1430, 580, pc, wig(t, 0.9, 2, 1))
     txt(t, 13.28, "ACTION HEAD", 1430, 220, 100, tilt=2)
-    txt(t, 14.82, "about as intelligent", 1430, 870, 66, kind="hand", tilt=-2)
-    txt(t, 16.38, "as a block of cheese", 1430, 960, 66, RED, kind="hand", tilt=-2)
+    txt(t, 14.24, "about as intelligent", 1430, 870, 66, kind="hand", tilt=-2)
+    txt(t, 15.32, "as a block of cheese", 1430, 960, 66, RED, kind="hand", tilt=-2)
     if t >= 13.3:                       # a fly buzzing around the cheese
         a = t * 5
         fx, fy = 1430 + 260 * math.cos(a), 500 + 120 * math.sin(a * 1.3)
@@ -971,7 +971,7 @@ def sc_versus(t):
 
 
 def sc_fusion(t):
-    txt(t, 18.0, "how do they work together on Timothy?", 960, 100, 72, kind="hand", tilt=-1)
+    txt(t, 18.18, "how do the VLM and the block of cheese work together on Timothy?", 960, 100, 58, kind="hand", tilt=-1)
     u = ramp(t, 20.42, 21.0)
     if t < 21.0:
         j1 = thud(t, 18.92, 12, 8, 5)
@@ -1002,7 +1002,7 @@ def sc_timer(t):
     put(sprite("watch"), 700, 560, p * 1.05, wig(t, 1.2, 4))
     if p >= 1:
         clock_hands(700, 560 + 30 * 1.05, 1.05, t - 22.56, 2.0)
-    txt(t, 22.88, "every 300\nmilliseconds", 1360, 520, 120, RED, stroke=6, tilt=-5)
+    txt(t, 22.56, "every 300\nmilliseconds", 1360, 520, 120, RED, stroke=6, tilt=-5)
 
 
 def sc_look(t):
@@ -1018,9 +1018,9 @@ def sc_look(t):
                 x0, y0 = lerp(ex, 940, u0), lerp(ey, 420 + (i - 0.5) * 120, u0)
                 x1, y1 = lerp(ex, 940, u1), lerp(ey, 420 + (i - 0.5) * 120, u1)
                 line(d, [(x0, y0), (x1, y1)], vrng("beam", i, k), 8, col=YEL)
-    txt(t, 25.3, "takes a look at the scene", 700, 120, 64, kind="hand")
+    txt(t, 24.76, "takes a look at the scene", 700, 120, 64, kind="hand")
     put(sprite("prompt_box", "pick up the ball"), 1260, 820, pop(t, 25.92))
-    txt(t, 26.5, "reads my prompt", 1260, 960, 64, kind="hand", tilt=3)
+    txt(t, 25.92, "reads my prompt", 1260, 960, 64, kind="hand", tilt=3)
 
 
 BUM = "this unemployed bum wants the round thing in the cup"
@@ -1032,7 +1032,7 @@ def sc_whisper(t):
     cx = lerp(2300, 1480, ramp(t, 27.4, 27.85))
     put(cheese(t, [(-1, -0.4), (-1, 0.2)] if t < 31 else None), cx, 760, 0.9, wig(t, 0.8, 2))
     if t >= 29.16:
-        k = sum(1 for w in [29.58, 30.64, 31.52, 32.0, 32.46] if t >= w)
+        k = sum(1 for w in [29.16, 30.64, 31.32, 32.0, 32.34] if t >= w)
         u = ramp(t, 29.16, 29.45)
         put(sprite("note", k), lerp(420, 900, u), lerp(700, 330, u), lerp(0.2, 1.0, u), wig(t, 0.7, 2) - 2)
     txt(t, 31.0, "?", 1580, 520, 120, tilt=10)
@@ -1055,10 +1055,10 @@ def sc_think(t):
             u = ease((t - t0) / 0.7)
             x, y = lerp(hx, 960, u), lerp(hy, 620, u) - 200 * math.sin(math.pi * u)
             put(sprite("text", s, 64, col, "comic", 0, WHITE, 0.0), x, y, lerp(1, 0.3, u))
-    txt(t, 36.9, "Timothy's current\nservo angles", 330, 360, 56, kind="hand")
+    txt(t, 36.36, "Timothy's current\nservo angles", 330, 360, 56, kind="hand")
     if t >= 39.12:
         put(sprite("nn"), 960, 290, pop(t, 39.12) * 0.9, wig(t, 4, 4))
-        txt(t, 39.36, "uses a neural network", 960, 110, 60, kind="hand", tilt=-1)
+        txt(t, 38.56, "uses a neural network", 960, 110, 60, kind="hand", tilt=-1)
         sweat(t, 1240, 470, 2)
     if t >= 39.6:
         d = D()
@@ -1085,8 +1085,8 @@ def sc_moves(t):
             put(sprite("check", GREEN, 80), x + 10, y + 10, pop(t, 42.94 + 0.08 * i, 0.15))
         if i >= 8 and t >= 43.55:
             put(sprite("xmark", 90), x, y, pop(t, 43.55, 0.12), rot)
-    txt(t, 40.64, "the next 16 moves", 960, 450, 110, tilt=-2)
-    txt(t, 43.4, "Timothy does the first 8", 960, 570, 64, kind="hand", tilt=2)
+    txt(t, 40.2, "the next 16 moves", 960, 450, 110, tilt=-2)
+    txt(t, 42.02, "Timothy then does the first 8", 960, 570, 64, kind="hand", tilt=2)
     put(cheese(t), 1650, 930, 0.5, wig(t, 0.8, 3))
     if t >= 42.02:
         n = sum(1 for i in range(8) if t >= 42.94 + 0.08 * i)
@@ -1119,7 +1119,7 @@ def sc_nothing(t):
     proud = t >= 49.48
     put_tim(820, 1050, 1.08, rot, t, look=(0.2, -1) if proud else None)
     txt(t, 48.86, "absolutely", 600, 140, 80, kind="hand", tilt=-3)
-    txt(t, 49.4, "NOTHING", 600, 260, 140, RED, stroke=5, tilt=-3)
+    txt(t, 49.55, "NOTHING", 600, 260, 140, RED, stroke=5, tilt=-3)
     if t >= 49.48:
         sparkles(t, [(330, 220), (880, 170), (900, 330)])
 
@@ -1137,7 +1137,7 @@ def sc_supposed(t):
         hx, hy = tim_head(960, 1050, 0.95)
         put(sprite("halo"), hx, hy - 150, pop(t, 52.1))
         sparkles(t, [(620, 500), (1350, 380), (1380, 760), (560, 820)], 34)
-        txt(t, 52.7, "how Timothy was supposed to work", 960, 120, 76, kind="hand")
+        txt(t, 52.5, "how Timothy was supposed to work", 960, 120, 76, kind="hand")
     else:
         txt(t, 54.84, "why he didn't work", 960, 140, 130, RED, stroke=5, tilt=-3)
     if t >= 55.35 and not any(sh[0] == 55.35 for sh in SHAKES):
@@ -1158,7 +1158,7 @@ def sc_cosmos(t):
     txt(t, 59.24, "COSMOS REASON 2", 960, 75, 84, WHITE, stroke=6, scol=BLACK)
     put(sprite("trophy"), 1560, 600, pop(t, 60.78) * 0.95, wig(t, 0.9, 4))
     txt(t, 62.34, "#1", 380, 470, 220, GOLD, stroke=8, scol=BLACK, tilt=-6)
-    txt(t, 63.0, "the best reasoning VLM\nthat currently exists", 380, 700, 54, kind="hand")
+    txt(t, 61.96, "the best reasoning VLM\nthat currently exists", 380, 700, 54, kind="hand")
     confetti(t, 62.34)
 
 
@@ -1171,8 +1171,6 @@ def sc_data(t):
         x = 1350 + rng.uniform(-1, 1) * 380 * (1 - v)
         y = 950 - v * 520
         put(sprite("paper", i % 6), x, y, pop(t, 67.8 + 0.02 * i, 0.15) * 0.8, rng.uniform(-30, 30))
-    txt(t, 68.68, "a huge amount of", 1350, 180, 70, kind="hand")
-    txt(t, 68.9, "ROBOT DATA", 1350, 290, 96)
     if t >= 69.0:
         arrow(D(), (1000, 700), (720, 660), vrng("a1"), w=12)
 
@@ -1207,16 +1205,16 @@ def sc_ez(t):
     put(groot(t, (0, 0.5)), 960, 300, 0.65, wig(t, 0.7, 3))
     if t >= 70.3:
         put(sprite("shades"), 960 - 18, 300 - 80, pop(t, 70.3) * 0.62, -4)
-    txt(t, 70.56, "no problem", 1340, 230, 90, tilt=6)
+    txt(t, 70.3, "no problem", 1340, 230, 90, tilt=6)
     if t < 73.54:
-        txt(t, 71.96, "common issues:", 960, 640, 90, kind="hand", tilt=-2)
+        txt(t, 71.62, "the more common issues", 960, 640, 90, kind="hand", tilt=-2)
     for k, (t0, label) in enumerate([(73.54, "changing the background"), (74.84, "changing the lighting"),
-                                     (75.88, "changing the colour of the ball")]):
+                                     (76.08, "changing the colour of the ball")]):
         x = 360 + 600 * k
         p = pop(t, t0)
         if p:
             put(panel_img(k, t), x, 760, p * 0.95)
-            txt(t, t0 + 0.1, label, x, 1000, 44, kind="hand")
+            txt(t, t0, label, x, 1000, 44, kind="hand")
             if t >= t0 + 0.7:
                 put(sprite("check", GREEN, 120), x + 200, 620, pop(t, t0 + 0.7))
 
@@ -1242,20 +1240,20 @@ def sc_understand(t):
     if 82.86 <= t < 84.2:
         k = sum(1 for w in [82.86, 83.3, 83.44, 83.56, 83.76] if t >= w)
         put(sprite("prompt_box", "pick up the round thing", 820), 1150, 230, pop(t, 82.86))
-    elif t >= 84.2:
+    elif t >= 84.36:
         k = sum(1 for w in [84.36, 84.64, 84.84, 85.04] if t >= w)
-        put(sprite("prompt_box", "get that red one", 820), 1150, 230, pop(t, 84.2))
+        put(sprite("prompt_box", "get that red one", 820), 1150, 230, pop(t, 84.36))
     if t >= 83.9:
         arrow(D(), (600, 640), (1110, 760), vrng("a2"), w=10, col=TEAL)
         put(sprite("check", GREEN, 110), 1240, 640, pop(t, 83.95))
     if t >= 84.95:
         put(sprite("check", GREEN, 110), 1300, 650, pop(t, 84.95))
-    txt(t, 85.3, "it understands", 400, 300, 66, kind="hand", tilt=-5)
+    txt(t, 81.26, "it also understands", 400, 300, 66, kind="hand", tilt=-5)
 
 
 def sc_problem(t):
     put(sprite("warn"), 960, 470, pop(t, 86.32, 0.15) * 1.3, wig(t, 1.5, 4))
-    txt(t, 86.7, "here comes the problem", 960, 880, 120, BLACK, stroke=6, tilt=-2)
+    txt(t, 86.32, "here comes the problem", 960, 880, 120, BLACK, stroke=6, tilt=-2)
     if not any(sh[0] == 86.32 for sh in SHAKES):
         shake(86.32, 0.3, 14)
 
@@ -1272,7 +1270,7 @@ def sc_stranger(t):
         txt(t, 89.66, "never seen before", 960, 200, 70, kind="hand", tilt=-3)
     for i, (x, y, t0) in enumerate([(380, 230, 91.5), (640, 260, 91.8), (520, 160, 92.1), (300, 380, 92.4)]):
         txt(t, t0, "?", x, y, 120 + 20 * (i % 2), RED if i % 2 else BLACK, tilt=15 - i * 10)
-    txt(t, 92.04, "no idea how Timothy works", 600, 960, 80, tilt=-3)
+    txt(t, 91.7, "no idea how Timothy works", 600, 960, 80, tilt=-3)
 
 
 def sc_demos(t):
@@ -1310,9 +1308,9 @@ def sc_two(t):
 
 
 def sc_claude(t):
-    txt(t, 106.08, "the first", 960, 85, 90, RED, tilt=-2)
+    txt(t, 105.94, "the first", 960, 85, 90, RED, tilt=-2)
     put(claude(t, (1, 0.3) if t > 107.5 else None), 430, 560, pop(t, 106.76), wig(t, 0.5, 6))
-    txt(t, 106.9, "Claude", 430, 860, 76, ORANGE, kind="hand")
+    txt(t, 106.76, "Claude", 430, 860, 76, ORANGE, kind="hand")
     if t >= 107.54:
         k = min(8, 1 + int((t - 107.54) / 0.4))
         put(sprite("code_panel", k), 1290, 530, pop(t, 107.54) * 0.95)
@@ -1322,26 +1320,26 @@ def sc_claude(t):
             put(sprite("text", s, 54, [BLUE, RED, GREEN, PURPLE, BLACK, ORANGE][i], "comic", 0, WHITE, 0.0),
                 430 + 270 * math.cos(a), 560 + 185 * math.sin(a), pop(t, 108.12 + 0.07 * i))
     if t >= 110.94:
-        put(sprite("text", "GOOD DATA", 100, GREEN, "comic", 6, WHITE, -8.0), 1250, 920, pop(t, 110.94, 0.15))
+        put(sprite("text", "GOOD DATA", 100, GREEN, "comic", 6, WHITE, -8.0), 1250, 920, pop(t, 111.34, 0.1))
         put(sprite("check", GREEN, 110), 1620, 900, pop(t, 111.2))
         sparkles(t, [(900, 870), (1700, 990)], 30, GOLD)
 
 
 def sc_calibrate(t):
-    txt(t, 112.64, "the second", 960, 85, 90, RED, tilt=2)
+    txt(t, 112.54, "the second", 960, 85, 90, RED, tilt=2)
     put(me(t, tired=t >= 117.8), 430, 640, pop(t, 112.4) * 0.9)
     if t >= 114.16:
         sweat(t, 430, 470, 2)
         put(sprite("watch", True), 1520, 330, pop(t, 114.16) * 0.7, wig(t, 5, 4))
         clock_hands(1520, 330 + 30 * 0.7, 0.7, t - 114.16, 6.0)
     txt(t, 114.8, "2-3 HOURS", 900, 260, 120, RED, stroke=5, tilt=-4)
-    txt(t, 116.3, "on top of assembling Timothy", 900, 400, 66, kind="hand")
+    txt(t, 115.66, "on top of assembling Timothy", 900, 400, 66, kind="hand")
     jit = wig(t, 9, 3) if t >= 117.8 else 0
     put_tim(1450, 1060, pop(t, 116.5) * 0.6, jit, t)
     if t >= 117.8:
         put(sprite("protractor"), 1090, 860, pop(t, 117.8) * 0.9, wig(t, 1, 8))
         dots = "." * (1 + int((t - 117.8) * 3) % 3)
-        put(sprite("text", "calibrating" + dots, 62, BLACK, "hand", 0, WHITE, 0.0), 820, 990)
+        put(sprite("text", "calibrate" + dots, 62, BLACK, "hand", 0, WHITE, 0.0), 820, 990)
 
 
 def sc_ohwait(t):
@@ -1360,7 +1358,7 @@ def sc_record(t):
     put(sprite("text", f"demo #{min(cnt, 150)}", 74, BLACK, "comic", 0, WHITE, 0.0), 1600, 480)
     put(sprite("watch", True), 1690, 290, pop(t, 123.0) * 0.55, wig(t, 5, 4))
     clock_hands(1690, 290 + 30 * 0.55, 0.55, t - 123.0, 8.0)
-    txt(t, 125.04, "ANOTHER 2-3 HOURS", 900, 140, 100, RED, stroke=5, tilt=-2)
+    txt(t, 124.36, "ANOTHER 2-3 HOURS", 900, 140, 100, RED, stroke=5, tilt=-2)
     txt(t, 127.08, "recording the demos", 380, 990, 60, kind="hand", tilt=-4)
 
 
@@ -1406,23 +1404,23 @@ def sc_paths(t):
         put(me(t, tired=u > 0.5), lerp(x0, x1, f), lerp(y0, y1, f) - 90, 0.38, wig(t, 2, 5))
     else:
         put(me(t), 230, 470, pop(t, 129.88) * 0.55)
-    txt(t, 130.78, "all the possible paths:", 620, 90, 70, kind="hand")
-    txt(t, 138.42, "actual time out of my daily life", 760, 1000, 64, kind="hand", tilt=-3)
+    txt(t, 131.74, "all the possible paths", 620, 90, 70, kind="hand")
+    txt(t, 136.98, "actual time out of my daily life", 760, 1000, 64, kind="hand", tilt=-3)
 
 
 def sc_twenty(t):
-    txt(t, 140.68, "could have spent $20", 700, 200, 70, kind="hand")
+    txt(t, 140.82, "could have spent $20", 700, 200, 70, kind="hand")
     put(sprite("bill"), 700, 520 + wig(t, 0.7, 15), pop(t, 141.32) * 1.15, wig(t, 0.5, 5))
     if t >= 141.32:
         sparkles(t, [(400, 380), (1010, 400), (960, 690), (420, 700)], 30, GREEN)
     for i, (x, y) in enumerate([(1400, 330), (1560, 560), (1400, 790)]):
         put(sprite("servo"), x, y, pop(t, 142.74 + 0.1 * i) * 0.9, wig(t, 1.5, 6, i))
-    txt(t, 143.36, "better servos", 1500, 980, 66, kind="hand")
+    txt(t, 142.74, "better servos", 1500, 980, 66, kind="hand")
 
 
 def sc_smug(t):
     put(sprite("smug_arm"), 1150, 600, pop(t, 144.84) * 1.0, wig(t, 0.6, 3))
-    txt(t, 145.2, "an arm GR00T has already been trained on", 1050, 1010, 58, kind="hand")
+    txt(t, 145.06, "an arm GR00T has already been trained on", 1050, 1010, 58, kind="hand")
     put(groot(t, mode="heart"), 1700, 760, pop(t, 145.72) * 0.45, wig(t, 1.3, 5))
     if t >= 146.12:
         d = D()
